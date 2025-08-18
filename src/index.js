@@ -1,6 +1,6 @@
 import { env } from './config/env.js';
 import { app } from './app.js';
-import sequelize from './db/index.js';
+import sequelize, { initializeDatabase } from './db/index.js';
 import { initRedis } from './db/redis.js';
 import {
   initializeGrpcServices,
@@ -15,41 +15,21 @@ import { initializeCache, shutdownCache } from './cache/auth.cache.js';
 import { initializeServices } from './services/initializeServices.js';
 import { connectMongo } from './db/mongoose.js';
 
-// Simplified startup timing
-// ✅ Health Check Status
 let isHealthy = false;
 let startupComplete = false;
-// ✅ Graceful Shutdown Configuration
 const gracefulShutdownConfig = {
   timeout: 30000, // 30 seconds
-  forceTimeout: 10000, // 10 seconds
+  forceTimeout: 10000,
   signals: ['SIGINT', 'SIGTERM', 'SIGUSR2'],
 };
-// ✅ Startup Sequence with Comprehensive Error Handling
+
 async function initializeCoreServices() {
   console.log('🚀 DEBUG: Starting initializeCoreServices');
   const startupSteps = [
     {
       name: 'Database Connection',
       fn: async () => {
-        try {
-          await sequelize.authenticate();
-          safeLogger.info('✅ Database connection successful');
-          // Skip sync in development to avoid schema issues
-          if (process.env.NODE_ENV === 'production') {
-            await sequelize.sync({ force: false });
-            safeLogger.info('✅ Database schema synced');
-          } else {
-            safeLogger.info('🔧 Development mode - skipping schema sync');
-          }
-        } catch (error) {
-          safeLogger.warn('⚠️ Database connection failed, continuing in development mode', {
-            error: error.message,
-          });
-          if (process.env.NODE_ENV === 'production') {
-            throw error;
-          }
-        }
+        await initializeDatabase();
       },
     },
     {
@@ -85,16 +65,13 @@ async function initializeCoreServices() {
       },
     },
   ];
-  
+
   for (const step of startupSteps) {
     try {
-      console.log(`🔍 DEBUG: Starting step: ${step.name}`);
       safeLogger.info(`🔄 Initializing ${step.name}...`);
       await step.fn();
-      console.log(`✅ DEBUG: Step completed: ${step.name}`);
       safeLogger.info(`✅ ${step.name} completed successfully`);
     } catch (error) {
-      console.log(`❌ DEBUG: Step failed: ${step.name} - ${error.message}`);
       safeLogger.error(`❌ Failed to initialize ${step.name}`, {
         error: error.message,
         step: step.name,
@@ -114,25 +91,23 @@ async function startServer() {
       arch: process.arch,
       pid: process.pid,
     });
-    // ✅ Initialize all services (cache warming, metrics, etc.)
     await initializeCoreServices();
-    
-    // ✅ Create HTTP server with enhanced configuration - FIXED: No more IIFE!
+
     console.log('🔍 DEBUG: Starting HTTP server on port', env.server.port);
     const server = app.listen(env.server.port, () => {
       startupComplete = true;
       isHealthy = true;
-                safeLogger.info('⚙️ Server is running successfully', {
-            port: env.server.port,
-            uptime: process.uptime(),
-            environment: env.NODE_ENV,
-            version: process.env.npm_package_version || '1.0.0',
-          });
+      safeLogger.info('⚙️ Server is running successfully', {
+        port: env.server.port,
+        uptime: process.uptime(),
+        environment: env.NODE_ENV,
+        version: process.env.npm_package_version || '1.0.0',
+      });
       console.log('✅ DEBUG: HTTP server callback executed successfully');
     });
-    
+
     console.log('🔍 DEBUG: HTTP server created, setting up event handlers');
-    
+
     // ✅ Server Event Handlers
     server.on('error', error => {
       console.log('❌ DEBUG: Server error event triggered:', error.message);
@@ -142,23 +117,12 @@ async function startServer() {
         stack: error.stack,
       });
     });
-    
-    server.on('connection', socket => {
-      const activeConnections = server.connections || 0;
-      app.set('activeConnections', activeConnections);
-      safeLogger.debug('New connection established', {
-        remoteAddress: socket.remoteAddress,
-        remotePort: socket.remotePort,
-        activeConnections,
-      });
-    });
-    
+
     // ✅ Enhanced Graceful Shutdown
     const gracefulShutdown = async signal => {
       safeLogger.info(`🔻 Graceful shutdown initiated by ${signal}`, {
         signal,
         uptime: process.uptime(),
-        memory: process.memoryUsage(),
       });
       isHealthy = false;
       startupComplete = false;
@@ -176,9 +140,7 @@ async function startServer() {
             name: 'Stop accepting new connections',
             fn: () => {
               server.close();
-              safeLogger.info(
-                '✅ Server stopped accepting new connections'
-              );
+              safeLogger.info('✅ Server stopped accepting new connections');
             },
           },
           {
@@ -213,9 +175,7 @@ async function startServer() {
           {
             name: 'Close MongoDB Connection',
             fn: async () => {
-              const { default: mongoose } = await import(
-                './db/mongoose.js'
-              );
+              const { default: mongoose } = await import('./db/mongoose.js');
               await mongoose.connection.close();
               safeLogger.info('✅ MongoDB connection closed');
             },
@@ -252,12 +212,12 @@ async function startServer() {
         process.exit(1);
       }
     };
-    
+
     // ✅ Signal Handlers
     gracefulShutdownConfig.signals.forEach(signal => {
       process.on(signal, () => gracefulShutdown(signal));
     });
-    
+
     // ✅ Health Monitoring
     setInterval(() => {
       const memUsage = process.memoryUsage();
@@ -289,7 +249,7 @@ async function startServer() {
         startupComplete,
       });
     }, 300000); // Every 5 minutes
-    
+
     // ✅ Process Monitoring
     process.on('warning', warning => {
       safeLogger.warn('Process warning', {
@@ -298,7 +258,7 @@ async function startServer() {
         stack: warning.stack,
       });
     });
-    
+
     // ✅ Uncaught Exception with Enhanced Logging
     process.on('uncaughtException', err => {
       safeLogger.error('Uncaught Exception', {
@@ -312,7 +272,7 @@ async function startServer() {
       });
       gracefulShutdown('uncaughtException');
     });
-    
+
     // ✅ Unhandled Rejection with Enhanced Logging
     process.on('unhandledRejection', (reason, promise) => {
       safeLogger.error('Unhandled Rejection', {
@@ -326,10 +286,9 @@ async function startServer() {
       });
       gracefulShutdown('unhandledRejection');
     });
-    
+
     console.log('✅ DEBUG: HTTP server setup completed successfully');
     return server;
-    
   } catch (err) {
     safeLogger.error('❌ Startup failed', {
       message: err.message,

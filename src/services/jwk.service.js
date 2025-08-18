@@ -15,6 +15,8 @@ import { safeLogger } from '../config/logger.js';
 import { env } from '../config/env.js';
 import { generalCache } from '../cache/general.cache.js';
 import { publishEvent } from '../events/index.js';
+import { v4 as uuidv4 } from 'uuid';
+import * as jose from 'jose';
 
 class JWKService {
   // Configuration constants
@@ -44,39 +46,43 @@ class JWKService {
 
       // Generate RSA key pair
       safeLogger.info('Generating RSA key pair...');
-      const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', {
+      const { publicKey, privateKey } = await jose.generateKeyPair('RS256', {
         modulusLength: JWKService.RSA_KEY_SIZE,
-        publicKeyEncoding: {
-          type: 'spki',
-          format: 'pem',
-        },
-        privateKeyEncoding: {
-          type: 'pkcs8',
-          format: 'pem',
-        },
       });
       safeLogger.info('RSA key pair generated successfully');
 
-      // TODO: Replace mock values with actual PEM to JWK conversion
-      // Current mock values for testing - implement pemToJwk() method for production
+      const publicKeyJwk = await jose.exportJWK(publicKey);
+      const privateKeyJwk = await jose.exportJWK(privateKey);
+
       const jwk = {
-        kty: 'RSA',
-        use: 'sig',
+        ...publicKeyJwk,
         kid: keyId,
         alg: JWKService.JWT_ALGORITHM,
-        n: 'mock-n-value-for-testing',
-        e: 'AQAB',
       };
-      safeLogger.info('JWK object created', { jwk });
+
+      const privateJwk = {
+        ...privateKeyJwk,
+        kid: keyId,
+        alg: JWKService.JWT_ALGORITHM,
+      };
+
+      safeLogger.info('JWK objects created', {
+        kid: keyId,
+        kty: jwk.kty,
+        hasN: !!jwk.n,
+        hasE: !!jwk.e,
+      });
 
       const keyPair = {
         kid: keyId,
         publicKey,
         privateKey,
         jwk,
+        privateJwk,
         createdAt: new Date(),
         expiresAt: new Date(Date.now() + this.keyRotationInterval),
       };
+
       safeLogger.info('Key pair object created', {
         kid: keyPair.kid,
         hasJwk: !!keyPair.jwk,
@@ -535,37 +541,11 @@ class JWKService {
   }
 
   /**
-   * Convert PEM to JWK
-   * @param {string} pem - PEM encoded public key
-   * @param {string} kid - Key ID
-   * @returns {Object} JWK
-   */
-  pemToJwk(pem, kid) {
-    try {
-      const publicKey = crypto.createPublicKey(pem);
-      const jwk = publicKey.export({ format: 'jwk' });
-      return {
-        kty: jwk.kty,
-        use: 'sig',
-        kid,
-        alg: 'RS256',
-        n: jwk.n,
-        e: jwk.e,
-      };
-    } catch (error) {
-      safeLogger.error('Failed to convert PEM to JWK', {
-        error: error.message,
-        kid,
-      });
-      throw error;
-    }
-  }
-  /**
    * Generate key ID
    * @returns {string} Key ID
    */
   generateKeyId() {
-    return crypto.randomBytes(16).toString('hex');
+    return `jwk-${uuidv4()}`;
   }
   /**
    * Initialize JWK service

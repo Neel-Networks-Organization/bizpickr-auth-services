@@ -15,7 +15,7 @@ import {
   enterpriseSecurityMiddleware,
   enterpriseValidationMiddleware,
   enterpriseErrorHandler,
-  enterpriseAuthMiddleware
+  enterpriseAuthMiddleware,
 } from './middlewares/enterprise.middleware.js';
 import {
   checkDb,
@@ -33,10 +33,12 @@ const __dirname = path.dirname(__filename);
 app.use(helmet());
 
 // ✅ Simple CORS
-app.use(cors({
-  origin: allowedOrigins,
-  credentials: true
-}));
+app.use(
+  cors({
+    origin: allowedOrigins,
+    credentials: true,
+  })
+);
 
 // ✅ Basic Compression
 app.use(compression());
@@ -51,9 +53,10 @@ app.use(cookieParser());
 // ✅ Enterprise Middlewares (Essential for SaaS)
 app.use(correlationIdMiddleware);
 app.use(enterpriseLoggingMiddleware);
-app.use(enterpriseRateLimit(100, 15 * 60 * 1000)); // 100 requests per 15 minutes
+app.use(enterpriseRateLimit(100, 15 * 60 * 1000));
 app.use(enterpriseSecurityMiddleware);
 app.use(enterpriseValidationMiddleware);
+
 // ✅ Static Files with Security
 app.use(
   '/public',
@@ -67,7 +70,7 @@ app.use(
       }
       res.setHeader('X-Content-Type-Options', 'nosniff');
     },
-  }),
+  })
 );
 // ✅ API Routes
 import authRoutes from './routes/auth.route.js';
@@ -83,7 +86,6 @@ app.use('/api/v1/users', userRoutes);
 app.use('/api/v1/sessions', sessionRoutes);
 app.use('/api/v1/password', passwordRoutes);
 app.use('/api/v1/jwk', jwkRoutes);
-app.use('/api/v1/metrics', metricsRoutes);
 
 // ✅ Health Check Routes
 import healthRoutes from './routes/health.route.js';
@@ -101,7 +103,7 @@ app.use((req, res) => {
   res.status(404).json({
     error: 'Route not found',
     message: `Cannot ${req.method} ${req.url}`,
-    correlationId: req.correlationId
+    correlationId: req.correlationId,
   });
 });
 

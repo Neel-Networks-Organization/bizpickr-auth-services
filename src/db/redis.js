@@ -43,76 +43,7 @@ const maxReconnectAttempts = redisConfig.maxReconnectAttempts;
  * Initialize Redis connection with enhanced error handling
  * @returns {Promise<Redis>} Redis client instance
  */
-// export async function initRedis() {
-//   return new Promise((resolve, reject) => {
-//     let timeout = setTimeout(() => {
-//       safeLogger.error(
-//         "Redis connection timeout (10s): Unable to connect to Redis server"
-//       );
-//       reject(
-//         new ApiError(504, "Redis connection timeout", [
-//           "Redis did not become ready within 10 seconds",
-//           "Please check Redis server status and network connectivity",
-//         ])
-//       );
-//     }, 10000); // 10 seconds
 
-//     if (redis && redis.status === "ready") {
-//       clearTimeout(timeout);
-//       safeLogger.info("Redis client already initialized and ready");
-//       return resolve(redis);
-//     }
-
-//     try {
-//       // Validate Redis configuration
-//       validateRedisConfig();
-
-//       const connectionOptions = getRedisConnectionOptions();
-//       const retryStrategy = getRedisRetryStrategy();
-
-//       safeLogger.info("Initializing Redis connection", {
-//         host: redisConfig.host,
-//         port: redisConfig.port,
-//         db: redisConfig.db,
-//         cluster: redisConfig.cluster.enabled,
-//         sentinel: redisConfig.sentinel.enabled,
-//       });
-
-//       redis = new Redis({
-//         ...connectionOptions,
-//         retryStrategy,
-//       });
-
-//       // Set up event listeners
-//       setupRedisEventListeners(
-//         (client) => {
-//           clearTimeout(timeout);
-//           resolve(client);
-//         },
-//         (err) => {
-//           clearTimeout(timeout);
-//           reject(err);
-//         }
-//       );
-//     } catch (error) {
-//       clearTimeout(timeout);
-//       safeLogger.error("Failed to create Redis client", {
-//         error: error.message,
-//         stack: error.stack,
-//         config: {
-//           host: redisConfig.host,
-//           port: redisConfig.port,
-//         },
-//       });
-//       reject(
-//         new ApiError(503, "Redis client creation failed", [
-//           "Unable to create Redis client",
-//           "Please check Redis configuration and network connectivity",
-//         ])
-//       );
-//     }
-//   });
-// }
 export async function initRedis() {
   return new Promise((resolve, reject) => {
     let timeout = setTimeout(() => {

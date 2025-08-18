@@ -37,7 +37,7 @@ const sequelize = new Sequelize(
   {
     ...getDatabaseConnectionOptions(),
     logging: false, // Disable database logging in development
-  },
+  }
 );
 /**
  * Initialize database connection with enhanced error handling
@@ -51,32 +51,24 @@ export async function initializeDatabase() {
     const connectionOptions = getDatabaseConnectionOptions();
     const { mysql } = databaseConfig;
 
-    safeLogger.info('Initializing database connection', {
-      host: mysql.host,
-      port: mysql.port,
-      database: mysql.database,
-      username: mysql.username,
-      poolSize: `${mysql.pool.min}-${mysql.pool.max}`,
-    });
-
     // Timeout logic for DB connection
     const dbTimeoutMs = 10000;
     const dbTimeoutPromise = new Promise((_, reject) =>
       setTimeout(() => {
         safeLogger.error(
-          'Database connection timeout (10s): Unable to connect to DB',
+          'Database connection timeout (10s): Unable to connect to DB'
         );
         reject(
           new ApiError(504, 'Database connection timeout', [
             'Database did not become ready within 10 seconds',
             'Please check DB server status and network connectivity',
-          ]),
+          ])
         );
-      }, dbTimeoutMs),
+      }, dbTimeoutMs)
     );
     // Test connection with timeout
     await Promise.race([sequelize.authenticate(), dbTimeoutPromise]);
-    await sequelize.sync({ force: false });
+    await sequelize.sync({ force: true });
     safeLogger.info('Database connection established successfully', {
       dialect: mysql.dialect,
       database: mysql.database,
@@ -104,47 +96,41 @@ export async function initializeDatabase() {
  * Setup database event listeners for monitoring
  */
 function setupDatabaseEventListeners() {
-  // Connection pool events
-  sequelize.connectionManager.on('connect', connection => {
+  // Use Sequelize hooks instead of connectionManager events
+  sequelize.addHook('afterConnect', connection => {
     dbMetrics.totalConnections++;
     dbMetrics.activeConnections++;
     safeLogger.debug('Database connection established', {
-      connectionId: connection.threadId,
+      connectionId: connection.threadId || connection.id,
       activeConnections: dbMetrics.activeConnections,
     });
   });
-  sequelize.connectionManager.on('disconnect', connection => {
+
+  sequelize.addHook('beforeDisconnect', connection => {
     dbMetrics.activeConnections = Math.max(0, dbMetrics.activeConnections - 1);
     safeLogger.debug('Database connection closed', {
-      connectionId: connection.threadId,
+      connectionId: connection.threadId || connection.id,
       activeConnections: dbMetrics.activeConnections,
     });
   });
-  // Query events
+
+  // Query events (these work fine)
   sequelize.beforeQuery(options => {
     dbMetrics.queryCount++;
     options.startTime = Date.now();
   });
+
   sequelize.afterQuery(options => {
-    const queryTime = Date.now() - options.startTime;
-    if (queryTime > 1000) {
-      // Log slow queries (>1s)
-      dbMetrics.slowQueries++;
-      safeLogger.warn('Slow database query detected', {
-        query: options.sql,
-        time: `${queryTime}ms`,
-        slowQueries: dbMetrics.slowQueries,
-      });
+    if (options.startTime) {
+      const duration = Date.now() - options.startTime;
+      dbMetrics.totalQueryTime += duration;
+      dbMetrics.averageQueryTime =
+        dbMetrics.totalQueryTime / dbMetrics.queryCount;
+
+      if (duration > dbMetrics.slowestQuery) {
+        dbMetrics.slowestQuery = duration;
+      }
     }
-  });
-  // Error events
-  sequelize.connectionManager.on('error', error => {
-    dbMetrics.connectionErrors++;
-    safeLogger.error('Database connection error', {
-      error: error.message,
-      stack: error.stack,
-      connectionErrors: dbMetrics.connectionErrors,
-    });
   });
 }
 /**
@@ -152,7 +138,7 @@ function setupDatabaseEventListeners() {
  */
 function startHealthMonitoring() {
   // Health check interval
-  setInterval(async() => {
+  setInterval(async () => {
     try {
       await sequelize.authenticate();
       dbMetrics.lastHealthCheck = new Date().toISOString();
@@ -187,11 +173,11 @@ export function getDatabaseHealth() {
     metrics: { ...dbMetrics },
     pool: sequelize.connectionManager.pool
       ? {
-        size: sequelize.connectionManager.pool.size,
-        available: sequelize.connectionManager.pool.available,
-        pending: sequelize.connectionManager.pool.pending.length,
-        using: sequelize.connectionManager.pool.using.length,
-      }
+          size: sequelize.connectionManager.pool.size,
+          available: sequelize.connectionManager.pool.available,
+          pending: sequelize.connectionManager.pool.pending.length,
+          using: sequelize.connectionManager.pool.using.length,
+        }
       : null,
     lastHealthCheck: dbMetrics.lastHealthCheck,
   };
@@ -286,7 +272,7 @@ function isRetryableError(error) {
   ];
   return retryableErrors.some(
     retryableError =>
-      error.message.includes(retryableError) || error.code === retryableError,
+      error.message.includes(retryableError) || error.code === retryableError
   );
 }
 /**
@@ -307,12 +293,12 @@ export function getDatabaseMetrics() {
   };
 }
 // Graceful shutdown handling
-process.on('SIGTERM', async() => {
+process.on('SIGTERM', async () => {
   safeLogger.info('Received SIGTERM, closing database connection');
   await closeDatabase();
   process.exit(0);
 });
-process.on('SIGINT', async() => {
+process.on('SIGINT', async () => {
   safeLogger.info('Received SIGINT, closing database connection');
   await closeDatabase();
   process.exit(0);

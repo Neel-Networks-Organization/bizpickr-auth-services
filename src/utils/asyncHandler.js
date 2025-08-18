@@ -23,7 +23,6 @@ const asyncHandler = (requestHandler, options = {}) => {
   const {
     enableTiming = true,
     enableLogging = true,
-    enableValidation = false,
     timeout = 30000, // 30 seconds default
     retryAttempts = 0,
     errorTransformer = null,
@@ -65,14 +64,7 @@ const asyncHandler = (requestHandler, options = {}) => {
         });
       }
     }
-    // Request validation
-    if (enableValidation) {
-      try {
-        await validateRequest(req);
-      } catch (error) {
-        return next(new ApiError(400, 'Invalid request', [error.message]));
-      }
-    }
+
     // Set timeout
     if (timeout > 0) {
       timeoutId = setTimeout(() => {
@@ -175,42 +167,7 @@ const asyncHandler = (requestHandler, options = {}) => {
     next(lastError);
   };
 };
-// Request validation helper
-const validateRequest = async req => {
-  const errors = [];
-  // Basic request validation
-  if (!req.method) {
-    errors.push('Request method is required');
-  }
-  if (!req.url && !req.originalUrl) {
-    errors.push('Request URL is required');
-  }
-  // Content-Type validation for POST/PUT/PATCH
-  if (['POST', 'PUT', 'PATCH'].includes(req.method)) {
-    const contentType = req.headers['content-type'];
-    if (!contentType) {
-      errors.push('Content-Type header is required for this request');
-    } else if (
-      !contentType.includes('application/json') &&
-      !contentType.includes('multipart/form-data')
-    ) {
-      errors.push(
-        'Content-Type must be application/json or multipart/form-data',
-      );
-    }
-  }
-  // Body size validation
-  if (req.body && typeof req.body === 'object') {
-    const bodySize = JSON.stringify(req.body).length;
-    if (bodySize > 10 * 1024 * 1024) {
-      // 10MB limit
-      errors.push('Request body too large (max 10MB)');
-    }
-  }
-  if (errors.length > 0) {
-    throw new Error(errors.join('; '));
-  }
-};
+
 // Cleanup helper
 const cleanup = requestId => {
   activeRequests.delete(requestId);

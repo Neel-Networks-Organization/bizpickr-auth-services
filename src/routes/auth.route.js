@@ -27,20 +27,9 @@ import {
 } from '../controllers/auth.controller.js';
 import {
   verifyJWT,
-  validateRequest,
   rateLimiter,
-  validateRecaptcha,
-  validateDevice,
   auditLog,
 } from '../middlewares/auth.middleware.js';
-import { validateSignup, validateLogin } from '../validators/authValidators.js';
-import {
-  signupSchemas,
-  emailVerificationSchema,
-  twoFactorVerificationSchema,
-  twoFactorDisableSchema,
-  commonLoginSchema,
-} from '../validators/validation.js';
 
 import { asyncHandler } from '../utils/asyncHandler.js';
 
@@ -49,8 +38,6 @@ const router = Router();
 // User Registration & Authentication
 router.route('/signup').post(
   rateLimiter('signup', { windowMs: 15 * 60 * 1000, max: 5 }),
-  // validateRecaptcha,
-  validateRequest(signupSchemas),
   auditLog('user_signup'),
   asyncHandler(signupUser, {
     enableTiming: true,
@@ -62,8 +49,6 @@ router.route('/signup').post(
 
 router.route('/login').post(
   rateLimiter('login', { windowMs: 15 * 60 * 1000, max: 10 }),
-  validateRequest(commonLoginSchema),
-  validateDevice,
   auditLog('user_login'),
   asyncHandler(loginUser, {
     enableTiming: true,
@@ -119,7 +104,6 @@ router.route('/me').get(
 // Email Verification Routes
 router.route('/verify-email').post(
   rateLimiter('email_verify', { windowMs: 15 * 60 * 1000, max: 5 }),
-  validateRequest(emailVerificationSchema),
   auditLog('email_verification'),
   asyncHandler(verifyEmail, {
     enableTiming: true,
@@ -157,7 +141,6 @@ router.route('/2fa/enable').post(
 router.route('/2fa/disable').post(
   verifyJWT,
   rateLimiter('2fa', { windowMs: 15 * 60 * 1000, max: 5 }),
-  validateRequest(twoFactorDisableSchema),
   auditLog('2fa_disable'),
   asyncHandler(disableTwoFactor, {
     enableTiming: true,
@@ -169,7 +152,6 @@ router.route('/2fa/disable').post(
 
 router.route('/2fa/verify').post(
   rateLimiter('2fa_verify', { windowMs: 5 * 60 * 1000, max: 10 }),
-  validateRequest(twoFactorVerificationSchema),
   auditLog('2fa_verification'),
   asyncHandler(verifyTwoFactor, {
     enableTiming: true,
