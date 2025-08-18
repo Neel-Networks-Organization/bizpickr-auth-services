@@ -1,0 +1,105 @@
+version: '3.8'
+
+services:
+  # MySQL Database
+  mysql:
+    image: mysql:8.0
+    container_name: brizpickr_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: brizpickr_dev
+      MYSQL_USER: root
+      MYSQL_PASSWORD: password
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./migrations:/docker-entrypoint-initdb.d
+    networks:
+      - brizpickr_network
+
+  # MongoDB Database
+  mongodb:
+    image: mongo:6.0
+    container_name: brizpickr_mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: password
+      MONGO_INITDB_DATABASE: brizpickr_dev
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - brizpickr_network
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: brizpickr_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - brizpickr_network
+
+  # RabbitMQ Message Broker
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: brizpickr_rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: password
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - brizpickr_network
+
+  # Auth Service (Development)
+  auth-service:
+    build: .
+    container_name: brizpickr_auth_service
+    restart: unless-stopped
+    environment:
+      NODE_ENV: development
+      PORT: 3001
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_NAME: brizpickr_dev
+      DB_USER: root
+      DB_PASSWORD: password
+      MONGODB_URI: mongodb://root:password@mongodb:27017/brizpickr_dev?authSource=admin
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      JWT_SECRET: dev-secret-key-change-in-production
+      REFRESH_TOKEN_SECRET: dev-refresh-secret-key-change-in-production
+    ports:
+      - "3001:3001"
+    depends_on:
+      - mysql
+      - mongodb
+      - redis
+      - rabbitmq
+    volumes:
+      - ./src:/app/src
+      - ./logs:/app/logs
+    networks:
+      - brizpickr_network
+
+volumes:
+  mysql_data:
+  mongodb_data:
+  redis_data:
+  rabbitmq_data:
+
+networks:
+  brizpickr_network:
+    driver: bridge 

@@ -1,0 +1,218 @@
+syntax = "proto3";
+
+package authPackage;
+
+import "google/protobuf/timestamp.proto";
+import "google/rpc/status.proto";
+
+/**
+ * Authentication Service
+ * 
+ * Provides authentication and authorization functionality including:
+ * - User login and registration
+ * - Token validation and management
+ * - Session management
+ * - Security features
+ */
+service AuthService {
+  /**
+   * Authenticate user with email and password
+   * Returns JWT token and user information
+   */
+  rpc Login(LoginRequest) returns (LoginResponse);
+  
+  /**
+   * Register new user account
+   * Creates user profile and returns user ID
+   */
+  rpc Register(RegisterRequest) returns (RegisterResponse);
+  
+  /**
+   * Validate JWT token
+   * Returns token validity and user information
+   */
+  rpc ValidateToken(TokenRequest) returns (TokenResponse);
+  
+  /**
+   * Refresh JWT token
+   * Generates new token with extended expiration
+   */
+  rpc RefreshToken(RefreshTokenRequest) returns (RefreshTokenResponse);
+  
+  /**
+   * Logout user
+   * Invalidates current session and token
+   */
+  rpc Logout(LogoutRequest) returns (LogoutResponse);
+  
+  /**
+   * Get user session information
+   * Returns current session details
+   */
+  rpc GetSession(SessionRequest) returns (SessionResponse);
+  
+  /**
+   * Health check endpoint
+   * Returns service health status
+   */
+  rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse);
+}
+
+// Login request with enhanced validation
+message LoginRequest {
+  string email = 1;                    // User email address (required)
+  string password = 2;                 // User password (required)
+  string device_id = 3;                // Device identifier for session tracking
+  string ip_address = 4;               // Client IP address for security
+  string user_agent = 5;               // User agent string
+  map<string, string> metadata = 6;    // Additional metadata
+  google.protobuf.Timestamp timestamp = 7; // Request timestamp
+}
+
+// Login response with comprehensive user data
+message LoginResponse {
+  string token = 1;                    // JWT access token
+  string refresh_token = 2;            // JWT refresh token
+  string user_id = 3;                  // User unique identifier
+  string email = 4;                    // User email address
+  string name = 5;                     // User display name
+  UserRole role = 6;                   // User role/permissions
+  UserStatus status = 7;               // User account status
+  google.protobuf.Timestamp expires_at = 8; // Token expiration time
+  SessionInfo session = 9;             // Session information
+  google.rpc.Status error = 10;        // Error details if any
+}
+
+// Registration request with validation
+message RegisterRequest {
+  string email = 1;                    // User email address (required)
+  string password = 2;                 // User password (required, min 8 chars)
+  string name = 3;                     // User display name (required)
+  string phone_number = 4;             // User phone number (optional)
+  UserRole role = 5;                   // User role (default: USER)
+  map<string, string> metadata = 6;    // Additional user metadata
+  google.protobuf.Timestamp timestamp = 7; // Registration timestamp
+}
+
+// Registration response
+message RegisterResponse {
+  string user_id = 1;                  // Generated user ID
+  string email = 2;                    // User email address
+  string name = 3;                     // User display name
+  UserStatus status = 4;               // User account status
+  google.protobuf.Timestamp created_at = 5; // Account creation time
+  google.rpc.Status error = 6;         // Error details if any
+}
+
+// Token validation request
+message TokenRequest {
+  string token = 1;                    // JWT token to validate
+  string device_id = 2;                // Device identifier (optional)
+  map<string, string> metadata = 3;    // Additional metadata
+}
+
+// Token validation response
+message TokenResponse {
+  bool valid = 1;                      // Token validity status
+  string user_id = 2;                  // User ID from token
+  string email = 3;                    // User email from token
+  UserRole role = 4;                   // User role from token
+  UserStatus status = 5;               // User status
+  google.protobuf.Timestamp issued_at = 6; // Token issue time
+  google.protobuf.Timestamp expires_at = 7; // Token expiration time
+  map<string, string> claims = 8;      // Additional token claims
+  google.rpc.Status error = 9;         // Error details if any
+}
+
+// Token refresh request
+message RefreshTokenRequest {
+  string refresh_token = 1;            // Refresh token
+  string device_id = 2;                // Device identifier
+  map<string, string> metadata = 3;    // Additional metadata
+}
+
+// Token refresh response
+message RefreshTokenResponse {
+  string access_token = 1;             // New access token
+  string refresh_token = 2;            // New refresh token
+  google.protobuf.Timestamp expires_at = 3; // New token expiration
+  google.rpc.Status error = 4;         // Error details if any
+}
+
+// Logout request
+message LogoutRequest {
+  string token = 1;                    // Token to invalidate
+  string device_id = 2;                // Device identifier
+  bool all_sessions = 3;               // Logout from all sessions
+  map<string, string> metadata = 4;    // Additional metadata
+}
+
+// Logout response
+message LogoutResponse {
+  bool success = 1;                    // Logout success status
+  int32 sessions_terminated = 2;       // Number of sessions terminated
+  google.rpc.Status error = 3;         // Error details if any
+}
+
+// Session information request
+message SessionRequest {
+  string user_id = 1;                  // User ID
+  string device_id = 2;                // Device identifier (optional)
+  map<string, string> metadata = 3;    // Additional metadata
+}
+
+// Session information response
+message SessionResponse {
+  repeated SessionInfo sessions = 1;   // List of active sessions
+  int32 total_sessions = 2;            // Total number of sessions
+  google.rpc.Status error = 3;         // Error details if any
+}
+
+// Health check request
+message HealthCheckRequest {
+  string service_name = 1;             // Service name to check
+  map<string, string> metadata = 2;    // Additional metadata
+}
+
+// Health check response
+message HealthCheckResponse {
+  string status = 1;                   // Service status (OK, ERROR, UNKNOWN)
+  string version = 2;                  // Service version
+  google.protobuf.Timestamp timestamp = 3; // Health check timestamp
+  map<string, string> details = 4;     // Additional health details
+  google.rpc.Status error = 5;         // Error details if any
+}
+
+// Session information
+message SessionInfo {
+  string session_id = 1;               // Unique session identifier
+  string device_id = 2;                // Device identifier
+  string ip_address = 3;               // Client IP address
+  string user_agent = 4;               // User agent string
+  google.protobuf.Timestamp created_at = 5; // Session creation time
+  google.protobuf.Timestamp last_activity = 6; // Last activity time
+  google.protobuf.Timestamp expires_at = 7; // Session expiration time
+  bool is_active = 8;                  // Session active status
+  map<string, string> metadata = 9;    // Additional session metadata
+}
+
+// User roles enumeration
+enum UserRole {
+  UNKNOWN_ROLE = 0;                    // Unknown role
+  USER = 1;                            // Regular user
+  ADMIN = 2;                           // Administrator
+  MODERATOR = 3;                       // Moderator
+  GUEST = 4;                           // Guest user
+  SYSTEM = 5;                          // System user
+}
+
+// User status enumeration
+enum UserStatus {
+  UNKNOWN_STATUS = 0;                  // Unknown status
+  ACTIVE = 1;                          // Active user
+  INACTIVE = 2;                        // Inactive user
+  SUSPENDED = 3;                       // Suspended user
+  PENDING_VERIFICATION = 4;            // Pending email verification
+  DELETED = 5;                         // Deleted user
+  BANNED = 6;                          // Banned user
+}

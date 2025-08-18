@@ -1,0 +1,260 @@
+syntax = "proto3";
+
+package userPackage;
+
+import "google/protobuf/timestamp.proto";
+import "google/rpc/status.proto";
+
+/**
+ * User Management Service
+ * 
+ * Provides user profile management functionality including:
+ * - User profile creation and management
+ * - User data retrieval and updates
+ * - User role and permission management
+ * - User status tracking
+ */
+service UserService {
+  /**
+   * Create new user profile
+   * Creates comprehensive user profile with validation
+   */
+  rpc CreateProfile(CreateProfileRequest) returns (CreateProfileResponse);
+  
+  /**
+   * Get user by ID
+   * Retrieves user profile information
+   */
+  rpc GetUserById(GetUserRequest) returns (GetUserResponse);
+  
+  /**
+   * Update user profile
+   * Updates existing user profile information
+   */
+  rpc UpdateProfile(UpdateProfileRequest) returns (UpdateProfileResponse);
+  
+  /**
+   * Delete user profile
+   * Soft or hard delete user profile
+   */
+  rpc DeleteProfile(DeleteProfileRequest) returns (DeleteProfileResponse);
+  
+  /**
+   * List users with filtering
+   * Retrieves paginated list of users with filters
+   */
+  rpc ListUsers(ListUsersRequest) returns (ListUsersResponse);
+  
+  /**
+   * Get user statistics
+   * Returns user-related statistics and metrics
+   */
+  rpc GetUserStats(UserStatsRequest) returns (UserStatsResponse);
+  
+  /**
+   * Health check endpoint
+   * Returns service health status
+   */
+  rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse);
+}
+
+// Create profile request with comprehensive validation
+message CreateProfileRequest {
+  string email = 1;                    // User email address (required)
+  string type = 2;                     // User type (required)
+  string fullName = 3;                // User full name (required)
+  string role = 4;                     // User role (required)
+  string reports_to_id = 5;            // Manager/Reports to user ID (optional)
+  string reports_to_role = 6;          // Manager role (optional)
+  string phone_number = 7;             // User phone number (optional)
+  string department = 8;               // User department (optional)
+  string position = 9;                 // User job position (optional)
+  string avatar_url = 10;              // User avatar URL (optional)
+  map<string, string> metadata = 11;   // Additional user metadata
+  google.protobuf.Timestamp created_at = 12; // Creation timestamp
+}
+
+// Create profile response
+message CreateProfileResponse {
+  string user_id = 1;                  // Generated user ID
+  string email = 2;                    // User email address
+  string fullName = 3;                // User full name
+  string type = 4;                     // User type
+  string role = 5;                     // User role
+  UserStatus status = 6;               // User status
+  google.protobuf.Timestamp created_at = 7; // Account creation time
+  string message = 8;                  // Response message
+  bool success = 9;                    // Operation success status
+  google.rpc.Status error = 10;        // Error details if any
+}
+
+// Get user request
+message GetUserRequest {
+  string user_id = 1;                  // User ID to retrieve (required)
+  string type = 2;                     // User type filter (optional)
+  bool include_metadata = 3;           // Include metadata in response
+  bool include_sensitive = 4;          // Include sensitive information
+  map<string, string> metadata = 5;    // Additional request metadata
+}
+
+// Get user response
+message GetUserResponse {
+  string user_id = 1;                  // User unique identifier
+  string email = 2;                    // User email address
+  string fullName = 3;                // User full name
+  string type = 4;                     // User type
+  string role = 5;                     // User role
+  string phone_number = 6;             // User phone number
+  string department = 7;               // User department
+  string position = 8;                 // User job position
+  string avatar_url = 9;               // User avatar URL
+  string reports_to_id = 10;           // Manager user ID
+  string reports_to_role = 11;         // Manager role
+  UserStatus status = 12;              // User account status
+  google.protobuf.Timestamp created_at = 13; // Account creation time
+  google.protobuf.Timestamp updated_at = 14; // Last update time
+  google.protobuf.Timestamp last_login = 15; // Last login time
+  map<string, string> metadata = 16;   // User metadata
+  bool success = 17;                   // Operation success status
+  google.rpc.Status error = 18;        // Error details if any
+}
+
+// Update profile request
+message UpdateProfileRequest {
+  string user_id = 1;                  // User ID to update (required)
+  string fullName = 2;                // New full name (optional)
+  string phone_number = 3;             // New phone number (optional)
+  string department = 4;               // New department (optional)
+  string position = 5;                 // New position (optional)
+  string avatar_url = 6;               // New avatar URL (optional)
+  string reports_to_id = 7;            // New manager ID (optional)
+  string reports_to_role = 8;          // New manager role (optional)
+  UserStatus status = 9;               // New status (optional)
+  map<string, string> metadata = 10;   // Updated metadata
+  google.protobuf.Timestamp updated_at = 11; // Update timestamp
+}
+
+// Update profile response
+message UpdateProfileResponse {
+  string user_id = 1;                  // Updated user ID
+  bool success = 2;                    // Operation success status
+  string message = 3;                  // Response message
+  google.protobuf.Timestamp updated_at = 4; // Update timestamp
+  google.rpc.Status error = 5;         // Error details if any
+}
+
+// Delete profile request
+message DeleteProfileRequest {
+  string user_id = 1;                  // User ID to delete (required)
+  bool hard_delete = 2;                // Hard delete flag (default: false)
+  string reason = 3;                   // Deletion reason (optional)
+  map<string, string> metadata = 4;    // Additional metadata
+}
+
+// Delete profile response
+message DeleteProfileResponse {
+  string user_id = 1;                  // Deleted user ID
+  bool success = 2;                    // Operation success status
+  string message = 3;                  // Response message
+  google.protobuf.Timestamp deleted_at = 4; // Deletion timestamp
+  google.rpc.Status error = 5;         // Error details if any
+}
+
+// List users request with pagination and filtering
+message ListUsersRequest {
+  int32 page = 1;                      // Page number (default: 1)
+  int32 page_size = 2;                 // Page size (default: 20, max: 100)
+  string type = 3;                     // Filter by user type
+  string role = 4;                     // Filter by user role
+  string department = 5;               // Filter by department
+  UserStatus status = 6;               // Filter by status
+  string search_query = 7;             // Search in name and email
+  string sort_by = 8;                  // Sort field (created_at, name, email)
+  string sort_order = 9;               // Sort order (asc, desc)
+  bool include_metadata = 10;          // Include metadata in response
+  map<string, string> metadata = 11;   // Additional request metadata
+}
+
+// List users response with pagination
+message ListUsersResponse {
+  repeated UserProfile users = 1;      // List of user profiles
+  int32 total_count = 2;               // Total number of users
+  int32 page = 3;                      // Current page number
+  int32 page_size = 4;                 // Page size
+  int32 total_pages = 5;               // Total number of pages
+  bool has_next = 6;                   // Has next page
+  bool has_previous = 7;               // Has previous page
+  bool success = 8;                    // Operation success status
+  google.rpc.Status error = 9;         // Error details if any
+}
+
+// User statistics request
+message UserStatsRequest {
+  string type = 1;                     // Filter by user type
+  string department = 2;               // Filter by department
+  google.protobuf.Timestamp from_date = 3; // Start date for statistics
+  google.protobuf.Timestamp to_date = 4;   // End date for statistics
+  map<string, string> metadata = 5;    // Additional metadata
+}
+
+// User statistics response
+message UserStatsResponse {
+  int32 total_users = 1;               // Total number of users
+  int32 active_users = 2;              // Number of active users
+  int32 inactive_users = 3;            // Number of inactive users
+  int32 new_users_this_month = 4;      // New users this month
+  map<string, int32> users_by_type = 5; // Users grouped by type
+  map<string, int32> users_by_role = 6; // Users grouped by role
+  map<string, int32> users_by_department = 7; // Users grouped by department
+  map<string, int32> users_by_status = 8; // Users grouped by status
+  google.protobuf.Timestamp generated_at = 9; // Statistics generation time
+  bool success = 10;                   // Operation success status
+  google.rpc.Status error = 11;        // Error details if any
+}
+
+// Health check request
+message HealthCheckRequest {
+  string service_name = 1;             // Service name to check
+  map<string, string> metadata = 2;    // Additional metadata
+}
+
+// Health check response
+message HealthCheckResponse {
+  string status = 1;                   // Service status (OK, ERROR, UNKNOWN)
+  string version = 2;                  // Service version
+  google.protobuf.Timestamp timestamp = 3; // Health check timestamp
+  map<string, string> details = 4;     // Additional health details
+  google.rpc.Status error = 5;         // Error details if any
+}
+
+// User profile message
+message UserProfile {
+  string user_id = 1;                  // User unique identifier
+  string email = 2;                    // User email address
+  string fullName = 3;                // User full name
+  string type = 4;                     // User type
+  string role = 5;                     // User role
+  string phone_number = 6;             // User phone number
+  string department = 7;               // User department
+  string position = 8;                 // User job position
+  string avatar_url = 9;               // User avatar URL
+  string reports_to_id = 10;           // Manager user ID
+  string reports_to_role = 11;         // Manager role
+  UserStatus status = 12;              // User account status
+  google.protobuf.Timestamp created_at = 13; // Account creation time
+  google.protobuf.Timestamp updated_at = 14; // Last update time
+  google.protobuf.Timestamp last_login = 15; // Last login time
+  map<string, string> metadata = 16;   // User metadata
+}
+
+// User status enumeration
+enum UserStatus {
+  UNKNOWN_STATUS = 0;                  // Unknown status
+  ACTIVE = 1;                          // Active user
+  INACTIVE = 2;                        // Inactive user
+  SUSPENDED = 3;                       // Suspended user
+  PENDING_VERIFICATION = 4;            // Pending verification
+  DELETED = 5;                         // Deleted user
+  BANNED = 6;                          // Banned user
+  ARCHIVED = 7;                        // Archived user
+}
