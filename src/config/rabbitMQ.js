@@ -51,10 +51,7 @@ export const MESSAGE_TYPES = {
 export const rabbitMQConfig = {
   // Connection configuration
   connection: {
-    url:
-      env.rabbitMQ?.url ||
-      process.env.RABBITMQ_URL ||
-      'amqp://localhost',
+    url: env.rabbitMQ?.url || process.env.RABBITMQ_URL || 'amqp://localhost',
     host: process.env.RABBITMQ_HOST || 'localhost',
     port: parseInt(process.env.RABBITMQ_PORT) || 5672,
     username: process.env.RABBITMQ_USERNAME || 'guest',

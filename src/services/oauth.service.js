@@ -241,7 +241,7 @@ class OAuthService {
         expiresIn: env.JWT_EXPIRES_IN,
         issuer: 'auth-service',
         audience: 'api-gateway',
-      },
+      }
     );
   }
 
@@ -262,7 +262,7 @@ class OAuthService {
         expiresIn: 7 * 24 * 60 * 60, // 7 days
         issuer: 'auth-service',
         audience: 'auth-service',
-      },
+      }
     );
   }
 }

@@ -29,18 +29,18 @@ const securityMetrics = {
  */
 function updateSecurityMetrics(type, data = {}) {
   switch (type) {
-  case 'request':
-    securityMetrics.totalRequests++;
-    break;
-  case 'blocked':
-    securityMetrics.blockedRequests++;
-    break;
-  case 'sanitized':
-    securityMetrics.sanitizedRequests++;
-    break;
-  case 'cors':
-    securityMetrics.corsRequests++;
-    break;
+    case 'request':
+      securityMetrics.totalRequests++;
+      break;
+    case 'blocked':
+      securityMetrics.blockedRequests++;
+      break;
+    case 'sanitized':
+      securityMetrics.sanitizedRequests++;
+      break;
+    case 'cors':
+      securityMetrics.corsRequests++;
+      break;
   }
   // Keep only last 100 security events
   if (securityMetrics.securityEvents.length > 100) {
@@ -74,21 +74,21 @@ export const securityHeaders = (options = {}) => {
       if (enableHSTS) {
         res.setHeader(
           'Strict-Transport-Security',
-          'max-age=31536000; includeSubDomains; preload',
+          'max-age=31536000; includeSubDomains; preload'
         );
       }
       // Content Security Policy
       if (enableCSP) {
         const csp = [
-          'default-src \'self\'',
-          'script-src \'self\' \'unsafe-inline\' \'unsafe-eval\'',
-          'style-src \'self\' \'unsafe-inline\'',
-          'img-src \'self\' data: https:',
-          'font-src \'self\'',
-          'connect-src \'self\'',
-          'frame-ancestors \'none\'',
-          'base-uri \'self\'',
-          'form-action \'self\'',
+          "default-src 'self'",
+          "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+          "style-src 'self' 'unsafe-inline'",
+          "img-src 'self' data: https:",
+          "font-src 'self'",
+          "connect-src 'self'",
+          "frame-ancestors 'none'",
+          "base-uri 'self'",
+          "form-action 'self'",
         ].join('; ');
         res.setHeader('Content-Security-Policy', csp);
       }
@@ -260,7 +260,7 @@ export const inputSanitizer = (options = {}) => {
           // If assignment fails, skip updating req.query
           safeLogger.warn(
             'Skipping req.query sanitization due to read-only property',
-            { correlationId },
+            { correlationId }
           );
         }
         updateSecurityMetrics('sanitized');
@@ -314,7 +314,7 @@ function sanitizeObject(obj, options = {}) {
     if (removeScripts) {
       sanitized = sanitized.replace(
         /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi,
-        '',
+        ''
       );
     }
     // Remove HTML tags

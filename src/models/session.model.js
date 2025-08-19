@@ -128,7 +128,7 @@ class Session extends Model {
               [sequelize.Op.lt]: new Date(),
             },
           },
-        },
+        }
       );
       const cleanedCount = result[0];
       safeLogger.info('Expired sessions cleaned up', {
@@ -156,21 +156,21 @@ class Session extends Model {
           [
             sequelize.fn(
               'COUNT',
-              sequelize.literal('CASE WHEN isActive = true THEN 1 END'),
+              sequelize.literal('CASE WHEN isActive = true THEN 1 END')
             ),
             'activeSessions',
           ],
           [
             sequelize.fn(
               'COUNT',
-              sequelize.literal('CASE WHEN isActive = false THEN 1 END'),
+              sequelize.literal('CASE WHEN isActive = false THEN 1 END')
             ),
             'inactiveSessions',
           ],
           [
             sequelize.fn(
               'COUNT',
-              sequelize.literal('CASE WHEN expiresAt < NOW() THEN 1 END'),
+              sequelize.literal('CASE WHEN expiresAt < NOW() THEN 1 END')
             ),
             'expiredSessions',
           ],
@@ -331,7 +331,7 @@ Session.init(
       },
     ],
     hooks: {
-      beforeCreate: async(session, options) => {
+      beforeCreate: async (session, options) => {
         const correlationId = getCorrelationId();
         try {
           // Set default values
@@ -355,7 +355,7 @@ Session.init(
           throw error;
         }
       },
-      beforeUpdate: async(session, options) => {
+      beforeUpdate: async (session, options) => {
         const correlationId = getCorrelationId();
         try {
           // Update last activity if session is being updated
@@ -376,7 +376,7 @@ Session.init(
           throw error;
         }
       },
-      afterCreate: async(session, options) => {
+      afterCreate: async (session, options) => {
         const correlationId = getCorrelationId();
         safeLogger.info('Session created successfully', {
           sessionId: session.id,
@@ -385,7 +385,7 @@ Session.init(
           correlationId,
         });
       },
-      afterUpdate: async(session, options) => {
+      afterUpdate: async (session, options) => {
         const correlationId = getCorrelationId();
         safeLogger.info('Session updated successfully', {
           sessionId: session.id,
@@ -394,7 +394,7 @@ Session.init(
           correlationId,
         });
       },
-      afterDestroy: async(session, options) => {
+      afterDestroy: async (session, options) => {
         const correlationId = getCorrelationId();
         safeLogger.info('Session deleted successfully', {
           sessionId: session.id,
@@ -403,10 +403,10 @@ Session.init(
         });
       },
     },
-  },
+  }
 );
 // Instance methods
-Session.prototype.updateActivity = async function() {
+Session.prototype.updateActivity = async function () {
   try {
     this.lastActivityAt = new Date();
     await this.save();
@@ -423,7 +423,7 @@ Session.prototype.updateActivity = async function() {
     });
   }
 };
-Session.prototype.logout = async function(reason = 'user_logout') {
+Session.prototype.logout = async function (reason = 'user_logout') {
   try {
     this.isActive = false;
     this.logoutAt = new Date();
@@ -445,7 +445,7 @@ Session.prototype.logout = async function(reason = 'user_logout') {
     throw error;
   }
 };
-Session.prototype.addSecurityEvent = async function(event) {
+Session.prototype.addSecurityEvent = async function (event) {
   try {
     const events = this.securityEvents || [];
     events.push({
@@ -468,10 +468,10 @@ Session.prototype.addSecurityEvent = async function(event) {
     });
   }
 };
-Session.prototype.isExpired = function() {
+Session.prototype.isExpired = function () {
   return new Date() > this.expiresAt;
 };
-Session.prototype.toSafeJSON = function() {
+Session.prototype.toSafeJSON = function () {
   const safeData = this.toJSON();
   // Remove sensitive fields
   delete safeData.sessionToken;

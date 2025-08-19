@@ -29,7 +29,7 @@ const asyncHandler = (requestHandler, options = {}) => {
     preHandler = null,
     postHandler = null,
   } = options;
-  return async(req, res, next) => {
+  return async (req, res, next) => {
     const requestId =
       req.correlationId ||
       `req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -187,9 +187,9 @@ const getRequestStats = () => {
   const avgDuration =
     total > 0
       ? Array.from(performanceMarks.values()).reduce(
-        (sum, startTime) => sum + (Date.now() - startTime),
-        0,
-      ) / total
+          (sum, startTime) => sum + (Date.now() - startTime),
+          0
+        ) / total
       : 0;
   return {
     activeRequests: active,

@@ -32,7 +32,7 @@ router
   .delete(
     verifyJWT,
     auditLog('revoke_all_sessions'),
-    asyncHandler(revokeAllSessions),
+    asyncHandler(revokeAllSessions)
   );
 
 router
@@ -52,7 +52,7 @@ router
     verifyJWT,
     requireRole('admin'),
     auditLog('session_cleanup'),
-    asyncHandler(cleanExpiredSessions),
+    asyncHandler(cleanExpiredSessions)
   );
 
 export default router;

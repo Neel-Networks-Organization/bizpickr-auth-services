@@ -135,6 +135,7 @@ async function startServer() {
       }, gracefulShutdownConfig.timeout);
       try {
         // ✅ Shutdown sequence
+        const startTime = performance.now();
         const shutdownSteps = [
           {
             name: 'Stop accepting new connections',

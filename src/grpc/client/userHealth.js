@@ -74,13 +74,15 @@ class UserHealthMonitor {
    */
   startMonitoringLoop() {
     // This method is not needed for simple client health checks
-    safeLogger.info('Monitoring loop not needed for simple client health checks');
+    safeLogger.info(
+      'Monitoring loop not needed for simple client health checks'
+    );
   }
   /**
    * Start periodic health checks
    */
   startPeriodicHealthChecks() {
-    this.monitoringInterval = setInterval(async() => {
+    this.monitoringInterval = setInterval(async () => {
       try {
         await this.performHealthCheck();
       } catch (error) {
@@ -95,14 +97,14 @@ class UserHealthMonitor {
    * Perform active health check
    * @returns {Promise<Object>} Health check result
    */
-    async performHealthCheck() {
+  async performHealthCheck() {
     const startTime = Date.now();
     try {
       // Simple connectivity check - just verify the client exists and has methods
       if (!this.client || typeof this.client.GetUserById !== 'function') {
         throw new Error('gRPC client not properly initialized');
       }
-      
+
       // For now, just return healthy if client exists
       // This avoids complex gRPC calls that might fail
       const responseTime = Date.now() - startTime;
@@ -153,57 +155,57 @@ class UserHealthMonitor {
       this.healthMetrics.stateChanges.shift();
     }
     switch (state) {
-    case grpc.connectivityState.READY:
-      this.isServiceAvailable = true;
-      this.healthMetrics.recoveryAttempts = 0;
-      safeLogger.info('✅ User service is connected and ready', {
-        previousState: this.getStateString(previousState),
-        stateChange,
-      });
-      break;
-    case grpc.connectivityState.CONNECTING:
-      this.isServiceAvailable = false;
-      safeLogger.info('🔄 Connecting to user service...', {
-        previousState: this.getStateString(previousState),
-        stateChange,
-      });
-      break;
-    case grpc.connectivityState.TRANSIENT_FAILURE:
-      this.isServiceAvailable = false;
-      this.healthMetrics.connectionErrors++;
-      safeLogger.error(
-        '❌ User service is unavailable (will retry automatically)',
-        {
+      case grpc.connectivityState.READY:
+        this.isServiceAvailable = true;
+        this.healthMetrics.recoveryAttempts = 0;
+        safeLogger.info('✅ User service is connected and ready', {
           previousState: this.getStateString(previousState),
           stateChange,
-          connectionErrors: this.healthMetrics.connectionErrors,
-        },
-      );
-      this.attemptRecovery();
-      break;
-    case grpc.connectivityState.IDLE:
-      this.isServiceAvailable = false;
-      safeLogger.info('⏸️ User service connection is idle', {
-        previousState: this.getStateString(previousState),
-        stateChange,
-      });
-      break;
-    case grpc.connectivityState.SHUTDOWN:
-      this.isServiceAvailable = false;
-      safeLogger.error('🔴 User service connection is shut down', {
-        previousState: this.getStateString(previousState),
-        stateChange,
-      });
-      break;
-    default:
-      this.isServiceAvailable = false;
-      safeLogger.warn(
-        `❓ Unknown connectivity state: ${this.getStateString(state)}`,
-        {
+        });
+        break;
+      case grpc.connectivityState.CONNECTING:
+        this.isServiceAvailable = false;
+        safeLogger.info('🔄 Connecting to user service...', {
           previousState: this.getStateString(previousState),
           stateChange,
-        },
-      );
+        });
+        break;
+      case grpc.connectivityState.TRANSIENT_FAILURE:
+        this.isServiceAvailable = false;
+        this.healthMetrics.connectionErrors++;
+        safeLogger.error(
+          '❌ User service is unavailable (will retry automatically)',
+          {
+            previousState: this.getStateString(previousState),
+            stateChange,
+            connectionErrors: this.healthMetrics.connectionErrors,
+          }
+        );
+        this.attemptRecovery();
+        break;
+      case grpc.connectivityState.IDLE:
+        this.isServiceAvailable = false;
+        safeLogger.info('⏸️ User service connection is idle', {
+          previousState: this.getStateString(previousState),
+          stateChange,
+        });
+        break;
+      case grpc.connectivityState.SHUTDOWN:
+        this.isServiceAvailable = false;
+        safeLogger.error('🔴 User service connection is shut down', {
+          previousState: this.getStateString(previousState),
+          stateChange,
+        });
+        break;
+      default:
+        this.isServiceAvailable = false;
+        safeLogger.warn(
+          `❓ Unknown connectivity state: ${this.getStateString(state)}`,
+          {
+            previousState: this.getStateString(previousState),
+            stateChange,
+          }
+        );
     }
     // Update global metrics
     updateGrpcMetrics('connection', {
@@ -260,15 +262,15 @@ class UserHealthMonitor {
     this.healthMetrics.totalChecks++;
     this.healthMetrics.lastHealthCheck = new Date().toISOString();
     switch (type) {
-    case 'success':
-      this.healthMetrics.successfulChecks++;
-      break;
-    case 'failure':
-      this.healthMetrics.failedChecks++;
-      break;
-    case 'error':
-      this.healthMetrics.connectionErrors++;
-      break;
+      case 'success':
+        this.healthMetrics.successfulChecks++;
+        break;
+      case 'failure':
+        this.healthMetrics.failedChecks++;
+        break;
+      case 'error':
+        this.healthMetrics.connectionErrors++;
+        break;
     }
     if (data.responseTime) {
       this.healthMetrics.responseTimes.push(data.responseTime);

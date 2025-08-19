@@ -59,7 +59,7 @@ const auditLogSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-  },
+  }
 );
 
 // auditLogSchema.index({ userId: 1, action: 1, createdAt: -1 });

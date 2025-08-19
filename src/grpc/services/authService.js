@@ -39,33 +39,33 @@ const serviceMetrics = {
  */
 function updateMetrics(type, data = {}) {
   switch (type) {
-  case 'login':
-    serviceMetrics.totalLogins++;
-    break;
-  case 'loginSuccess':
-    serviceMetrics.successfulLogins++;
-    break;
-  case 'loginFailure':
-    serviceMetrics.failedLogins++;
-    break;
-  case 'registration':
-    serviceMetrics.totalRegistrations++;
-    break;
-  case 'registrationSuccess':
-    serviceMetrics.successfulRegistrations++;
-    break;
-  case 'registrationFailure':
-    serviceMetrics.failedRegistrations++;
-    break;
-  case 'validation':
-    serviceMetrics.totalTokenValidations++;
-    break;
-  case 'validationSuccess':
-    serviceMetrics.successfulValidations++;
-    break;
-  case 'validationFailure':
-    serviceMetrics.failedValidations++;
-    break;
+    case 'login':
+      serviceMetrics.totalLogins++;
+      break;
+    case 'loginSuccess':
+      serviceMetrics.successfulLogins++;
+      break;
+    case 'loginFailure':
+      serviceMetrics.failedLogins++;
+      break;
+    case 'registration':
+      serviceMetrics.totalRegistrations++;
+      break;
+    case 'registrationSuccess':
+      serviceMetrics.successfulRegistrations++;
+      break;
+    case 'registrationFailure':
+      serviceMetrics.failedRegistrations++;
+      break;
+    case 'validation':
+      serviceMetrics.totalTokenValidations++;
+      break;
+    case 'validationSuccess':
+      serviceMetrics.successfulValidations++;
+      break;
+    case 'validationFailure':
+      serviceMetrics.failedValidations++;
+      break;
   }
   safeLogger.debug('Auth service metrics updated', {
     type,
@@ -144,7 +144,7 @@ function generateToken(payload, options = {}) {
   const now = Date.now();
   const expiresIn = options.expiresIn || '1h';
   const expiresAt = new Date(
-    now + (expiresIn === '1h' ? 60 * 60 * 1000 : 24 * 60 * 60 * 1000),
+    now + (expiresIn === '1h' ? 60 * 60 * 1000 : 24 * 60 * 60 * 1000)
   );
   const tokenPayload = {
     ...payload,
@@ -363,7 +363,7 @@ export const register = async registrationData => {
  * @param {Object} options - Validation options
  * @returns {Promise<Object>} Validation result
  */
-export const validateToken = async(token, options = {}) => {
+export const validateToken = async (token, options = {}) => {
   const { deviceId, metadata } = options;
   const correlationId = getCorrelationId();
   try {
@@ -425,7 +425,7 @@ export const validateToken = async(token, options = {}) => {
  * @param {Object} options - Refresh options
  * @returns {Promise<Object>} Refresh result
  */
-export const refreshToken = async(refreshToken, options = {}) => {
+export const refreshToken = async (refreshToken, options = {}) => {
   const { deviceId, metadata } = options;
   const correlationId = getCorrelationId();
   try {
@@ -450,7 +450,7 @@ export const refreshToken = async(refreshToken, options = {}) => {
     }
     // Get user
     const user = Array.from(users.values()).find(
-      u => u.id === refreshTokenInfo.userId,
+      u => u.id === refreshTokenInfo.userId
     );
     if (!user || user.status !== 'ACTIVE') {
       throw new ApiError(401, 'Invalid Refresh Token', [
@@ -497,7 +497,7 @@ export const refreshToken = async(refreshToken, options = {}) => {
  * @param {Object} options - Logout options
  * @returns {Promise<Object>} Logout result
  */
-export const logout = async(token, options = {}) => {
+export const logout = async (token, options = {}) => {
   const { deviceId, allSessions, metadata } = options;
   const correlationId = getCorrelationId();
   try {
@@ -563,7 +563,7 @@ export const logout = async(token, options = {}) => {
  * @param {Object} options - Session options
  * @returns {Promise<Object>} Sessions result
  */
-export const getSessions = async(userId, options = {}) => {
+export const getSessions = async (userId, options = {}) => {
   const { deviceId, metadata } = options;
   const correlationId = getCorrelationId();
   try {
@@ -606,7 +606,7 @@ export const getSessions = async(userId, options = {}) => {
  * @param {Object} options - Health check options
  * @returns {Promise<Object>} Health check result
  */
-export const healthCheck = async(options = {}) => {
+export const healthCheck = async (options = {}) => {
   const { serviceName, metadata } = options;
   const correlationId = getCorrelationId();
   try {

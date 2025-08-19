@@ -30,7 +30,7 @@ class MetricsService {
     } else {
       this.metrics[metricName] = value;
     }
-    
+
     safeLogger.debug('Metric incremented', { metricName, value, tags });
   }
 
@@ -39,7 +39,7 @@ class MetricsService {
    */
   recordResponseTime(responseTime) {
     this.metrics.responseTimes.push(responseTime);
-    
+
     // Keep only last 1000 response times
     if (this.metrics.responseTimes.length > 1000) {
       this.metrics.responseTimes = this.metrics.responseTimes.slice(-1000);
@@ -56,7 +56,7 @@ class MetricsService {
       details,
       timestamp: Date.now(),
     });
-    
+
     // Keep only last 1000 security events
     if (this.metrics.securityEvents.length > 1000) {
       this.metrics.securityEvents = this.metrics.securityEvents.slice(-1000);
@@ -70,9 +70,11 @@ class MetricsService {
     return {
       ...this.metrics,
       uptime: Date.now() - this.metrics.lastReset,
-      averageResponseTime: this.metrics.responseTimes.length > 0 
-        ? this.metrics.responseTimes.reduce((a, b) => a + b, 0) / this.metrics.responseTimes.length
-        : 0,
+      averageResponseTime:
+        this.metrics.responseTimes.length > 0
+          ? this.metrics.responseTimes.reduce((a, b) => a + b, 0) /
+            this.metrics.responseTimes.length
+          : 0,
     };
   }
 
@@ -115,7 +117,7 @@ class MetricsService {
       securityEvents: [],
       lastReset: Date.now(),
     };
-    
+
     safeLogger.info('Metrics reset successfully');
   }
 }

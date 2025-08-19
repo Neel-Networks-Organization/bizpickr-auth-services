@@ -33,18 +33,18 @@ const rateLimiterMetrics = {
  */
 function updateRateLimiterMetrics(type, data = {}) {
   switch (type) {
-  case 'request':
-    rateLimiterMetrics.totalRequests++;
-    break;
-  case 'allowed':
-    rateLimiterMetrics.allowedRequests++;
-    break;
-  case 'blocked':
-    rateLimiterMetrics.blockedRequests++;
-    break;
-  case 'redisError':
-    rateLimiterMetrics.redisErrors++;
-    break;
+    case 'request':
+      rateLimiterMetrics.totalRequests++;
+      break;
+    case 'allowed':
+      rateLimiterMetrics.allowedRequests++;
+      break;
+    case 'blocked':
+      rateLimiterMetrics.blockedRequests++;
+      break;
+    case 'redisError':
+      rateLimiterMetrics.redisErrors++;
+      break;
   }
   safeLogger.debug('Rate limiter metrics updated', {
     type,
@@ -62,30 +62,30 @@ function updateRateLimiterMetrics(type, data = {}) {
 function generateRateLimitKey(strategy, req, identifier = '') {
   const baseKey = `rate-limit:${strategy}`;
   switch (strategy) {
-  case 'ip': {
-    return `${baseKey}:${req.ip || req.connection.remoteAddress}`;
-  }
-  case 'user': {
-    const userId = req.user ? req.user.id : 'anonymous';
-    return `${baseKey}:${userId}`;
-  }
-  case 'endpoint': {
-    return `${baseKey}:${req.method}:${req.originalUrl}`;
-  }
-  case 'user-endpoint': {
-    const userId = req.user ? req.user.id : 'anonymous';
-    return `${baseKey}:${userId}:${req.method}:${req.originalUrl}`;
-  }
-  case 'ip-endpoint': {
-    const ip = req.ip || req.connection.remoteAddress;
-    return `${baseKey}:${ip}:${req.method}:${req.originalUrl}`;
-  }
-  case 'custom': {
-    return `${baseKey}:${identifier}`;
-  }
-  default: {
-    return `${baseKey}:${req.ip || req.connection.remoteAddress}`;
-  }
+    case 'ip': {
+      return `${baseKey}:${req.ip || req.connection.remoteAddress}`;
+    }
+    case 'user': {
+      const userId = req.user ? req.user.id : 'anonymous';
+      return `${baseKey}:${userId}`;
+    }
+    case 'endpoint': {
+      return `${baseKey}:${req.method}:${req.originalUrl}`;
+    }
+    case 'user-endpoint': {
+      const userId = req.user ? req.user.id : 'anonymous';
+      return `${baseKey}:${userId}:${req.method}:${req.originalUrl}`;
+    }
+    case 'ip-endpoint': {
+      const ip = req.ip || req.connection.remoteAddress;
+      return `${baseKey}:${ip}:${req.method}:${req.originalUrl}`;
+    }
+    case 'custom': {
+      return `${baseKey}:${identifier}`;
+    }
+    default: {
+      return `${baseKey}:${req.ip || req.connection.remoteAddress}`;
+    }
   }
 }
 /**
@@ -139,7 +139,7 @@ export const rateLimiter = (options = {}) => {
     burstWindowMs = 60 * 1000, // 1 minute burst window
     identifier = '', // for custom strategy
   } = options;
-  return async(req, res, next) => {
+  return async (req, res, next) => {
     const startTime = Date.now();
     const correlationId = getCorrelationId();
     const clientId = getClientIdentifier(req);
@@ -191,7 +191,7 @@ export const rateLimiter = (options = {}) => {
       if (burstRequests === 1) {
         await getRedisClient().expire(
           burstKey,
-          Math.ceil(burstWindowMs / 1000),
+          Math.ceil(burstWindowMs / 1000)
         );
       }
       // Check burst limit first (more restrictive)
@@ -223,7 +223,7 @@ export const rateLimiter = (options = {}) => {
           'X-RateLimit-Limit': burstLimit,
           'X-RateLimit-Remaining': 0,
           'X-RateLimit-Reset': new Date(
-            Date.now() + retryAfter * 1000,
+            Date.now() + retryAfter * 1000
           ).toISOString(),
           'X-RateLimit-Strategy': 'burst',
           'Retry-After': retryAfter,
@@ -247,8 +247,8 @@ export const rateLimiter = (options = {}) => {
               retryAfter,
               resetTime: new Date(Date.now() + retryAfter * 1000).toISOString(),
             },
-            'Rate limit exceeded',
-          ),
+            'Rate limit exceeded'
+          )
         );
       }
       // Check main rate limit
@@ -279,7 +279,7 @@ export const rateLimiter = (options = {}) => {
           'X-RateLimit-Limit': limit,
           'X-RateLimit-Remaining': 0,
           'X-RateLimit-Reset': new Date(
-            Date.now() + retryAfter * 1000,
+            Date.now() + retryAfter * 1000
           ).toISOString(),
           'X-RateLimit-Strategy': 'main',
           'Retry-After': retryAfter,
@@ -303,8 +303,8 @@ export const rateLimiter = (options = {}) => {
               retryAfter,
               resetTime: new Date(Date.now() + retryAfter * 1000).toISOString(),
             },
-            'Rate limit exceeded',
-          ),
+            'Rate limit exceeded'
+          )
         );
       }
       // Request allowed

@@ -59,11 +59,11 @@ function validateUserVerifiedEvent(message) {
   if (
     message.verificationMethod &&
     !['email', 'phone', 'document', 'admin'].includes(
-      message.verificationMethod,
+      message.verificationMethod
     )
   ) {
     warnings.push(
-      'verificationMethod should be one of: email, phone, document, admin',
+      'verificationMethod should be one of: email, phone, document, admin'
     );
   }
   return {
@@ -115,7 +115,7 @@ async function retryWithBackoff(fn, maxRetries = 3, baseDelay = 1000) {
           attempt: attempt + 1,
           maxRetries,
           delay,
-        },
+        }
       );
       await new Promise(resolve => setTimeout(resolve, delay));
     }
@@ -145,7 +145,7 @@ async function processUserVerifiedEvent(message, msg, channel) {
       throw new ApiError(
         400,
         'Invalid user verified event data',
-        validation.errors,
+        validation.errors
       );
     }
     if (validation.warnings.length > 0) {
@@ -166,7 +166,7 @@ async function processUserVerifiedEvent(message, msg, channel) {
     }
     // Process the verification event
     await retryWithBackoff(
-      async() => {
+      async () => {
         // Example: Update user verification status in AuthService DB
         // await updateUserVerificationStatus(message.userId, message.verificationStatus);
         // Example: Send notification to user
@@ -183,7 +183,7 @@ async function processUserVerifiedEvent(message, msg, channel) {
         });
       },
       3,
-      1000,
+      1000
     );
     const processingTime = Date.now() - startTime;
     // Update metrics
@@ -259,7 +259,7 @@ export async function startUserVerifiedConsumer(options = {}) {
     });
     const consumerTag = await rabbitMQConnection.consumeMessages(
       queue,
-      async(message, msg, channel) => {
+      async (message, msg, channel) => {
         try {
           await processUserVerifiedEvent(message, msg, channel);
         } catch (error) {
@@ -273,7 +273,7 @@ export async function startUserVerifiedConsumer(options = {}) {
           throw error; // Re-throw to trigger nack in connection.js
         }
       },
-      resolvedOptions,
+      resolvedOptions
     );
     const startupTime = Date.now() - startTime;
     safeLogger.info('User verified consumer started successfully', {
@@ -307,7 +307,7 @@ export async function stopUserVerifiedConsumer(consumerTag) {
   try {
     await rabbitMQConnection.cancelConsumer(
       'auth-consumer-channel',
-      consumerTag,
+      consumerTag
     );
     safeLogger.info('User verified consumer stopped successfully', {
       consumerTag,

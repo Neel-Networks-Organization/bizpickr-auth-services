@@ -110,7 +110,7 @@ export const performanceMiddleware = (req, res, next) => {
   }
 
   // ✅ Override response methods to track response size and set headers
-  res.send = function(data) {
+  res.send = function (data) {
     setResponseTimeHeader();
     if (PERFORMANCE_CONFIG.trackResponseSize) {
       const responseSize =
@@ -121,7 +121,7 @@ export const performanceMiddleware = (req, res, next) => {
     }
     return originalSend.call(this, data);
   };
-  res.json = function(data) {
+  res.json = function (data) {
     setResponseTimeHeader();
     if (PERFORMANCE_CONFIG.trackResponseSize) {
       const responseSize = JSON.stringify(data).length;
@@ -129,7 +129,7 @@ export const performanceMiddleware = (req, res, next) => {
     }
     return originalJson.call(this, data);
   };
-  res.end = function(data) {
+  res.end = function (data) {
     setResponseTimeHeader();
     if (PERFORMANCE_CONFIG.trackResponseSize && data) {
       const responseSize =
@@ -301,7 +301,7 @@ export const performanceProfilingMiddleware = (req, res, next) => {
   req.profile = profile;
   // ✅ Override next to track middleware execution
   const originalNext = next;
-  next = function(err) {
+  next = function (err) {
     const stepTime = performance.now() - profile.startTime;
     profile.steps.push({
       step: 'middleware',

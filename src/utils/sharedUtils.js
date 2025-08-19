@@ -15,7 +15,7 @@ export const createErrorResponse = (
   statusCode,
   message,
   details = [],
-  stack = null,
+  stack = null
 ) => ({
   success: false,
   message,
@@ -146,7 +146,7 @@ export const createServiceConfig = serviceName => ({
  * Standardized Health Check Patterns
  */
 export const createHealthCheck = checks => {
-  return async(req, res) => {
+  return async (req, res) => {
     const results = {};
     let overallStatus = 'healthy';
 
@@ -285,7 +285,7 @@ export const setStandardHeaders = (req, res, next) => {
     'X-Frame-Options': 'DENY',
     'X-XSS-Protection': '1; mode=block',
     'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
-    'Content-Security-Policy': 'default-src \'self\'',
+    'Content-Security-Policy': "default-src 'self'",
     'Referrer-Policy': 'strict-origin-when-cross-origin',
   });
   next();

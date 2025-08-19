@@ -64,14 +64,17 @@ const clientMetrics = {
   errorCounts: new Map(),
 };
 // Create circuit breaker for User Service using Opossum
-const userServiceCircuitBreaker = new CircuitBreaker(async (grpcCall) => {
-  return grpcCall();
-}, {
-  timeout: 5000,                    // 5 seconds timeout
-  errorThresholdPercentage: 50,     // Open after 50% errors
-  resetTimeout: 20000,              // Wait 20 seconds before testing
-  name: 'UserService'               // Service name for logging
-});
+const userServiceCircuitBreaker = new CircuitBreaker(
+  async grpcCall => {
+    return grpcCall();
+  },
+  {
+    timeout: 5000, // 5 seconds timeout
+    errorThresholdPercentage: 50, // Open after 50% errors
+    resetTimeout: 20000, // Wait 20 seconds before testing
+    name: 'UserService', // Service name for logging
+  }
+);
 
 // Circuit breaker event listeners
 userServiceCircuitBreaker.on('open', () => {
@@ -86,7 +89,7 @@ userServiceCircuitBreaker.on('halfOpen', () => {
   safeLogger.info('🔄 Circuit breaker for UserService half-open');
 });
 
-userServiceCircuitBreaker.on('fallback', (result) => {
+userServiceCircuitBreaker.on('fallback', result => {
   safeLogger.warn('🔄 Circuit breaker fallback executed for UserService');
 });
 
@@ -101,7 +104,7 @@ userServiceCircuitBreaker.on('reject', () => {
 const client = new userPackage.UserService(
   CLIENT_CONFIG.address,
   grpc.credentials.createInsecure(),
-  CLIENT_CONFIG.keepalive,
+  CLIENT_CONFIG.keepalive
 );
 /**
  * Retry function with exponential backoff
@@ -113,7 +116,7 @@ const client = new userPackage.UserService(
 async function retryWithBackoff(
   fn,
   maxRetries = CLIENT_CONFIG.retryAttempts,
-  baseDelay = CLIENT_CONFIG.retryDelay,
+  baseDelay = CLIENT_CONFIG.retryDelay
 ) {
   let lastError;
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
@@ -132,7 +135,7 @@ async function retryWithBackoff(
           attempt: attempt + 1,
           maxRetries,
           delay,
-        },
+        }
       );
       await new Promise(resolve => setTimeout(resolve, delay));
     }
@@ -147,41 +150,41 @@ async function retryWithBackoff(
  */
 function updateClientMetrics(type, data = {}) {
   switch (type) {
-  case 'request':
-    clientMetrics.totalRequests++;
-    break;
-  case 'success':
-    clientMetrics.successfulRequests++;
-    break;
-  case 'failure':
-    clientMetrics.failedRequests++;
-    if (data.error) {
-      const errorType = data.error.constructor.name;
-      clientMetrics.errorCounts.set(
-        errorType,
-        (clientMetrics.errorCounts.get(errorType) || 0) + 1,
-      );
-    }
-    break;
-  case 'latency':
-    if (data.latency) {
-      clientMetrics.requestLatency.push(data.latency);
-      if (clientMetrics.requestLatency.length > 100) {
-        clientMetrics.requestLatency.shift();
+    case 'request':
+      clientMetrics.totalRequests++;
+      break;
+    case 'success':
+      clientMetrics.successfulRequests++;
+      break;
+    case 'failure':
+      clientMetrics.failedRequests++;
+      if (data.error) {
+        const errorType = data.error.constructor.name;
+        clientMetrics.errorCounts.set(
+          errorType,
+          (clientMetrics.errorCounts.get(errorType) || 0) + 1
+        );
       }
-    }
-    break;
-  case 'method':
-    if (data.method) {
-      clientMetrics.methodCallCounts.set(
-        data.method,
-        (clientMetrics.methodCallCounts.get(data.method) || 0) + 1,
-      );
-    }
-    break;
-  case 'connectionError':
-    clientMetrics.connectionErrors++;
-    break;
+      break;
+    case 'latency':
+      if (data.latency) {
+        clientMetrics.requestLatency.push(data.latency);
+        if (clientMetrics.requestLatency.length > 100) {
+          clientMetrics.requestLatency.shift();
+        }
+      }
+      break;
+    case 'method':
+      if (data.method) {
+        clientMetrics.methodCallCounts.set(
+          data.method,
+          (clientMetrics.methodCallCounts.get(data.method) || 0) + 1
+        );
+      }
+      break;
+    case 'connectionError':
+      clientMetrics.connectionErrors++;
+      break;
   }
   // Also update global metrics
   updateGrpcMetrics(type, data);
@@ -194,31 +197,27 @@ function updateClientMetrics(type, data = {}) {
  * @param {Object} options - Request options
  * @returns {Promise<any>} Method result
  */
-async function wrapClientMethod(
-  clientMethod,
-  methodName,
-  requestData,
-  options = {},
-) {
-  return new Promise(async (resolve, reject) => {
+function wrapClientMethod(clientMethod, methodName, requestData, options = {}) {
+  return new Promise((resolve, reject) => {
     const startTime = Date.now();
     const correlationId = getCorrelationId();
     const deadline = Date.now() + (options.deadline || CLIENT_CONFIG.deadline);
-    try {
-      // Update metrics
-      updateClientMetrics('request', { method: methodName });
-      updateClientMetrics('method', { method: methodName });
-      
-      // Log request
-      safeLogger.info(`Making gRPC ${methodName} request`, {
-        method: methodName,
-        correlationId,
-        requestData: sanitizeRequestData(requestData),
-        options,
-      });
 
-      // Execute with circuit breaker protection
-      const result = await userServiceCircuitBreaker.fire(async () => {
+    // Update metrics
+    updateClientMetrics('request', { method: methodName });
+    updateClientMetrics('method', { method: methodName });
+
+    // Log request
+    safeLogger.info(`Making gRPC ${methodName} request`, {
+      method: methodName,
+      correlationId,
+      requestData: sanitizeRequestData(requestData),
+      options,
+    });
+
+    // Execute with circuit breaker protection
+    userServiceCircuitBreaker
+      .fire(async () => {
         return new Promise((innerResolve, innerReject) => {
           clientMethod(requestData, { deadline }, (err, response) => {
             if (err) {
@@ -228,50 +227,51 @@ async function wrapClientMethod(
             }
           });
         });
-      });
+      })
+      .then(result => {
+        const processingTime = Date.now() - startTime;
 
-      const processingTime = Date.now() - startTime;
-      
-      // Update metrics
-      updateClientMetrics('success', { method: methodName });
-      updateClientMetrics('latency', {
-        latency: processingTime,
-        method: methodName,
-      });
+        // Update metrics
+        updateClientMetrics('success', { method: methodName });
+        updateClientMetrics('latency', {
+          latency: processingTime,
+          method: methodName,
+        });
 
-      // Log success
-      safeLogger.info(`gRPC ${methodName} completed successfully`, {
-        method: methodName,
-        correlationId,
-        processingTime: `${processingTime}ms`,
-        result: sanitizeResponseData(result),
-      });
+        // Log success
+        safeLogger.info(`gRPC ${methodName} completed successfully`, {
+          method: methodName,
+          correlationId,
+          processingTime: `${processingTime}ms`,
+          result: sanitizeResponseData(result),
+        });
 
-      resolve(result);
-    } catch (error) {
-      const processingTime = Date.now() - startTime;
-      
-      // Update metrics
-      updateClientMetrics('failure', { method: methodName, error });
-      updateClientMetrics('latency', {
-        latency: processingTime,
-        method: methodName,
-      });
+        resolve(result);
+      })
+      .catch(error => {
+        const processingTime = Date.now() - startTime;
 
-      // Log error
-      safeLogger.error(`gRPC ${methodName} failed`, {
-        method: methodName,
-        correlationId,
-        error: error.message,
-        stack: error.stack,
-        processingTime: `${processingTime}ms`,
-        requestData: sanitizeRequestData(requestData),
-      });
+        // Update metrics
+        updateClientMetrics('failure', { method: methodName, error });
+        updateClientMetrics('latency', {
+          latency: processingTime,
+          method: methodName,
+        });
 
-      // Map gRPC error to API error
-      const apiError = mapGrpcErrorToApiError(error);
-      reject(apiError);
-    }
+        // Log error
+        safeLogger.error(`gRPC ${methodName} failed`, {
+          method: methodName,
+          correlationId,
+          error: error.message,
+          stack: error.stack,
+          processingTime: `${processingTime}ms`,
+          requestData: sanitizeRequestData(requestData),
+        });
+
+        // Map gRPC error to API error
+        const apiError = mapGrpcErrorToApiError(error);
+        reject(apiError);
+      });
   });
 }
 /**
@@ -285,45 +285,45 @@ function mapGrpcErrorToApiError(error) {
   let details = [error.message];
   if (error.code) {
     switch (error.code) {
-    case grpc.status.INVALID_ARGUMENT:
-      statusCode = 400;
-      message = 'Invalid request to user service';
-      break;
-    case grpc.status.UNAUTHENTICATED:
-      statusCode = 401;
-      message = 'Authentication failed with user service';
-      break;
-    case grpc.status.PERMISSION_DENIED:
-      statusCode = 403;
-      message = 'Permission denied by user service';
-      break;
-    case grpc.status.NOT_FOUND:
-      statusCode = 404;
-      message = 'User not found';
-      break;
-    case grpc.status.ALREADY_EXISTS:
-      statusCode = 409;
-      message = 'User already exists';
-      break;
-    case grpc.status.FAILED_PRECONDITION:
-      statusCode = 422;
-      message = 'Validation failed in user service';
-      break;
-    case grpc.status.RESOURCE_EXHAUSTED:
-      statusCode = 429;
-      message = 'Rate limit exceeded by user service';
-      break;
-    case grpc.status.UNAVAILABLE:
-      statusCode = 503;
-      message = 'User service is unavailable';
-      break;
-    case grpc.status.DEADLINE_EXCEEDED:
-      statusCode = 408;
-      message = 'User service request timeout';
-      break;
-    default:
-      statusCode = 500;
-      message = 'User service internal error';
+      case grpc.status.INVALID_ARGUMENT:
+        statusCode = 400;
+        message = 'Invalid request to user service';
+        break;
+      case grpc.status.UNAUTHENTICATED:
+        statusCode = 401;
+        message = 'Authentication failed with user service';
+        break;
+      case grpc.status.PERMISSION_DENIED:
+        statusCode = 403;
+        message = 'Permission denied by user service';
+        break;
+      case grpc.status.NOT_FOUND:
+        statusCode = 404;
+        message = 'User not found';
+        break;
+      case grpc.status.ALREADY_EXISTS:
+        statusCode = 409;
+        message = 'User already exists';
+        break;
+      case grpc.status.FAILED_PRECONDITION:
+        statusCode = 422;
+        message = 'Validation failed in user service';
+        break;
+      case grpc.status.RESOURCE_EXHAUSTED:
+        statusCode = 429;
+        message = 'Rate limit exceeded by user service';
+        break;
+      case grpc.status.UNAVAILABLE:
+        statusCode = 503;
+        message = 'User service is unavailable';
+        break;
+      case grpc.status.DEADLINE_EXCEEDED:
+        statusCode = 408;
+        message = 'User service request timeout';
+        break;
+      default:
+        statusCode = 500;
+        message = 'User service internal error';
     }
   }
   return new ApiError(statusCode, message, details);
@@ -360,12 +360,12 @@ function sanitizeResponseData(data) {
  * @param {Object} options - Request options
  * @returns {Promise<Object>} User profile result
  */
-export const createUserProfile = async(userData, options = {}) => {
+export const createUserProfile = async (userData, options = {}) => {
   return wrapClientMethod(
     client.CreateProfile.bind(client),
     'CreateProfile',
     userData,
-    options,
+    options
   );
 };
 /**
@@ -375,12 +375,12 @@ export const createUserProfile = async(userData, options = {}) => {
  * @param {Object} options - Request options
  * @returns {Promise<Object>} User data
  */
-export const getUserById = async(userId, type, options = {}) => {
+export const getUserById = async (userId, type, options = {}) => {
   return wrapClientMethod(
     client.GetUserById.bind(client),
     'GetUserById',
     { user_id: userId, type },
-    options,
+    options
   );
 };
 /**
@@ -389,12 +389,12 @@ export const getUserById = async(userId, type, options = {}) => {
  * @param {Object} options - Request options
  * @returns {Promise<Object>} Update result
  */
-export const updateUserProfile = async(userData, options = {}) => {
+export const updateUserProfile = async (userData, options = {}) => {
   return wrapClientMethod(
     client.UpdateProfile.bind(client),
     'UpdateProfile',
     userData,
-    options,
+    options
   );
 };
 /**
@@ -403,12 +403,12 @@ export const updateUserProfile = async(userData, options = {}) => {
  * @param {Object} options - Request options
  * @returns {Promise<Object>} Delete result
  */
-export const deleteUserProfile = async(userId, options = {}) => {
+export const deleteUserProfile = async (userId, options = {}) => {
   return wrapClientMethod(
     client.DeleteProfile.bind(client),
     'DeleteProfile',
     { user_id: userId, ...options },
-    options,
+    options
   );
 };
 /**
@@ -417,12 +417,12 @@ export const deleteUserProfile = async(userId, options = {}) => {
  * @param {Object} options - Request options
  * @returns {Promise<Object>} Users list
  */
-export const listUsers = async(filters = {}, options = {}) => {
+export const listUsers = async (filters = {}, options = {}) => {
   return wrapClientMethod(
     client.ListUsers.bind(client),
     'ListUsers',
     filters,
-    options,
+    options
   );
 };
 /**
@@ -431,12 +431,12 @@ export const listUsers = async(filters = {}, options = {}) => {
  * @param {Object} options - Request options
  * @returns {Promise<Object>} User statistics
  */
-export const getUserStats = async(filters = {}, options = {}) => {
+export const getUserStats = async (filters = {}, options = {}) => {
   return wrapClientMethod(
     client.GetUserStats.bind(client),
     'GetUserStats',
     filters,
-    options,
+    options
   );
 };
 /**
@@ -444,19 +444,19 @@ export const getUserStats = async(filters = {}, options = {}) => {
  * @param {Object} options - Request options
  * @returns {Promise<Object>} Health status
  */
-export const healthCheck = async(options = {}) => {
+export const healthCheck = async (options = {}) => {
   return wrapClientMethod(
     client.HealthCheck.bind(client),
     'HealthCheck',
     { service_name: 'user-service' },
-    options,
+    options
   );
 };
 /**
  * Get client health status
  * @returns {Promise<Object>} Health status
  */
-export const getClientHealth = async() => {
+export const getClientHealth = async () => {
   try {
     const uptime = Date.now() - clientMetrics.uptime;
     const successRate =
@@ -540,109 +540,109 @@ export const closeClient = () => {
     });
   }
 };
-export const getUserProfile = async(userId, companyId, options = {}) => {
+export const getUserProfile = async (userId, companyId, options = {}) => {
   return wrapClientMethod(
     client.getUserProfile,
     'getUserProfile',
     { userId, companyId },
-    options,
+    options
   );
 };
-export const getCompanyStatistics = async(companyId, options = {}) => {
+export const getCompanyStatistics = async (companyId, options = {}) => {
   return wrapClientMethod(
     client.getCompanyStatistics,
     'getCompanyStatistics',
     { companyId },
-    options,
+    options
   );
 };
-export const getCompanyUsersList = async(
+export const getCompanyUsersList = async (
   companyId,
   filters = {},
-  options = {},
+  options = {}
 ) => {
   return wrapClientMethod(
     client.getCompanyUsers,
     'getCompanyUsers',
     { companyId, ...filters },
-    options,
+    options
   );
 };
-export const removeUserFromCompany = async(
+export const removeUserFromCompany = async (
   companyId,
   userId,
-  options = {},
+  options = {}
 ) => {
   return wrapClientMethod(
     client.removeUserFromCompany,
     'removeUserFromCompany',
     { companyId, userId },
-    options,
+    options
   );
 };
-export const updateUserRoleInCompany = async(
+export const updateUserRoleInCompany = async (
   companyId,
   userId,
   roleData,
-  options = {},
+  options = {}
 ) => {
   return wrapClientMethod(
     client.updateUserRole,
     'updateUserRole',
     { companyId, userId, ...roleData },
-    options,
+    options
   );
 };
-export const getCompanySettingsData = async(companyId, options = {}) => {
+export const getCompanySettingsData = async (companyId, options = {}) => {
   return wrapClientMethod(
     client.getCompanySettings,
     'getCompanySettings',
     { companyId },
-    options,
+    options
   );
 };
-export const updateCompanySettingsData = async(
+export const updateCompanySettingsData = async (
   companyId,
   settingsData,
-  options = {},
+  options = {}
 ) => {
   return wrapClientMethod(
     client.updateCompanySettings,
     'updateCompanySettings',
     { companyId, ...settingsData },
-    options,
+    options
   );
 };
-export const getCompanyActivityLog = async(
+export const getCompanyActivityLog = async (
   companyId,
   filters = {},
-  options = {},
+  options = {}
 ) => {
   return wrapClientMethod(
     client.getCompanyActivity,
     'getCompanyActivity',
     { companyId, ...filters },
-    options,
+    options
   );
 };
-export const exportCompanyDataService = async(
+export const exportCompanyDataService = async (
   companyId,
   exportOptions = {},
-  options = {},
+  options = {}
 ) => {
   return wrapClientMethod(
     client.exportCompanyData,
     'exportCompanyData',
     { companyId, ...exportOptions },
-    options,
+    options
   );
 };
-export const sendUserInvitation = async(invitationData, options = {}) => {
+export const sendUserInvitation = async (invitationData, options = {}) => {
   return wrapClientMethod(
     client.sendInvitation,
     'sendInvitation',
     invitationData,
-    options,
+    options
   );
 };
 export { userServiceCircuitBreaker };

@@ -77,7 +77,7 @@ class Secret {
         salt,
         SECRET_CONFIG.iterations,
         SECRET_CONFIG.keyLength,
-        SECRET_CONFIG.digest,
+        SECRET_CONFIG.digest
       );
       const iv = crypto.randomBytes(SECRET_CONFIG.ivLength);
       const cipher = crypto.createCipher(SECRET_CONFIG.algorithm, key);
@@ -121,7 +121,7 @@ class Secret {
         Buffer.from(salt, 'hex'),
         SECRET_CONFIG.iterations,
         SECRET_CONFIG.keyLength,
-        SECRET_CONFIG.digest,
+        SECRET_CONFIG.digest
       );
       const decipher = crypto.createDecipher(algorithm, key);
       decipher.setAAD(Buffer.from(this.name, 'utf8'));
@@ -230,7 +230,7 @@ class SecretsManager {
       const validation = secret.validate();
       if (!validation.isValid) {
         throw new Error(
-          `Secret validation failed: ${validation.errors.join(', ')}`,
+          `Secret validation failed: ${validation.errors.join(', ')}`
         );
       }
       // ✅ Encrypt secret before storing
@@ -421,25 +421,25 @@ class SecretsManager {
   // ✅ Find secret by name
   findByName(name) {
     return Array.from(this.secrets.values()).find(
-      secret => secret.name === name,
+      secret => secret.name === name
     );
   }
   // ✅ Find secrets by type
   findByType(type) {
     return Array.from(this.secrets.values()).filter(
-      secret => secret.type === type,
+      secret => secret.type === type
     );
   }
   // ✅ Get all secrets metadata
   getAllMetadata() {
     return Array.from(this.secrets.values()).map(secret =>
-      secret.getMetadata(),
+      secret.getMetadata()
     );
   }
   // ✅ Get secrets that need rotation
   getSecretsNeedingRotation() {
     return Array.from(this.secrets.values()).filter(secret =>
-      secret.needsRotation(),
+      secret.needsRotation()
     );
   }
   // ✅ Log audit event

@@ -18,7 +18,7 @@ export const metricsValidators = {
           'jwkSets',
           'permissions',
           'sessionData',
-          'rateLimitData',
+          'rateLimitData'
         )
         .default('all')
         .description('Type of cache to warm'),
@@ -34,7 +34,7 @@ export const metricsValidators = {
         .uuid()
         .optional()
         .description(
-          'User ID for device analytics (optional if accessing own data)',
+          'User ID for device analytics (optional if accessing own data)'
         ),
     }),
     query: Joi.object({

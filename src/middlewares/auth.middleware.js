@@ -42,10 +42,11 @@ function verifyToken(token) {
 export const authenticate = asyncHandler(async (req, res, next) => {
   const startTime = Date.now();
   const correlationId = getCorrelationId();
-  
+
   try {
     // Device fingerprint validation
-    const deviceFingerprint = req.headers['x-device-fingerprint'] || req.body.deviceFingerprint;
+    const deviceFingerprint =
+      req.headers['x-device-fingerprint'] || req.body.deviceFingerprint;
     if (deviceFingerprint) {
       req.deviceFingerprint = deviceFingerprint;
     }
@@ -54,13 +55,14 @@ export const authenticate = asyncHandler(async (req, res, next) => {
     const clientIP = req.ip || req.connection?.remoteAddress;
     const rateLimitKey = `auth:${clientIP}`;
     const currentRate = await authCache.incrementRateLimit(rateLimitKey);
-    
-    if (currentRate > 10) { // Max 10 auth attempts per 15 minutes
+
+    if (currentRate > 10) {
+      // Max 10 auth attempts per 15 minutes
       throw new ApiError(429, 'Too many authentication attempts');
     }
 
     const token = extractToken(req);
-    
+
     if (!token) {
       throw new ApiError(401, 'Access token required');
     }
@@ -73,13 +75,13 @@ export const authenticate = asyncHandler(async (req, res, next) => {
 
     // Verify token with enhanced security
     const decoded = verifyToken(token);
-    
+
     // Get user from database with enhanced security
     const user = await AuthUser.findById(decoded.userId)
       .select('-password')
       .populate('permissions', 'name scope')
       .populate('role', 'name permissions');
-    
+
     if (!user) {
       throw new ApiError(401, 'User not found');
     }
@@ -94,7 +96,10 @@ export const authenticate = asyncHandler(async (req, res, next) => {
     }
 
     if (user.failedLoginAttempts >= 5) {
-      throw new ApiError(423, 'Account temporarily locked due to failed attempts');
+      throw new ApiError(
+        423,
+        'Account temporarily locked due to failed attempts'
+      );
     }
 
     // Check account expiration
@@ -104,8 +109,11 @@ export const authenticate = asyncHandler(async (req, res, next) => {
 
     // Check last password change
     if (user.lastPasswordChange && user.passwordChangeRequired) {
-      const daysSinceChange = (Date.now() - user.lastPasswordChange.getTime()) / (1000 * 60 * 60 * 24);
-      if (daysSinceChange > 90) { // 90 days
+      const daysSinceChange =
+        (Date.now() - user.lastPasswordChange.getTime()) /
+        (1000 * 60 * 60 * 24);
+      if (daysSinceChange > 90) {
+        // 90 days
         throw new ApiError(401, 'Password change required');
       }
     }
@@ -114,7 +122,7 @@ export const authenticate = asyncHandler(async (req, res, next) => {
     req.user = user;
     req.token = token;
     req.correlationId = correlationId;
-    
+
     // Add security context
     req.securityContext = {
       deviceFingerprint,
@@ -141,7 +149,7 @@ export const authenticate = asyncHandler(async (req, res, next) => {
     // Update user activity
     await AuthUser.findByIdAndUpdate(user._id, {
       $inc: { loginCount: 1 },
-      $set: { 
+      $set: {
         lastLoginAt: new Date(),
         lastLoginIP: clientIP,
         lastLoginUserAgent: req.headers['user-agent'],
@@ -153,14 +161,14 @@ export const authenticate = asyncHandler(async (req, res, next) => {
           userAgent: req.headers['user-agent'],
           deviceFingerprint,
           correlationId,
-        }
-      }
+        },
+      },
     });
 
     next();
   } catch (error) {
     const responseTime = Date.now() - startTime;
-    
+
     // Log failed authentication with security details
     safeLogger.error('Authentication failed', {
       error: error.message,
@@ -179,17 +187,19 @@ export const authenticate = asyncHandler(async (req, res, next) => {
         if (user) {
           await AuthUser.findByIdAndUpdate(user._id, {
             $inc: { failedLoginAttempts: 1 },
-            $set: { lastFailedLoginAt: new Date() }
+            $set: { lastFailedLoginAt: new Date() },
           });
         }
       } catch (updateError) {
-        safeLogger.error('Failed to update login attempts', { error: updateError.message });
+        safeLogger.error('Failed to update login attempts', {
+          error: updateError.message,
+        });
       }
     }
 
     next(error);
   }
- });
+});
 
 /**
  * Optional authentication middleware
@@ -197,18 +207,18 @@ export const authenticate = asyncHandler(async (req, res, next) => {
 export const optionalAuth = asyncHandler(async (req, res, next) => {
   try {
     const token = extractToken(req);
-    
+
     if (token) {
       const decoded = verifyToken(token);
       const user = await AuthUser.findById(decoded.userId).select('-password');
-      
+
       if (user && user.isActive) {
         req.user = user;
         req.token = token;
         req.correlationId = getCorrelationId();
       }
     }
-    
+
     next();
   } catch (error) {
     // Continue without authentication
@@ -242,10 +252,10 @@ export const requireRole = (roles, permissions = []) => {
 
     // Check specific permissions if required
     if (permissions.length > 0) {
-      const hasPermission = permissions.some(permission => 
+      const hasPermission = permissions.some(permission =>
         userPermissions.includes(permission)
       );
-      
+
       if (!hasPermission) {
         safeLogger.warn('Permission access denied', {
           userId: req.user._id,
@@ -282,34 +292,47 @@ export const requireRole = (roles, permissions = []) => {
 /**
  * Admin access required
  */
-export const requireAdmin = requireRole(['admin', 'super_admin'], ['admin:read', 'admin:write']);
+export const requireAdmin = requireRole(
+  ['admin', 'super_admin'],
+  ['admin:read', 'admin:write']
+);
 
 /**
  * Super admin access required
  */
-export const requireSuperAdmin = requireRole('super_admin', ['super_admin:all']);
+export const requireSuperAdmin = requireRole('super_admin', [
+  'super_admin:all',
+]);
 
 /**
  * User access required
  */
-export const requireUser = requireRole(['user', 'admin', 'moderator', 'super_admin']);
+export const requireUser = requireRole([
+  'user',
+  'admin',
+  'moderator',
+  'super_admin',
+]);
 
 /**
  * Moderator access required
  */
-export const requireModerator = requireRole(['moderator', 'admin', 'super_admin'], ['moderator:read', 'moderator:write']);
+export const requireModerator = requireRole(
+  ['moderator', 'admin', 'super_admin'],
+  ['moderator:read', 'moderator:write']
+);
 
 /**
  * Check if user has specific permission
  */
-export const requirePermission = (permission) => {
+export const requirePermission = permission => {
   return asyncHandler(async (req, res, next) => {
     if (!req.user) {
       throw new ApiError(401, 'Authentication required');
     }
 
     const userPermissions = req.user.permissions?.map(p => p.name) || [];
-    
+
     if (!userPermissions.includes(permission)) {
       safeLogger.warn('Permission check failed', {
         userId: req.user._id,
@@ -334,7 +357,7 @@ export const requireOwnership = (resourceIdField = 'id') => {
     }
 
     const resourceId = req.params[resourceIdField] || req.body[resourceIdField];
-    
+
     if (!resourceId) {
       throw new ApiError(400, 'Resource ID required');
     }
@@ -368,9 +391,12 @@ export const rateLimit = (maxRequests = 100, windowMs = 15 * 60 * 1000) => {
     const clientIP = req.ip || req.connection?.remoteAddress;
     const endpoint = req.originalUrl || req.url;
     const rateLimitKey = `rate:${endpoint}:${clientIP}`;
-    
-    const currentRate = await authCache.incrementRateLimit(rateLimitKey, Math.floor(windowMs / 1000));
-    
+
+    const currentRate = await authCache.incrementRateLimit(
+      rateLimitKey,
+      Math.floor(windowMs / 1000)
+    );
+
     if (currentRate > maxRequests) {
       safeLogger.warn('Rate limit exceeded', {
         clientIP,
@@ -404,10 +430,10 @@ export const rateLimiter = (endpoint, options = {}) => {
 /**
  * Audit logging middleware
  */
-export const auditLog = (action) => {
+export const auditLog = action => {
   return asyncHandler(async (req, res, next) => {
     const startTime = Date.now();
-    
+
     // Add audit context to request
     req.auditContext = {
       action,
@@ -420,9 +446,9 @@ export const auditLog = (action) => {
 
     // Override response end to log audit
     const originalEnd = res.end;
-    res.end = function(chunk, encoding) {
+    res.end = function (chunk, encoding) {
       const responseTime = Date.now() - startTime;
-      
+
       // Log audit event
       safeLogger.info('Audit log', {
         action,
@@ -447,11 +473,12 @@ export const auditLog = (action) => {
  * Device fingerprint validation middleware
  */
 export const validateDevice = asyncHandler(async (req, res, next) => {
-  const deviceFingerprint = req.headers['x-device-fingerprint'] || req.body.deviceFingerprint;
-  
+  const deviceFingerprint =
+    req.headers['x-device-fingerprint'] || req.body.deviceFingerprint;
+
   if (deviceFingerprint) {
     req.deviceFingerprint = deviceFingerprint;
-    
+
     // Basic device validation
     if (deviceFingerprint.length < 10) {
       safeLogger.warn('Suspicious device fingerprint', {
@@ -469,8 +496,9 @@ export const validateDevice = asyncHandler(async (req, res, next) => {
  * reCAPTCHA validation middleware
  */
 export const validateRecaptcha = asyncHandler(async (req, res, next) => {
-  const recaptchaToken = req.body.recaptchaToken || req.headers['x-recaptcha-token'];
-  
+  const recaptchaToken =
+    req.body.recaptchaToken || req.headers['x-recaptcha-token'];
+
   if (!recaptchaToken) {
     safeLogger.warn('reCAPTCHA token missing', {
       ip: req.ip || req.connection?.remoteAddress,
@@ -490,12 +518,12 @@ export const verifyJWT = authenticate;
 /**
  * Request validation middleware
  */
-export const validateRequest = (schema) => {
+export const validateRequest = schema => {
   return asyncHandler(async (req, res, next) => {
     try {
       if (schema) {
         let validationResult;
-        
+
         // Handle both Joi schemas and validation functions
         if (typeof schema === 'function') {
           // If schema is a function, call it with the request body
@@ -504,9 +532,12 @@ export const validateRequest = (schema) => {
           // If schema is a Joi schema object, validate directly
           validationResult = schema.validate(req.body);
         }
-        
+
         if (validationResult.error) {
-          throw new ApiError(400, `Validation error: ${validationResult.error.details[0].message}`);
+          throw new ApiError(
+            400,
+            `Validation error: ${validationResult.error.details[0].message}`
+          );
         }
         req.validatedBody = validationResult.value || validationResult;
       }
@@ -523,16 +554,16 @@ export const validateRequest = (schema) => {
 export const cacheMiddleware = (key, ttl = 300) => {
   return asyncHandler(async (req, res, next) => {
     const cacheKey = `response:${key}:${req.originalUrl || req.url}`;
-    
+
     try {
       const cachedResponse = await authCache.get(cacheKey);
       if (cachedResponse) {
         return res.json(cachedResponse);
       }
-      
+
       // Override response end to cache the response
       const originalEnd = res.end;
-      res.end = function(chunk, encoding) {
+      res.end = function (chunk, encoding) {
         if (res.statusCode === 200 && chunk) {
           try {
             const responseData = JSON.parse(chunk.toString());
@@ -543,7 +574,7 @@ export const cacheMiddleware = (key, ttl = 300) => {
         }
         originalEnd.call(this, chunk, encoding);
       };
-      
+
       next();
     } catch (error) {
       safeLogger.error('Cache middleware error', { error: error.message });
@@ -566,7 +597,7 @@ export const securityHeaders = (additionalHeaders = {}) => {
       'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
       ...additionalHeaders,
     });
-    
+
     next();
   };
 };

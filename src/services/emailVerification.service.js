@@ -239,10 +239,10 @@ class EmailVerificationService {
 
         if (timeSinceLastSent < minResendInterval) {
           const remainingTime = Math.ceil(
-            (minResendInterval - timeSinceLastSent) / 1000 / 60,
+            (minResendInterval - timeSinceLastSent) / 1000 / 60
           );
           throw new Error(
-            `Please wait ${remainingTime} minutes before requesting another verification email`,
+            `Please wait ${remainingTime} minutes before requesting another verification email`
           );
         }
 
@@ -254,7 +254,7 @@ class EmailVerificationService {
       const { verification, token } = await this.createVerificationRecord(
         userId,
         user.email,
-        deviceInfo,
+        deviceInfo
       );
 
       // Send verification email

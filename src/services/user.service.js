@@ -185,7 +185,7 @@ class UserService {
 
       // Combine and sort activities
       const allActivities = [...auditActivities, ...userActivities].sort(
-        (a, b) => new Date(b.createdAt) - new Date(a.createdAt),
+        (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
       );
 
       const totalActivities = auditCount + userActivityCount;
@@ -289,7 +289,7 @@ class UserService {
           totalActivities: activityCount + auditCount,
           recentActivities: recentActivities.length,
           accountAge: Math.floor(
-            (Date.now() - new Date(user.createdAt)) / (1000 * 60 * 60 * 24),
+            (Date.now() - new Date(user.createdAt)) / (1000 * 60 * 60 * 24)
           ),
         },
         recentActivities,

@@ -14,45 +14,48 @@ const swaggerOptions = {
       description: 'Authentication and Authorization Microservice API',
       contact: {
         name: 'Neel Networks',
-        email: 'support@neelnetworks.com'
-      }
+        email: 'support@neelnetworks.com',
+      },
     },
     servers: [
       {
         url: 'http://localhost:3001',
-        description: 'Development server'
+        description: 'Development server',
       },
       {
         url: 'https://api.bizpickr.com/auth',
-        description: 'Production server'
-      }
+        description: 'Production server',
+      },
     ],
     components: {
       securitySchemes: {
         bearerAuth: {
           type: 'http',
           scheme: 'bearer',
-          bearerFormat: 'JWT'
-        }
-      }
+          bearerFormat: 'JWT',
+        },
+      },
     },
     security: [
       {
-        bearerAuth: []
-      }
-    ]
+        bearerAuth: [],
+      },
+    ],
   },
-  apis: ['./src/routes/*.js', './src/models/*.js']
+  apis: ['./src/routes/*.js', './src/models/*.js'],
 };
 
 const swaggerSpec = swaggerJsdoc(swaggerOptions);
 
 // Serve Swagger UI
 router.use('/', swaggerUi.serve);
-router.get('/', swaggerUi.setup(swaggerSpec, {
-  customCss: '.swagger-ui .topbar { display: none }',
-  customSiteTitle: 'AuthService API Documentation'
-}));
+router.get(
+  '/',
+  swaggerUi.setup(swaggerSpec, {
+    customCss: '.swagger-ui .topbar { display: none }',
+    customSiteTitle: 'AuthService API Documentation',
+  })
+);
 
 // Serve OpenAPI spec
 router.get('/swagger.json', (req, res) => {

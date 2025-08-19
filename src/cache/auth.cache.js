@@ -74,7 +74,9 @@ class AuthCache {
       try {
         this.redis = getRedisClient();
       } catch (error) {
-        safeLogger.warn('Redis not ready yet, will retry', { error: error.message });
+        safeLogger.warn('Redis not ready yet, will retry', {
+          error: error.message,
+        });
         throw error;
       }
     }
@@ -88,7 +90,9 @@ class AuthCache {
     try {
       return await this._ensureRedis();
     } catch (error) {
-      safeLogger.warn('Redis not available, operation will fail', { error: error.message });
+      safeLogger.warn('Redis not available, operation will fail', {
+        error: error.message,
+      });
       throw error;
     }
   }
@@ -98,15 +102,21 @@ class AuthCache {
    */
   _setupCircuitBreakerListeners() {
     this.circuitBreaker.on('open', () => {
-      safeLogger.warn('Cache circuit breaker opened', { timestamp: Date.now() });
+      safeLogger.warn('Cache circuit breaker opened', {
+        timestamp: Date.now(),
+      });
     });
 
     this.circuitBreaker.on('close', () => {
-      safeLogger.info('Cache circuit breaker closed', { timestamp: Date.now() });
+      safeLogger.info('Cache circuit breaker closed', {
+        timestamp: Date.now(),
+      });
     });
 
     this.circuitBreaker.on('halfOpen', () => {
-      safeLogger.info('Cache circuit breaker half-open', { timestamp: Date.now() });
+      safeLogger.info('Cache circuit breaker half-open', {
+        timestamp: Date.now(),
+      });
     });
   }
 
@@ -136,10 +146,11 @@ class AuthCache {
    * Get cache metrics
    */
   getMetrics() {
-    const hitRate = this.metrics.operations > 0 
-      ? (this.metrics.hits / this.metrics.operations * 100).toFixed(2)
-      : 0;
-    
+    const hitRate =
+      this.metrics.operations > 0
+        ? ((this.metrics.hits / this.metrics.operations) * 100).toFixed(2)
+        : 0;
+
     return {
       ...this.metrics,
       hitRate: `${hitRate}%`,
@@ -169,22 +180,20 @@ class AuthCache {
       const redis = await this._ensureRedis();
       const fullKey = this._getFullKey(key);
       let serializedValue = JSON.stringify(value);
-      
+
       // Compress large values
       if (serializedValue.length > CACHE_CONFIG.COMPRESSION_THRESHOLD) {
         serializedValue = await this._compress(serializedValue);
       }
-      
-      const result = await this.circuitBreaker.fire(
-        async () => {
-          if (expiry) {
-            return await redis.setex(fullKey, expiry, serializedValue);
-          } else {
-            return await redis.set(fullKey, serializedValue);
-          }
+
+      const result = await this.circuitBreaker.fire(async () => {
+        if (expiry) {
+          return await redis.setex(fullKey, expiry, serializedValue);
+        } else {
+          return await redis.set(fullKey, serializedValue);
         }
-      );
-      
+      });
+
       this.metrics.hits++;
       return result === 'OK';
     } catch (error) {
@@ -201,18 +210,18 @@ class AuthCache {
     try {
       const redis = await this._ensureRedis();
       const fullKey = this._getFullKey(key);
-      
+
       const value = await this.circuitBreaker.fire(
         async () => await redis.get(fullKey)
       );
-      
+
       if (!value) {
         this.metrics.misses++;
         return null;
       }
-      
+
       this.metrics.hits++;
-      
+
       // Decompress if needed
       let parsedValue;
       try {
@@ -221,7 +230,7 @@ class AuthCache {
         // Try to decompress if parsing fails
         parsedValue = await this._decompress(value);
       }
-      
+
       return parsedValue;
     } catch (error) {
       this.metrics.errors++;
@@ -290,7 +299,9 @@ class AuthCache {
       const gzipAsync = promisify(gzip);
       return await gzipAsync(data);
     } catch (error) {
-      safeLogger.warn('Compression failed, using uncompressed data', { error: error.message });
+      safeLogger.warn('Compression failed, using uncompressed data', {
+        error: error.message,
+      });
       return data;
     }
   }
@@ -306,7 +317,9 @@ class AuthCache {
       const decompressed = await gunzipAsync(data);
       return JSON.parse(decompressed.toString());
     } catch (error) {
-      safeLogger.warn('Decompression failed, trying direct parse', { error: error.message });
+      safeLogger.warn('Decompression failed, trying direct parse', {
+        error: error.message,
+      });
       return JSON.parse(data);
     }
   }
@@ -319,16 +332,25 @@ class AuthCache {
       const redis = await this._getRedis();
       const lockName = `${PREFIX.DISTRIBUTED_LOCK}${lockKey}`;
       const lockValue = Date.now().toString();
-      
-      const result = await redis.set(lockName, lockValue, 'PX', ttl * 1000, 'NX');
-      
+
+      const result = await redis.set(
+        lockName,
+        lockValue,
+        'PX',
+        ttl * 1000,
+        'NX'
+      );
+
       if (result === 'OK') {
         return { acquired: true, lockValue, lockName };
       }
-      
+
       return { acquired: false, lockValue: null, lockName };
     } catch (error) {
-      safeLogger.error('Failed to acquire lock', { lockKey, error: error.message });
+      safeLogger.error('Failed to acquire lock', {
+        lockKey,
+        error: error.message,
+      });
       return { acquired: false, lockValue: null, lockName: null };
     }
   }
@@ -341,9 +363,9 @@ class AuthCache {
       if (!lockInfo.acquired || !lockInfo.lockName) {
         return false;
       }
-      
+
       const redis = await this._getRedis();
-      
+
       // Use Lua script for atomic release
       const luaScript = `
         if redis.call("get", KEYS[1]) == ARGV[1] then
@@ -352,11 +374,19 @@ class AuthCache {
           return 0
         end
       `;
-      
-      const result = await redis.eval(luaScript, 1, lockInfo.lockName, lockInfo.lockValue);
+
+      const result = await redis.eval(
+        luaScript,
+        1,
+        lockInfo.lockName,
+        lockInfo.lockValue
+      );
       return result === 1;
     } catch (error) {
-      safeLogger.error('Failed to release lock', { lockInfo, error: error.message });
+      safeLogger.error('Failed to release lock', {
+        lockInfo,
+        error: error.message,
+      });
       return false;
     }
   }
@@ -367,34 +397,39 @@ class AuthCache {
   async batchSet(operations) {
     try {
       if (operations.length > CACHE_CONFIG.BATCH_SIZE) {
-        throw new Error(`Batch size exceeds limit of ${CACHE_CONFIG.BATCH_SIZE}`);
+        throw new Error(
+          `Batch size exceeds limit of ${CACHE_CONFIG.BATCH_SIZE}`
+        );
       }
-      
+
       const redis = await this._getRedis();
       const pipeline = redis.pipeline();
-      
+
       operations.forEach(({ key, value, expiry }) => {
         const fullKey = this._getFullKey(key);
         let serializedValue = JSON.stringify(value);
-        
+
         if (serializedValue.length > CACHE_CONFIG.COMPRESSION_THRESHOLD) {
           serializedValue = this._compress(serializedValue);
         }
-        
+
         if (expiry) {
           pipeline.setex(fullKey, expiry, serializedValue);
         } else {
           pipeline.set(fullKey, serializedValue);
         }
       });
-      
+
       const results = await pipeline.exec();
       this.metrics.operations += operations.length;
-      
+
       return results.every(result => result[1] === 'OK');
     } catch (error) {
       this.metrics.errors++;
-      safeLogger.error('Batch set error', { error: error.message, operationCount: operations.length });
+      safeLogger.error('Batch set error', {
+        error: error.message,
+        operationCount: operations.length,
+      });
       return false;
     }
   }
@@ -405,13 +440,17 @@ class AuthCache {
   async warmCache(warmingData) {
     try {
       const warmingKey = `${PREFIX.CACHE_WARMING}${Date.now()}`;
-      await this.set(warmingKey, { status: 'warming', data: warmingData }, EXPIRY.CACHE_WARMING);
-      
-      safeLogger.info('Cache warming initiated', { 
-        warmingKey, 
-        dataCount: Object.keys(warmingData).length 
+      await this.set(
+        warmingKey,
+        { status: 'warming', data: warmingData },
+        EXPIRY.CACHE_WARMING
+      );
+
+      safeLogger.info('Cache warming initiated', {
+        warmingKey,
+        dataCount: Object.keys(warmingData).length,
       });
-      
+
       return true;
     } catch (error) {
       safeLogger.error('Cache warming failed', { error: error.message });
@@ -427,15 +466,17 @@ class AuthCache {
       const redis = await this._getRedis();
       const warmingKeys = await redis.keys(`${PREFIX.CACHE_WARMING}*`);
       const statuses = await Promise.all(
-        warmingKeys.map(async (key) => {
+        warmingKeys.map(async key => {
           const data = await this.get(key.replace('warming:', ''));
           return { key, data };
         })
       );
-      
+
       return statuses.filter(status => status.data);
     } catch (error) {
-      safeLogger.error('Failed to get warming status', { error: error.message });
+      safeLogger.error('Failed to get warming status', {
+        error: error.message,
+      });
       return [];
     }
   }
@@ -448,7 +489,7 @@ class AuthCache {
       const redis = await this._getRedis();
       const ping = await redis.ping();
       const info = await redis.info();
-      
+
       return {
         status: 'healthy',
         ping: ping === 'PONG',
@@ -476,7 +517,9 @@ class AuthCache {
       safeLogger.info('Cache system initialized successfully');
       return true;
     } catch (error) {
-      safeLogger.error('Failed to initialize cache system', { error: error.message });
+      safeLogger.error('Failed to initialize cache system', {
+        error: error.message,
+      });
       return false;
     }
   }
@@ -490,7 +533,9 @@ class AuthCache {
       safeLogger.info('Cache system shutdown successfully');
       return true;
     } catch (error) {
-      safeLogger.error('Failed to shutdown cache system', { error: error.message });
+      safeLogger.error('Failed to shutdown cache system', {
+        error: error.message,
+      });
       return false;
     }
   }
@@ -510,7 +555,11 @@ class AuthCache {
 
   // ✅ Token blacklist methods
   async blacklistToken(token, userId) {
-    return this.set(`blacklist:${token}`, { userId, blacklistedAt: Date.now() }, EXPIRY.BLACKLISTED_TOKEN);
+    return this.set(
+      `blacklist:${token}`,
+      { userId, blacklistedAt: Date.now() },
+      EXPIRY.BLACKLISTED_TOKEN
+    );
   }
 
   async isTokenBlacklisted(token) {
@@ -541,14 +590,17 @@ class AuthCache {
       const redis = await this._getRedis();
       const fullKey = `rate:${key}`;
       const current = await redis.incr(fullKey);
-      
+
       if (current === 1) {
         await redis.expire(fullKey, window);
       }
-      
+
       return current;
     } catch (error) {
-      safeLogger.error('Rate limit increment error', { key, error: error.message });
+      safeLogger.error('Rate limit increment error', {
+        key,
+        error: error.message,
+      });
       return 0;
     }
   }
@@ -557,7 +609,7 @@ class AuthCache {
     try {
       const redis = await this._getRedis();
       const fullKey = `rate:${key}`;
-      return await redis.get(fullKey) || 0;
+      return (await redis.get(fullKey)) || 0;
     } catch (error) {
       safeLogger.error('Rate limit get error', { key, error: error.message });
       return 0;

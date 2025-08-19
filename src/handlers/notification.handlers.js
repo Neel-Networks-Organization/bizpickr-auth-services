@@ -34,26 +34,26 @@ class NotificationHandlers {
     });
     // Notification events
     socket.on('subscribe_notifications', data =>
-      this.handleSubscribeNotifications(socket, data, server),
+      this.handleSubscribeNotifications(socket, data, server)
     );
     socket.on('unsubscribe_notifications', data =>
-      this.handleUnsubscribeNotifications(socket, data, server),
+      this.handleUnsubscribeNotifications(socket, data, server)
     );
     socket.on('mark_read', data => this.handleMarkRead(socket, data, server));
     socket.on('mark_all_read', data =>
-      this.handleMarkAllRead(socket, data, server),
+      this.handleMarkAllRead(socket, data, server)
     );
     socket.on('get_notifications', data =>
-      this.handleGetNotifications(socket, data, server),
+      this.handleGetNotifications(socket, data, server)
     );
     socket.on('delete_notification', data =>
-      this.handleDeleteNotification(socket, data, server),
+      this.handleDeleteNotification(socket, data, server)
     );
     socket.on('update_preferences', data =>
-      this.handleUpdatePreferences(socket, data, server),
+      this.handleUpdatePreferences(socket, data, server)
     );
     socket.on('get_preferences', data =>
-      this.handleGetPreferences(socket, data, server),
+      this.handleGetPreferences(socket, data, server)
     );
   }
   /**
@@ -76,14 +76,14 @@ class NotificationHandlers {
         await server.joinUserToRoom(
           userId,
           `notifications:${category}`,
-          'notifications',
+          'notifications'
         );
       }
       // Join user's personal notification room
       await server.joinUserToRoom(
         userId,
         `notifications:user:${userId}`,
-        'notifications',
+        'notifications'
       );
       // Send confirmation
       socket.emit('notifications_subscribed', {
@@ -135,7 +135,7 @@ class NotificationHandlers {
         await server.removeUserFromRoom(
           userId,
           `notifications:${category}`,
-          'notifications',
+          'notifications'
         );
       }
       // Send confirmation
@@ -533,10 +533,10 @@ class NotificationHandlers {
     const successRate =
       this.handlerStats.totalEvents > 0
         ? (
-          (this.handlerStats.successfulEvents /
+            (this.handlerStats.successfulEvents /
               this.handlerStats.totalEvents) *
             100
-        ).toFixed(2)
+          ).toFixed(2)
         : 0;
     return {
       ...this.handlerStats,

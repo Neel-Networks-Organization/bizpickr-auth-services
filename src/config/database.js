@@ -41,12 +41,12 @@ export const databaseConfig = {
     connectTimeout: validateEnvType(
       process.env.DB_CONNECT_TIMEOUT,
       'number',
-      60000,
+      60000
     ),
     acquireTimeout: validateEnvType(
       process.env.DB_ACQUIRE_TIMEOUT,
       'number',
-      60000,
+      60000
     ),
     timeout: validateEnvType(process.env.DB_TIMEOUT, 'number', 60000),
 
@@ -59,9 +59,9 @@ export const databaseConfig = {
       process.env.NODE_ENV === 'production' ||
       validateEnvType(process.env.DB_SSL, 'boolean', false)
         ? {
-          require: true,
-          rejectUnauthorized: false,
-        }
+            require: true,
+            rejectUnauthorized: false,
+          }
         : false,
 
     // Timezone and Character Set
@@ -82,12 +82,12 @@ export const databaseConfig = {
       backoffBase: validateEnvType(
         process.env.DB_RETRY_BACKOFF_BASE,
         'number',
-        1000,
+        1000
       ),
       backoffExponent: validateEnvType(
         process.env.DB_RETRY_BACKOFF_EXPONENT,
         'number',
-        1.5,
+        1.5
       ),
     },
 
@@ -160,10 +160,10 @@ export const getDatabaseConnectionOptions = () => {
     // Logging
     logging: mysql.logging
       ? msg => {
-        if (process.env.NODE_ENV === 'development') {
-          safeLogger.debug('Database Query', { query: msg });
+          if (process.env.NODE_ENV === 'development') {
+            safeLogger.debug('Database Query', { query: msg });
+          }
         }
-      }
       : false,
 
     // Benchmark

@@ -61,7 +61,7 @@ const AUDIT_EVENTS = {
  */
 function maskSensitiveData(
   data,
-  sensitiveFields = AUDIT_CONFIG.sensitiveFields,
+  sensitiveFields = AUDIT_CONFIG.sensitiveFields
 ) {
   if (!data || typeof data !== 'object') return data;
   const masked = { ...data };
@@ -183,13 +183,13 @@ function createAuditEvent(type, req, res, additionalData = {}) {
     },
     response: res
       ? {
-        statusCode: res.statusCode,
-        statusMessage: res.statusMessage,
-        headers: res.getHeaders ? res.getHeaders() : {},
-        responseTime: req.performanceContext
-          ? performance.now() - req.performanceContext.startTime
-          : undefined,
-      }
+          statusCode: res.statusCode,
+          statusMessage: res.statusMessage,
+          headers: res.getHeaders ? res.getHeaders() : {},
+          responseTime: req.performanceContext
+            ? performance.now() - req.performanceContext.startTime
+            : undefined,
+        }
       : undefined,
     ...additionalData,
   };
@@ -307,7 +307,7 @@ export const auditMiddleware = (req, res, next) => {
       {
         violations,
         severity: 'high',
-      },
+      }
     );
     logAuditEvent(securityEvent);
   }
@@ -320,7 +320,7 @@ export const auditMiddleware = (req, res, next) => {
       {
         sensitivity: 'high',
         dataType: 'authentication',
-      },
+      }
     );
     logAuditEvent(sensitiveEvent);
   }
@@ -328,7 +328,7 @@ export const auditMiddleware = (req, res, next) => {
   const originalSend = res.send;
   const originalJson = res.json;
   const originalEnd = res.end;
-  res.send = function(data) {
+  res.send = function (data) {
     const responseTime = Date.now() - startTime;
     const completeEvent = createAuditEvent(
       AUDIT_EVENTS.REQUEST_COMPLETE,
@@ -338,12 +338,12 @@ export const auditMiddleware = (req, res, next) => {
         responseTime,
         responseSize:
           typeof data === 'string' ? data.length : JSON.stringify(data).length,
-      },
+      }
     );
     logAuditEvent(completeEvent);
     return originalSend.call(this, data);
   };
-  res.json = function(data) {
+  res.json = function (data) {
     const responseTime = Date.now() - startTime;
     const completeEvent = createAuditEvent(
       AUDIT_EVENTS.REQUEST_COMPLETE,
@@ -352,12 +352,12 @@ export const auditMiddleware = (req, res, next) => {
       {
         responseTime,
         responseSize: JSON.stringify(data).length,
-      },
+      }
     );
     logAuditEvent(completeEvent);
     return originalJson.call(this, data);
   };
-  res.end = function(data) {
+  res.end = function (data) {
     const responseTime = Date.now() - startTime;
     const completeEvent = createAuditEvent(
       AUDIT_EVENTS.REQUEST_COMPLETE,
@@ -366,14 +366,14 @@ export const auditMiddleware = (req, res, next) => {
       {
         responseTime,
         responseSize: data ? data.length : 0,
-      },
+      }
     );
     logAuditEvent(completeEvent);
     return originalEnd.call(this, data);
   };
   // ✅ Track errors
   const originalNext = next;
-  next = function(err) {
+  next = function (err) {
     if (err) {
       const errorEvent = createAuditEvent(
         AUDIT_EVENTS.ERROR_OCCURRED,
@@ -385,7 +385,7 @@ export const auditMiddleware = (req, res, next) => {
             stack: err.stack,
             name: err.name,
           },
-        },
+        }
       );
       logAuditEvent(errorEvent);
     }
@@ -399,7 +399,7 @@ export const auditMiddleware = (req, res, next) => {
 export const authAuditMiddleware = (req, res, next) => {
   if (!AUDIT_CONFIG.enabled) return next();
   const originalNext = next;
-  next = function(err) {
+  next = function (err) {
     if (req.user) {
       // ✅ Log successful authentication
       const authEvent = createAuditEvent(AUDIT_EVENTS.AUTH_SUCCESS, req, res, {
@@ -418,7 +418,7 @@ export const authAuditMiddleware = (req, res, next) => {
           error: err.message,
           authMethod: req.authMethod || 'jwt',
           attemptCount: req.authAttempts || 1,
-        },
+        }
       );
       logAuditEvent(authFailureEvent);
     }
@@ -432,7 +432,7 @@ export const authAuditMiddleware = (req, res, next) => {
 export const permissionAuditMiddleware = (req, res, next) => {
   if (!AUDIT_CONFIG.enabled) return next();
   const originalNext = next;
-  next = function(err) {
+  next = function (err) {
     if (err && err.status === 403) {
       const permissionEvent = createAuditEvent(
         AUDIT_EVENTS.PERMISSION_DENIED,
@@ -443,7 +443,7 @@ export const permissionAuditMiddleware = (req, res, next) => {
           userPermissions: req.user?.permissions || [],
           resource: req.path,
           action: req.method,
-        },
+        }
       );
       logAuditEvent(permissionEvent);
     }
@@ -512,7 +512,7 @@ export async function generateAuditReport(options = {}) {
     eventTypes: {},
     userActivity: {},
     securityEvents: events.filter(
-      e => e.action.includes('security') || e.action.includes('violation'),
+      e => e.action.includes('security') || e.action.includes('violation')
     ).length,
     errors: events.filter(e => e.action.includes('error')).length,
     averageResponseTime:

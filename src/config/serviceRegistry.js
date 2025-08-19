@@ -132,7 +132,7 @@ export const getServiceUrl = (serviceName, endpoint = '') => {
  * @param {string} serviceName - Name of the service
  * @returns {string} Health check URL
  */
-export const getServiceHealthUrl = (serviceName) => {
+export const getServiceHealthUrl = serviceName => {
   const service = serviceRegistry.services[serviceName];
   if (!service) {
     throw new Error(`Service ${serviceName} not found in registry`);
@@ -145,7 +145,7 @@ export const getServiceHealthUrl = (serviceName) => {
  * @param {string} serviceName - Name of the service
  * @returns {string} Metrics URL
  */
-export const getServiceMetricsUrl = (serviceName) => {
+export const getServiceMetricsUrl = serviceName => {
   const service = serviceRegistry.services[serviceName];
   if (!service?.metrics) {
     throw new Error(`Service ${serviceName} does not support metrics`);
@@ -158,7 +158,7 @@ export const getServiceMetricsUrl = (serviceName) => {
  * @param {string} serviceName - Name of the service
  * @returns {boolean} Service availability
  */
-export const isServiceAvailable = (serviceName) => {
+export const isServiceAvailable = serviceName => {
   try {
     const service = serviceRegistry.services[serviceName];
     return !!service;
@@ -180,7 +180,7 @@ export const getAvailableServices = () => {
  * @param {string} serviceName - Name of the service
  * @returns {Object} Service configuration
  */
-export const getServiceConfig = (serviceName) => {
+export const getServiceConfig = serviceName => {
   const service = serviceRegistry.services[serviceName];
   if (!service) {
     throw new Error(`Service ${serviceName} not found in registry`);
