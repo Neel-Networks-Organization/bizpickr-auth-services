@@ -447,6 +447,10 @@ async function grpcConnectFunction() {
       );
     }
   } catch (error) {
+    safeLogger.error('Error during gRPC connection setup', {
+      error: error.message,
+      stack: error.stack,
+    });
     throw error;
   }
 }

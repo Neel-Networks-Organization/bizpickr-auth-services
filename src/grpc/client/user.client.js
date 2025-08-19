@@ -197,31 +197,27 @@ function updateClientMetrics(type, data = {}) {
  * @param {Object} options - Request options
  * @returns {Promise<any>} Method result
  */
-async function wrapClientMethod(
-  clientMethod,
-  methodName,
-  requestData,
-  options = {}
-) {
-  return new Promise(async (resolve, reject) => {
+function wrapClientMethod(clientMethod, methodName, requestData, options = {}) {
+  return new Promise((resolve, reject) => {
     const startTime = Date.now();
     const correlationId = getCorrelationId();
     const deadline = Date.now() + (options.deadline || CLIENT_CONFIG.deadline);
-    try {
-      // Update metrics
-      updateClientMetrics('request', { method: methodName });
-      updateClientMetrics('method', { method: methodName });
 
-      // Log request
-      safeLogger.info(`Making gRPC ${methodName} request`, {
-        method: methodName,
-        correlationId,
-        requestData: sanitizeRequestData(requestData),
-        options,
-      });
+    // Update metrics
+    updateClientMetrics('request', { method: methodName });
+    updateClientMetrics('method', { method: methodName });
 
-      // Execute with circuit breaker protection
-      const result = await userServiceCircuitBreaker.fire(async () => {
+    // Log request
+    safeLogger.info(`Making gRPC ${methodName} request`, {
+      method: methodName,
+      correlationId,
+      requestData: sanitizeRequestData(requestData),
+      options,
+    });
+
+    // Execute with circuit breaker protection
+    userServiceCircuitBreaker
+      .fire(async () => {
         return new Promise((innerResolve, innerReject) => {
           clientMethod(requestData, { deadline }, (err, response) => {
             if (err) {
@@ -231,50 +227,51 @@ async function wrapClientMethod(
             }
           });
         });
+      })
+      .then(result => {
+        const processingTime = Date.now() - startTime;
+
+        // Update metrics
+        updateClientMetrics('success', { method: methodName });
+        updateClientMetrics('latency', {
+          latency: processingTime,
+          method: methodName,
+        });
+
+        // Log success
+        safeLogger.info(`gRPC ${methodName} completed successfully`, {
+          method: methodName,
+          correlationId,
+          processingTime: `${processingTime}ms`,
+          result: sanitizeResponseData(result),
+        });
+
+        resolve(result);
+      })
+      .catch(error => {
+        const processingTime = Date.now() - startTime;
+
+        // Update metrics
+        updateClientMetrics('failure', { method: methodName, error });
+        updateClientMetrics('latency', {
+          latency: processingTime,
+          method: methodName,
+        });
+
+        // Log error
+        safeLogger.error(`gRPC ${methodName} failed`, {
+          method: methodName,
+          correlationId,
+          error: error.message,
+          stack: error.stack,
+          processingTime: `${processingTime}ms`,
+          requestData: sanitizeRequestData(requestData),
+        });
+
+        // Map gRPC error to API error
+        const apiError = mapGrpcErrorToApiError(error);
+        reject(apiError);
       });
-
-      const processingTime = Date.now() - startTime;
-
-      // Update metrics
-      updateClientMetrics('success', { method: methodName });
-      updateClientMetrics('latency', {
-        latency: processingTime,
-        method: methodName,
-      });
-
-      // Log success
-      safeLogger.info(`gRPC ${methodName} completed successfully`, {
-        method: methodName,
-        correlationId,
-        processingTime: `${processingTime}ms`,
-        result: sanitizeResponseData(result),
-      });
-
-      resolve(result);
-    } catch (error) {
-      const processingTime = Date.now() - startTime;
-
-      // Update metrics
-      updateClientMetrics('failure', { method: methodName, error });
-      updateClientMetrics('latency', {
-        latency: processingTime,
-        method: methodName,
-      });
-
-      // Log error
-      safeLogger.error(`gRPC ${methodName} failed`, {
-        method: methodName,
-        correlationId,
-        error: error.message,
-        stack: error.stack,
-        processingTime: `${processingTime}ms`,
-        requestData: sanitizeRequestData(requestData),
-      });
-
-      // Map gRPC error to API error
-      const apiError = mapGrpcErrorToApiError(error);
-      reject(apiError);
-    }
   });
 }
 /**
