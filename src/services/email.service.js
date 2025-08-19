@@ -35,21 +35,21 @@ class EmailService {
 
       // Send email based on provider
       switch (this.provider) {
-      case 'nodemailer':
-        return await this.sendViaNodemailer({ to, subject, html, text });
-      case 'sendgrid':
-        return await this.sendViaSendGrid({ to, subject, html, text });
-      case 'aws-ses':
-        return await this.sendViaAWSSES({ to, subject, html, text });
-      default:
-        // For development, just log the email
-        safeLogger.info('Email would be sent (development mode)', {
-          to,
-          subject,
-          template,
-          provider: this.provider,
-        });
-        return true;
+        case 'nodemailer':
+          return await this.sendViaNodemailer({ to, subject, html, text });
+        case 'sendgrid':
+          return await this.sendViaSendGrid({ to, subject, html, text });
+        case 'aws-ses':
+          return await this.sendViaAWSSES({ to, subject, html, text });
+        default:
+          // For development, just log the email
+          safeLogger.info('Email would be sent (development mode)', {
+            to,
+            subject,
+            template,
+            provider: this.provider,
+          });
+          return true;
       }
     } catch (error) {
       safeLogger.error('Failed to send email', {
@@ -73,14 +73,14 @@ class EmailService {
   async getEmailContent(template, data = {}) {
     try {
       switch (template) {
-      case 'email-verification':
-        return this.getEmailVerificationTemplate(data);
-      case 'password-reset':
-        return this.getPasswordResetTemplate(data);
-      case 'welcome':
-        return this.getWelcomeTemplate(data);
-      default:
-        throw new Error(`Unknown email template: ${template}`);
+        case 'email-verification':
+          return this.getEmailVerificationTemplate(data);
+        case 'password-reset':
+          return this.getPasswordResetTemplate(data);
+        case 'welcome':
+          return this.getWelcomeTemplate(data);
+        default:
+          throw new Error(`Unknown email template: ${template}`);
       }
     } catch (error) {
       safeLogger.error('Failed to get email content', {

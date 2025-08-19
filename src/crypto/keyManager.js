@@ -382,11 +382,11 @@ export function getKeyHealth() {
     status: currentKey ? 'healthy' : 'unhealthy',
     currentKey: currentKey
       ? {
-        kid: currentKey.kid,
-        createdAt: currentKey.createdAt,
-        expiresAt: currentKey.expiresAt,
-        isValid: hasValidCurrentKey(),
-      }
+          kid: currentKey.kid,
+          createdAt: currentKey.createdAt,
+          expiresAt: currentKey.expiresAt,
+          isValid: hasValidCurrentKey(),
+        }
       : null,
     totalKeys: allKeys.length,
     lastRotation: keyMetrics.lastRotation,

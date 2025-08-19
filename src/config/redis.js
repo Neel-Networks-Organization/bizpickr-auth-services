@@ -26,12 +26,12 @@ export const redisConfig = {
   connectTimeout: validateEnvType(
     process.env.REDIS_CONNECT_TIMEOUT,
     'number',
-    10000,
+    10000
   ),
   commandTimeout: validateEnvType(
     process.env.REDIS_COMMAND_TIMEOUT,
     'number',
-    5000,
+    5000
   ),
   lazyConnect: false, // only true if you want to connect to redis on startup
   keepAlive: validateEnvType(process.env.REDIS_KEEPALIVE, 'number', 30000),
@@ -40,12 +40,12 @@ export const redisConfig = {
   maxRetriesPerRequest: validateEnvType(
     process.env.REDIS_MAX_RETRIES_PER_REQUEST,
     'number',
-    3,
+    3
   ),
   maxReconnectAttempts: validateEnvType(
     process.env.REDIS_MAX_RECONNECT_ATTEMPTS,
     'number',
-    5,
+    5
   ),
   retryDelay: validateEnvType(process.env.REDIS_RETRY_DELAY, 'number', 100),
 
@@ -58,8 +58,8 @@ export const redisConfig = {
   // Security Settings
   tls: validateEnvType(process.env.REDIS_TLS, 'boolean', false)
     ? {
-      rejectUnauthorized: false,
-    }
+        rejectUnauthorized: false,
+      }
     : undefined,
 
   // Key Prefix
@@ -72,14 +72,14 @@ export const redisConfig = {
   slowCommandThreshold: validateEnvType(
     process.env.REDIS_SLOW_COMMAND_THRESHOLD,
     'number',
-    100,
+    100
   ),
 
   // Health Monitoring
   healthCheckInterval: validateEnvType(
     process.env.REDIS_HEALTH_CHECK_INTERVAL,
     'number',
-    30000,
+    30000
   ),
 
   // Cluster Configuration
@@ -87,19 +87,19 @@ export const redisConfig = {
     enabled: validateEnvType(
       process.env.REDIS_CLUSTER_ENABLED,
       'boolean',
-      false,
+      false
     ),
     enableReadyCheck: true,
     scaleReads: process.env.REDIS_CLUSTER_SCALE_READS || 'slave',
     maxRedirections: validateEnvType(
       process.env.REDIS_CLUSTER_MAX_REDIRECTIONS,
       'number',
-      16,
+      16
     ),
     retryDelayOnFailover: validateEnvType(
       process.env.REDIS_CLUSTER_RETRY_DELAY,
       'number',
-      100,
+      100
     ),
   },
 
@@ -108,7 +108,7 @@ export const redisConfig = {
     enabled: validateEnvType(
       process.env.REDIS_SENTINEL_ENABLED,
       'boolean',
-      false,
+      false
     ),
     password: process.env.REDIS_SENTINEL_PASSWORD,
     masterName: process.env.REDIS_SENTINEL_MASTER_NAME || 'mymaster',
@@ -124,13 +124,13 @@ export const redisConfig = {
     enabled: validateEnvType(
       process.env.REDIS_LOGGING_ENABLED,
       'boolean',
-      true,
+      true
     ),
     level: process.env.REDIS_LOG_LEVEL || 'info',
     slowQueryLogging: validateEnvType(
       process.env.REDIS_SLOW_QUERY_LOGGING,
       'boolean',
-      true,
+      true
     ),
   },
 };

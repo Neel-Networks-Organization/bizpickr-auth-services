@@ -285,20 +285,20 @@ class ErrorClassificationService {
 
     // Use appropriate log level based on severity
     switch (classification.severity) {
-    case 'critical':
-      safeLogger.error('Critical error occurred', logContext);
-      break;
-    case 'high':
-      safeLogger.error('High severity error', logContext);
-      break;
-    case 'medium':
-      safeLogger.warn('Medium severity error', logContext);
-      break;
-    case 'low':
-      safeLogger.info('Low severity error', logContext);
-      break;
-    default:
-      safeLogger.error('Unknown severity error', logContext);
+      case 'critical':
+        safeLogger.error('Critical error occurred', logContext);
+        break;
+      case 'high':
+        safeLogger.error('High severity error', logContext);
+        break;
+      case 'medium':
+        safeLogger.warn('Medium severity error', logContext);
+        break;
+      case 'low':
+        safeLogger.info('Low severity error', logContext);
+        break;
+      default:
+        safeLogger.error('Unknown severity error', logContext);
     }
   }
 

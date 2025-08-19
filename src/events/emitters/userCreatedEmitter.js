@@ -118,7 +118,7 @@ async function retryWithBackoff(fn, maxRetries = 3, baseDelay = 1000) {
           attempt: attempt + 1,
           maxRetries,
           delay,
-        },
+        }
       );
       await new Promise(resolve => setTimeout(resolve, delay));
     }
@@ -147,7 +147,7 @@ export async function publishUserCreatedEvent(userData, options = {}) {
       throw new ApiError(
         400,
         'Invalid user created event data',
-        validation.errors,
+        validation.errors
       );
     }
     if (validation.warnings.length > 0) {
@@ -174,7 +174,7 @@ export async function publishUserCreatedEvent(userData, options = {}) {
     };
     // Publish event with retry logic
     const publishResult = await retryWithBackoff(
-      async() => {
+      async () => {
         const exchange = rabbitMQConfig.exchanges.auth.name;
         const routingKey = 'user.created';
         const publishOptions = {
@@ -192,11 +192,11 @@ export async function publishUserCreatedEvent(userData, options = {}) {
           exchange,
           routingKey,
           eventPayload,
-          publishOptions,
+          publishOptions
         );
       },
       options.maxRetries || 3,
-      options.baseDelay || 1000,
+      options.baseDelay || 1000
     );
     const publishTime = Date.now() - startTime;
     // Update metrics
@@ -286,7 +286,7 @@ function sanitizeUserData(userData) {
   if (sanitized.phoneNumber) {
     sanitized.phoneNumber = sanitized.phoneNumber.replace(
       /(\d{3})\d{4}(\d{4})/,
-      '$1****$2',
+      '$1****$2'
     );
   }
   // Truncate long fields

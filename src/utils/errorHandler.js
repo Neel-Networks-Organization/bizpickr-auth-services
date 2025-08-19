@@ -73,8 +73,8 @@ export function formatError(error, req) {
       statusCode: error.statusCode || 500,
       timestamp: error.timestamp || new Date().toISOString(),
       path: req?.path || 'unknown',
-      method: req?.method || 'unknown'
-    }
+      method: req?.method || 'unknown',
+    },
   };
 
   // Add details if available
@@ -109,14 +109,14 @@ export function asyncHandler(fn) {
  */
 export function globalErrorHandler(error, req, res, next) {
   const errorResponse = formatError(error, req);
-  
+
   // Log error
   console.error('Error occurred:', {
     error: error.message,
     stack: error.stack,
     path: req?.path,
     method: req?.method,
-    correlationId: req?.correlationId
+    correlationId: req?.correlationId,
   });
 
   // Send error response

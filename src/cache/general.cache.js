@@ -49,24 +49,24 @@ const cacheStats = {
  */
 function updateCacheStats(type, data = {}) {
   switch (type) {
-  case 'operation':
-    cacheStats.totalOperations++;
-    break;
-  case 'success':
-    cacheStats.successfulOperations++;
-    break;
-  case 'failure':
-    cacheStats.failedOperations++;
-    break;
-  case 'hit':
-    cacheStats.cacheHits++;
-    break;
-  case 'miss':
-    cacheStats.cacheMisses++;
-    break;
-  case 'eviction':
-    cacheStats.cacheEvictions++;
-    break;
+    case 'operation':
+      cacheStats.totalOperations++;
+      break;
+    case 'success':
+      cacheStats.successfulOperations++;
+      break;
+    case 'failure':
+      cacheStats.failedOperations++;
+      break;
+    case 'hit':
+      cacheStats.cacheHits++;
+      break;
+    case 'miss':
+      cacheStats.cacheMisses++;
+      break;
+    case 'eviction':
+      cacheStats.cacheEvictions++;
+      break;
   }
   safeLogger.debug('Cache statistics updated', {
     type,
@@ -85,13 +85,13 @@ function compressData(data, options = {}) {
   try {
     const jsonString = JSON.stringify(data);
     switch (algorithm) {
-    case 'base64':
-      return Buffer.from(jsonString).toString('base64');
-    case 'gzip':
-      // In production, use zlib for gzip compression
-      return Buffer.from(jsonString).toString('base64');
-    default:
-      return jsonString;
+      case 'base64':
+        return Buffer.from(jsonString).toString('base64');
+      case 'gzip':
+        // In production, use zlib for gzip compression
+        return Buffer.from(jsonString).toString('base64');
+      default:
+        return jsonString;
     }
   } catch (error) {
     safeLogger.warn('Data compression failed, using original data', {
@@ -112,15 +112,15 @@ function decompressData(compressedData, options = {}) {
   try {
     let decoded;
     switch (algorithm) {
-    case 'base64':
-      decoded = Buffer.from(compressedData, 'base64').toString();
-      break;
-    case 'gzip':
-      // In production, use zlib for gzip decompression
-      decoded = Buffer.from(compressedData, 'base64').toString();
-      break;
-    default:
-      decoded = compressedData;
+      case 'base64':
+        decoded = Buffer.from(compressedData, 'base64').toString();
+        break;
+      case 'gzip':
+        // In production, use zlib for gzip decompression
+        decoded = Buffer.from(compressedData, 'base64').toString();
+        break;
+      default:
+        decoded = compressedData;
     }
     return JSON.parse(decoded);
   } catch (error) {
@@ -198,7 +198,7 @@ export const generalCache = {
       const compressedData = compress
         ? compressData(data, { algorithm })
         : JSON.stringify(data);
-      await safeRedisOperation(async() => {
+      await safeRedisOperation(async () => {
         const redis = getRedisClient();
         if (ttl > 0) {
           await redis.set(cacheKey, compressedData, 'EX', ttl);
@@ -242,7 +242,7 @@ export const generalCache = {
     } = options;
     try {
       const cacheKey = generateCacheKey(namespace, key, partition);
-      const data = await safeRedisOperation(async() => {
+      const data = await safeRedisOperation(async () => {
         const redis = getRedisClient();
         return await redis.get(cacheKey);
       }, 'get');
@@ -289,7 +289,7 @@ export const generalCache = {
   async delete(namespace, key, partition = 'default') {
     try {
       const cacheKey = generateCacheKey(namespace, key, partition);
-      await safeRedisOperation(async() => {
+      await safeRedisOperation(async () => {
         const redis = getRedisClient();
         await redis.del(cacheKey);
       }, 'delete');
@@ -312,7 +312,7 @@ export const generalCache = {
   async exists(namespace, key, partition = 'default') {
     try {
       const cacheKey = generateCacheKey(namespace, key, partition);
-      const result = await safeRedisOperation(async() => {
+      const result = await safeRedisOperation(async () => {
         const redis = getRedisClient();
         return await redis.exists(cacheKey);
       }, 'exists');
@@ -337,7 +337,7 @@ export const generalCache = {
   async getTTL(namespace, key, partition = 'default') {
     try {
       const cacheKey = generateCacheKey(namespace, key, partition);
-      const ttl = await safeRedisOperation(async() => {
+      const ttl = await safeRedisOperation(async () => {
         const redis = getRedisClient();
         return await redis.ttl(cacheKey);
       }, 'getTTL');
@@ -362,7 +362,7 @@ export const generalCache = {
   async setTTL(namespace, key, ttl, partition = 'default') {
     try {
       const cacheKey = generateCacheKey(namespace, key, partition);
-      await safeRedisOperation(async() => {
+      await safeRedisOperation(async () => {
         const redis = getRedisClient();
         await redis.expire(cacheKey, ttl);
       }, 'setTTL');
@@ -389,7 +389,7 @@ export const generalCache = {
       algorithm = 'base64',
     } = options;
     try {
-      await safeRedisOperation(async() => {
+      await safeRedisOperation(async () => {
         const redis = getRedisClient();
         const pipeline = redis.pipeline();
         for (const entry of entries) {
@@ -429,9 +429,9 @@ export const generalCache = {
     const { partition = 'default', algorithm = 'base64' } = options;
     try {
       const cacheKeys = keys.map(({ namespace, key }) =>
-        generateCacheKey(namespace, key, partition),
+        generateCacheKey(namespace, key, partition)
       );
-      const results = await safeRedisOperation(async() => {
+      const results = await safeRedisOperation(async () => {
         const redis = getRedisClient();
         return await redis.mget(cacheKeys);
       }, 'bulkGet');
@@ -472,7 +472,7 @@ export const generalCache = {
   async clearNamespace(namespace, partition = 'default') {
     try {
       const pattern = generateCacheKey(namespace, '*', partition);
-      await safeRedisOperation(async() => {
+      await safeRedisOperation(async () => {
         const redis = getRedisClient();
         const keys = await redis.keys(pattern);
         if (keys.length > 0) {
@@ -498,7 +498,7 @@ export const generalCache = {
   async clearPartition(partition) {
     try {
       const pattern = `${PREFIX.GENERAL}${PREFIX.PARTITION}${partition}:*`;
-      await safeRedisOperation(async() => {
+      await safeRedisOperation(async () => {
         const redis = getRedisClient();
         const keys = await redis.keys(pattern);
         if (keys.length > 0) {
@@ -575,7 +575,7 @@ export const generalCache = {
   async healthCheck() {
     try {
       const startTime = Date.now();
-      await safeRedisOperation(async() => {
+      await safeRedisOperation(async () => {
         const redis = getRedisClient();
         await redis.ping();
       }, 'healthCheck');

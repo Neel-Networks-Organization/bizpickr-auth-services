@@ -390,17 +390,17 @@ export function validateRateLimit(identifier, type = 'general') {
   // Check rate limits
   let limit;
   switch (type) {
-  case 'login':
-    limit = SECURITY_CONFIG.maxLoginAttempts;
-    break;
-  case 'signup':
-    limit = SECURITY_CONFIG.maxSignupAttempts;
-    break;
-  case 'general':
-    limit = SECURITY_CONFIG.maxRequestsPerMinute;
-    break;
-  default:
-    limit = SECURITY_CONFIG.maxRequestsPerMinute;
+    case 'login':
+      limit = SECURITY_CONFIG.maxLoginAttempts;
+      break;
+    case 'signup':
+      limit = SECURITY_CONFIG.maxSignupAttempts;
+      break;
+    case 'general':
+      limit = SECURITY_CONFIG.maxRequestsPerMinute;
+      break;
+    default:
+      limit = SECURITY_CONFIG.maxRequestsPerMinute;
   }
   if (record.requests.length >= limit) {
     record.blocked = true;
@@ -468,14 +468,14 @@ export function sanitizeInput(input, options = {}) {
   if (config.stripScripts) {
     sanitized = sanitized.replace(
       /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi,
-      '',
+      ''
     );
   }
   // Strip styles if enabled
   if (config.stripStyles) {
     sanitized = sanitized.replace(
       /<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi,
-      '',
+      ''
     );
   }
   // Remove allowed HTML tags if specified

@@ -33,19 +33,19 @@ class MonitoringHandlers {
     });
     // Monitoring events
     socket.on('get_health_status', data =>
-      this.handleGetHealthStatus(socket, data, server),
+      this.handleGetHealthStatus(socket, data, server)
     );
     socket.on('get_performance_metrics', data =>
-      this.handleGetPerformanceMetrics(socket, data, server),
+      this.handleGetPerformanceMetrics(socket, data, server)
     );
     socket.on('get_system_info', data =>
-      this.handleGetSystemInfo(socket, data, server),
+      this.handleGetSystemInfo(socket, data, server)
     );
     socket.on('subscribe_alerts', data =>
-      this.handleSubscribeAlerts(socket, data, server),
+      this.handleSubscribeAlerts(socket, data, server)
     );
     socket.on('unsubscribe_alerts', data =>
-      this.handleUnsubscribeAlerts(socket, data, server),
+      this.handleUnsubscribeAlerts(socket, data, server)
     );
   }
   /**
@@ -204,7 +204,7 @@ class MonitoringHandlers {
         await server.joinUserToRoom(
           userId,
           `alerts:${alertType}`,
-          'monitoring',
+          'monitoring'
         );
       }
       // Send confirmation
@@ -257,7 +257,7 @@ class MonitoringHandlers {
         await server.removeUserFromRoom(
           userId,
           `alerts:${alertType}`,
-          'monitoring',
+          'monitoring'
         );
       }
       // Send confirmation
@@ -342,10 +342,10 @@ class MonitoringHandlers {
     const successRate =
       this.handlerStats.totalEvents > 0
         ? (
-          (this.handlerStats.successfulEvents /
+            (this.handlerStats.successfulEvents /
               this.handlerStats.totalEvents) *
             100
-        ).toFixed(2)
+          ).toFixed(2)
         : 0;
     return {
       ...this.handlerStats,

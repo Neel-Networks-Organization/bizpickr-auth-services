@@ -67,45 +67,45 @@ function mapToGrpcError(error) {
   };
   if (error instanceof ApiError) {
     switch (error.statusCode) {
-    case 400:
-      grpcError.code = grpc.status.INVALID_ARGUMENT;
-      grpcError.message = 'Invalid request';
-      break;
-    case 401:
-      grpcError.code = grpc.status.UNAUTHENTICATED;
-      grpcError.message = 'Authentication failed';
-      break;
-    case 403:
-      grpcError.code = grpc.status.PERMISSION_DENIED;
-      grpcError.message = 'Permission denied';
-      break;
-    case 404:
-      grpcError.code = grpc.status.NOT_FOUND;
-      grpcError.message = 'Resource not found';
-      break;
-    case 409:
-      grpcError.code = grpc.status.ALREADY_EXISTS;
-      grpcError.message = 'Resource already exists';
-      break;
-    case 422:
-      grpcError.code = grpc.status.FAILED_PRECONDITION;
-      grpcError.message = 'Validation failed';
-      break;
-    case 429:
-      grpcError.code = grpc.status.RESOURCE_EXHAUSTED;
-      grpcError.message = 'Rate limit exceeded';
-      break;
-    case 500:
-      grpcError.code = grpc.status.INTERNAL;
-      grpcError.message = 'Internal server error';
-      break;
-    case 503:
-      grpcError.code = grpc.status.UNAVAILABLE;
-      grpcError.message = 'Service unavailable';
-      break;
-    default:
-      grpcError.code = grpc.status.INTERNAL;
-      grpcError.message = 'Unknown error';
+      case 400:
+        grpcError.code = grpc.status.INVALID_ARGUMENT;
+        grpcError.message = 'Invalid request';
+        break;
+      case 401:
+        grpcError.code = grpc.status.UNAUTHENTICATED;
+        grpcError.message = 'Authentication failed';
+        break;
+      case 403:
+        grpcError.code = grpc.status.PERMISSION_DENIED;
+        grpcError.message = 'Permission denied';
+        break;
+      case 404:
+        grpcError.code = grpc.status.NOT_FOUND;
+        grpcError.message = 'Resource not found';
+        break;
+      case 409:
+        grpcError.code = grpc.status.ALREADY_EXISTS;
+        grpcError.message = 'Resource already exists';
+        break;
+      case 422:
+        grpcError.code = grpc.status.FAILED_PRECONDITION;
+        grpcError.message = 'Validation failed';
+        break;
+      case 429:
+        grpcError.code = grpc.status.RESOURCE_EXHAUSTED;
+        grpcError.message = 'Rate limit exceeded';
+        break;
+      case 500:
+        grpcError.code = grpc.status.INTERNAL;
+        grpcError.message = 'Internal server error';
+        break;
+      case 503:
+        grpcError.code = grpc.status.UNAVAILABLE;
+        grpcError.message = 'Service unavailable';
+        break;
+      default:
+        grpcError.code = grpc.status.INTERNAL;
+        grpcError.message = 'Unknown error';
     }
   }
   return grpcError;
@@ -165,38 +165,38 @@ function sanitizeRequestData(data) {
  */
 function updateServerMetrics(type, data = {}) {
   switch (type) {
-  case 'request':
-    serverMetrics.totalRequests++;
-    break;
-  case 'success':
-    serverMetrics.successfulRequests++;
-    break;
-  case 'failure':
-    serverMetrics.failedRequests++;
-    if (data.error) {
-      const errorType = data.error.constructor.name;
-      serverMetrics.errorCounts.set(
-        errorType,
-        (serverMetrics.errorCounts.get(errorType) || 0) + 1,
-      );
-    }
-    break;
-  case 'latency':
-    if (data.latency) {
-      serverMetrics.requestLatency.push(data.latency);
-      if (serverMetrics.requestLatency.length > 100) {
-        serverMetrics.requestLatency.shift();
+    case 'request':
+      serverMetrics.totalRequests++;
+      break;
+    case 'success':
+      serverMetrics.successfulRequests++;
+      break;
+    case 'failure':
+      serverMetrics.failedRequests++;
+      if (data.error) {
+        const errorType = data.error.constructor.name;
+        serverMetrics.errorCounts.set(
+          errorType,
+          (serverMetrics.errorCounts.get(errorType) || 0) + 1
+        );
       }
-    }
-    break;
-  case 'method':
-    if (data.method) {
-      serverMetrics.methodCallCounts.set(
-        data.method,
-        (serverMetrics.methodCallCounts.get(data.method) || 0) + 1,
-      );
-    }
-    break;
+      break;
+    case 'latency':
+      if (data.latency) {
+        serverMetrics.requestLatency.push(data.latency);
+        if (serverMetrics.requestLatency.length > 100) {
+          serverMetrics.requestLatency.shift();
+        }
+      }
+      break;
+    case 'method':
+      if (data.method) {
+        serverMetrics.methodCallCounts.set(
+          data.method,
+          (serverMetrics.methodCallCounts.get(data.method) || 0) + 1
+        );
+      }
+      break;
   }
   // Also update global metrics
   updateGrpcMetrics(type, data);
@@ -208,7 +208,7 @@ function updateServerMetrics(type, data = {}) {
  * @returns {Function} Wrapped service method
  */
 function wrapServiceMethod(serviceMethod, methodName) {
-  return async(call, callback) => {
+  return async (call, callback) => {
     const startTime = Date.now();
     const correlationId =
       call.metadata.get('correlationId')[0] || getCorrelationId();
@@ -265,7 +265,7 @@ function wrapServiceMethod(serviceMethod, methodName) {
 }
 // Enhanced gRPC service implementation
 const authServiceImpl = {
-  Login: wrapServiceMethod(async(call, callback) => {
+  Login: wrapServiceMethod(async (call, callback) => {
     const { email, password, device_id, ip_address, user_agent, metadata } =
       call.request;
     // Validate request
@@ -294,7 +294,7 @@ const authServiceImpl = {
       session: result.session,
     });
   }, 'Login'),
-  Register: wrapServiceMethod(async(call, callback) => {
+  Register: wrapServiceMethod(async (call, callback) => {
     const { email, password, name, phone_number, role, metadata } =
       call.request;
     // Validate request
@@ -323,7 +323,7 @@ const authServiceImpl = {
       created_at: result.createdAt,
     });
   }, 'Register'),
-  ValidateToken: wrapServiceMethod(async(call, callback) => {
+  ValidateToken: wrapServiceMethod(async (call, callback) => {
     const { token, device_id, metadata } = call.request;
     // Validate request
     const validation = validateRequest(call.request, ['token']);
@@ -346,7 +346,7 @@ const authServiceImpl = {
       claims: result.claims || {},
     });
   }, 'ValidateToken'),
-  RefreshToken: wrapServiceMethod(async(call, callback) => {
+  RefreshToken: wrapServiceMethod(async (call, callback) => {
     const { refresh_token, device_id, metadata } = call.request;
     // Validate request
     const validation = validateRequest(call.request, ['refresh_token']);
@@ -364,7 +364,7 @@ const authServiceImpl = {
       expires_at: result.expiresAt,
     });
   }, 'RefreshToken'),
-  Logout: wrapServiceMethod(async(call, callback) => {
+  Logout: wrapServiceMethod(async (call, callback) => {
     const { token, device_id, all_sessions, metadata } = call.request;
     // Validate request
     const validation = validateRequest(call.request, ['token']);
@@ -382,7 +382,7 @@ const authServiceImpl = {
       sessions_terminated: result.sessionsTerminated || 1,
     });
   }, 'Logout'),
-  GetSession: wrapServiceMethod(async(call, callback) => {
+  GetSession: wrapServiceMethod(async (call, callback) => {
     const { user_id, device_id, metadata } = call.request;
     // Validate request
     const validation = validateRequest(call.request, ['user_id']);
@@ -399,7 +399,7 @@ const authServiceImpl = {
       total_sessions: result.totalSessions || 0,
     });
   }, 'GetSession'),
-  HealthCheck: wrapServiceMethod(async(call, callback) => {
+  HealthCheck: wrapServiceMethod(async (call, callback) => {
     const { service_name, metadata } = call.request;
     // Execute health check
     const result = await authService.healthCheck({
@@ -421,12 +421,12 @@ server.addService(authPackage.AuthService.service, authServiceImpl);
  * @param {Object} options - Server options
  * @returns {Promise<void>}
  */
-export const startGrpcServer = async(options = {}) => {
+export const startGrpcServer = async (options = {}) => {
   // Use options port if provided, otherwise use config port
   const port = options.port || env.grpc.server.port || 50050;
   const host = options.host || env.grpc.server.host || 'localhost';
   const address = `${host}:${port}`;
-  
+
   safeLogger.info('Starting gRPC server with address', {
     host,
     port,
@@ -490,7 +490,7 @@ export const stopGrpcServer = () => {
  * Get gRPC server health status
  * @returns {Promise<Object>} Health status
  */
-export const getGrpcServerHealth = async() => {
+export const getGrpcServerHealth = async () => {
   try {
     const uptime = Date.now() - serverMetrics.uptime;
     const successRate =

@@ -19,7 +19,7 @@ import { verifyJWT } from '../middlewares/auth.middleware.js';
  * GET /api/v1/user/profile
  */
 export const getUserProfile = asyncHandler(
-  async(req, res, next) => {
+  async (req, res, next) => {
     const userId = req.user?.id;
     if (!userId) {
       throw new ApiError(401, 'User not authenticated', [
@@ -37,7 +37,7 @@ export const getUserProfile = asyncHandler(
     return res
       .status(200)
       .json(
-        ApiResponse.success({ user }, 'User profile retrieved successfully'),
+        ApiResponse.success({ user }, 'User profile retrieved successfully')
       );
   },
   {
@@ -45,7 +45,7 @@ export const getUserProfile = asyncHandler(
     enableLogging: true,
     timeout: 10000,
     retryAttempts: 1,
-  },
+  }
 );
 
 /**
@@ -53,7 +53,7 @@ export const getUserProfile = asyncHandler(
  * PUT /api/v1/user/profile
  */
 export const updateUserProfile = asyncHandler(
-  async(req, res, next) => {
+  async (req, res, next) => {
     const userId = req.user?.id;
     const { fullName, phone } = req.body;
 
@@ -78,7 +78,7 @@ export const updateUserProfile = asyncHandler(
     safeLogger.info('User profile updated', {
       userId,
       updatedFields: Object.keys({ fullName, phone }).filter(
-        key => req.body[key],
+        key => req.body[key]
       ),
     });
 
@@ -91,7 +91,7 @@ export const updateUserProfile = asyncHandler(
     enableLogging: true,
     timeout: 15000,
     retryAttempts: 1,
-  },
+  }
 );
 
 /**
@@ -99,7 +99,7 @@ export const updateUserProfile = asyncHandler(
  * GET /api/v1/user/activity
  */
 export const getUserActivity = asyncHandler(
-  async(req, res, next) => {
+  async (req, res, next) => {
     const userId = req.user?.id;
     const { page = 1, limit = 20 } = req.query;
 
@@ -124,7 +124,7 @@ export const getUserActivity = asyncHandler(
     return res
       .status(200)
       .json(
-        ApiResponse.success(activityData, 'Activity log retrieved successfully'),
+        ApiResponse.success(activityData, 'Activity log retrieved successfully')
       );
   },
   {
@@ -132,7 +132,7 @@ export const getUserActivity = asyncHandler(
     enableLogging: true,
     timeout: 10000,
     retryAttempts: 1,
-  },
+  }
 );
 
 /**
@@ -140,7 +140,7 @@ export const getUserActivity = asyncHandler(
  * GET /api/v1/user/stats
  */
 export const getUserStats = asyncHandler(
-  async(req, res, next) => {
+  async (req, res, next) => {
     const userId = req.user?.id;
 
     if (!userId) {
@@ -159,7 +159,7 @@ export const getUserStats = asyncHandler(
     return res
       .status(200)
       .json(
-        ApiResponse.success(stats, 'User statistics retrieved successfully'),
+        ApiResponse.success(stats, 'User statistics retrieved successfully')
       );
   },
   {
@@ -167,7 +167,7 @@ export const getUserStats = asyncHandler(
     enableLogging: true,
     timeout: 10000,
     retryAttempts: 1,
-  },
+  }
 );
 
 /**
@@ -175,7 +175,7 @@ export const getUserStats = asyncHandler(
  * DELETE /api/v1/user/account
  */
 export const deleteUserAccount = asyncHandler(
-  async(req, res, next) => {
+  async (req, res, next) => {
     const userId = req.user?.id;
     const { password, confirmation } = req.body;
 
@@ -193,7 +193,7 @@ export const deleteUserAccount = asyncHandler(
 
     if (!confirmation || confirmation !== 'DELETE') {
       throw new ApiError(400, 'Invalid confirmation', [
-        'Please type \'DELETE\' to confirm account deletion',
+        "Please type 'DELETE' to confirm account deletion",
       ]);
     }
 
@@ -206,7 +206,7 @@ export const deleteUserAccount = asyncHandler(
     return res.status(200).json(
       ApiResponse.success({}, 'Account deleted successfully', {
         requiresLogout: true,
-      }),
+      })
     );
   },
   {
@@ -214,7 +214,7 @@ export const deleteUserAccount = asyncHandler(
     enableLogging: true,
     timeout: 15000,
     retryAttempts: 1,
-  },
+  }
 );
 
 /**
@@ -222,7 +222,7 @@ export const deleteUserAccount = asyncHandler(
  * POST /api/v1/user/activity
  */
 export const createUserActivity = asyncHandler(
-  async(req, res, next) => {
+  async (req, res, next) => {
     const userId = req.user?.id;
     const { activityType, details } = req.body;
 
@@ -259,5 +259,5 @@ export const createUserActivity = asyncHandler(
     enableLogging: true,
     timeout: 10000,
     retryAttempts: 1,
-  },
+  }
 );

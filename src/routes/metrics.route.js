@@ -22,7 +22,7 @@ router.get('/', (req, res) => {
   try {
     const metrics = monitor.getMetrics();
     const healthStatus = monitor.getHealthStatus();
-    
+
     res.status(200).json({
       timestamp: new Date().toISOString(),
       service: 'AuthService',
@@ -32,14 +32,14 @@ router.get('/', (req, res) => {
         requests: metrics.requests,
         performance: metrics.performance,
         errors: metrics.errors,
-        system: metrics.system
-      }
+        system: metrics.system,
+      },
     });
   } catch (error) {
     res.status(500).json({
       error: 'Failed to get metrics',
       message: error.message,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   }
 });
@@ -52,17 +52,17 @@ router.get('/', (req, res) => {
 router.get('/health', (req, res) => {
   try {
     const healthStatus = monitor.getHealthStatus();
-    
+
     res.status(200).json({
       timestamp: new Date().toISOString(),
       service: 'AuthService',
-      health: healthStatus
+      health: healthStatus,
     });
   } catch (error) {
     res.status(500).json({
       error: 'Failed to get health metrics',
       message: error.message,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   }
 });
@@ -76,21 +76,21 @@ router.post('/reset', (req, res) => {
   if (process.env.NODE_ENV === 'production') {
     return res.status(403).json({
       error: 'Metrics reset not allowed in production',
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   }
-  
+
   try {
     monitor.reset();
     res.status(200).json({
       message: 'Metrics reset successfully',
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   } catch (error) {
     res.status(500).json({
       error: 'Failed to reset metrics',
       message: error.message,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   }
 });

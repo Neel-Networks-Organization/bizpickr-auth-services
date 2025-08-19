@@ -23,38 +23,38 @@ const createRequestContext = (req = null) => ({
   correlationId: req?.headers['x-correlation-id'] || uuidv4(),
   requestId: req?.headers['x-request-id'] || uuidv4(),
   sessionId: req?.headers['x-session-id'] || null,
-  
+
   // User context
   userId: null,
   userRole: null,
   userPermissions: [],
-  
+
   // Request metadata
   method: req?.method || null,
   url: req?.url || null,
   userAgent: req?.headers['user-agent'] || null,
   ipAddress: req?.ip || req?.connection?.remoteAddress || null,
-  
+
   // Performance tracking
   startTime: Date.now(),
   timers: new Map(),
-  
+
   // Security context
   isAuthenticated: false,
   authToken: req?.headers?.authorization || null,
   clientVersion: req?.headers['x-client-version'] || null,
   clientPlatform: req?.headers['x-client-platform'] || null,
-  
+
   // Business context
   tenantId: req?.headers['x-tenant-id'] || null,
   organizationId: req?.headers['x-organization-id'] || null,
-  
+
   // Audit trail
   auditEvents: [],
-  
+
   // Error tracking
   errors: [],
-  
+
   // Custom metadata
   metadata: new Map(),
 });
@@ -70,7 +70,7 @@ const getRequestContext = () => {
 };
 
 // ✅ Set request context
-const setRequestContext = (context) => {
+const setRequestContext = context => {
   asyncLocalStorage.enterWith(context);
 };
 
@@ -87,7 +87,7 @@ export const getRequestId = () => {
 };
 
 // ✅ Set user context
- const setUserContext = (userId, userRole, permissions = []) => {
+const setUserContext = (userId, userRole, permissions = []) => {
   const context = getRequestContext();
   context.userId = userId;
   context.userRole = userRole;
@@ -96,7 +96,7 @@ export const getRequestId = () => {
 };
 
 // ✅ Get user context
- const getUserContext = () => {
+const getUserContext = () => {
   const context = getRequestContext();
   return {
     userId: context.userId,
@@ -107,7 +107,7 @@ export const getRequestId = () => {
 };
 
 // ✅ Add audit event
- const addAuditEvent = (event, details = {}) => {
+const addAuditEvent = (event, details = {}) => {
   const context = getRequestContext();
   context.auditEvents.push({
     event,
@@ -118,7 +118,7 @@ export const getRequestId = () => {
 };
 
 // ✅ Add error to context
-const addError = (error) => {
+const addError = error => {
   const context = getRequestContext();
   context.errors.push({
     message: error.message,
@@ -129,25 +129,25 @@ const addError = (error) => {
 };
 
 // ✅ Add metadata
- const addMetadata = (key, value) => {
+const addMetadata = (key, value) => {
   const context = getRequestContext();
   context.metadata.set(key, value);
 };
 
 // ✅ Get metadata
- const getMetadata = (key) => {
+const getMetadata = key => {
   const context = getRequestContext();
   return context.metadata.get(key);
 };
 
 // ✅ Start timer
- const startTimer = (name) => {
+const startTimer = name => {
   const context = getRequestContext();
   context.timers.set(name, Date.now());
 };
 
 // ✅ End timer
-const endTimer = (name) => {
+const endTimer = name => {
   const context = getRequestContext();
   const startTime = context.timers.get(name);
   if (startTime) {
@@ -159,7 +159,7 @@ const endTimer = (name) => {
 };
 
 // ✅ Get timer duration
-const getTimerDuration = (name) => {
+const getTimerDuration = name => {
   const context = getRequestContext();
   const startTime = context.timers.get(name);
   if (startTime) {
@@ -192,15 +192,15 @@ const clearContext = () => {
 // ✅ Middleware to set up request context
 export const correlationIdMiddleware = (req, res, next) => {
   const context = createRequestContext(req);
-  
+
   // Set correlation ID in response headers
   res.setHeader('x-correlation-id', context.correlationId);
   res.setHeader('x-request-id', context.requestId);
-  
+
   // Add context to request
   req.correlationId = context.correlationId;
   req.requestId = context.requestId;
-  
+
   // Run request in async context
   asyncLocalStorage.run(context, () => {
     next();

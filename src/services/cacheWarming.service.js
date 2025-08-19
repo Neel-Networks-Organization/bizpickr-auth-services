@@ -262,13 +262,13 @@ class CacheWarmingService {
             error: error.message,
           });
           return null;
-        }),
+        })
     );
 
     const results = await Promise.allSettled(promises);
 
     const successCount = results.filter(
-      result => result.status === 'fulfilled',
+      result => result.status === 'fulfilled'
     ).length;
     const totalCount = results.length;
 

@@ -93,7 +93,7 @@ async function retryWithBackoff(fn, maxRetries = 3, baseDelay = 1000) {
           attempt: attempt + 1,
           maxRetries,
           delay,
-        },
+        }
       );
       await new Promise(resolve => setTimeout(resolve, delay));
     }
@@ -144,7 +144,7 @@ export async function publishUserLoginEvent(loginData, options = {}) {
     };
     // Publish event with retry logic
     const publishResult = await retryWithBackoff(
-      async() => {
+      async () => {
         const exchange = rabbitMQConfig.exchanges.auth.name;
         const routingKey = 'user.login';
         const publishOptions = {
@@ -161,11 +161,11 @@ export async function publishUserLoginEvent(loginData, options = {}) {
           exchange,
           routingKey,
           eventPayload,
-          publishOptions,
+          publishOptions
         );
       },
       options.maxRetries || 3,
-      options.baseDelay || 1000,
+      options.baseDelay || 1000
     );
     const publishTime = Date.now() - startTime;
     // Update metrics

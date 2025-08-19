@@ -8,7 +8,7 @@ import { jwkService } from '../services/index.js';
  * GET /api/v1/jwk/.well-known/jwks.json
  */
 export const getJWKs = asyncHandler(
-  async(req, res) => {
+  async (req, res) => {
     // Call JWK service to get JWK set
     const jwkSet = await jwkService.getJWKSet();
     safeLogger.info('JWKs retrieved successfully', {
@@ -24,7 +24,7 @@ export const getJWKs = asyncHandler(
         keyUse: 'sig',
         cacheable: true,
         cacheDuration: '1 hour',
-      }),
+      })
     );
   },
   {
@@ -32,14 +32,14 @@ export const getJWKs = asyncHandler(
     enableLogging: true,
     timeout: 10000,
     retryAttempts: 1,
-  },
+  }
 );
 /**
  * Get specific JWK by key ID
  * GET /api/v1/jwk/:kid
  */
 export const getJWKByKid = asyncHandler(
-  async(req, res) => {
+  async (req, res) => {
     const { kid } = req.params;
     if (!kid) {
       throw new ApiError(400, 'Key ID is required', [
@@ -61,7 +61,7 @@ export const getJWKByKid = asyncHandler(
         keyUse: 'sig',
         cacheable: true,
         cacheDuration: '1 hour',
-      }),
+      })
     );
   },
   {
@@ -69,14 +69,14 @@ export const getJWKByKid = asyncHandler(
     enableLogging: true,
     timeout: 10000,
     retryAttempts: 1,
-  },
+  }
 );
 /**
  * Rotate JWK keys
  * POST /api/v1/jwk/rotate
  */
 export const rotateJWKs = asyncHandler(
-  async(req, res) => {
+  async (req, res) => {
     const { force = false } = req.body;
     const correlationId = req.correlationId;
     safeLogger.info('JWK rotation requested', {
@@ -104,10 +104,10 @@ export const rotateJWKs = asyncHandler(
           force,
           rotationTime: new Date().toISOString(),
           nextRotation: new Date(
-            Date.now() + 24 * 60 * 60 * 1000,
+            Date.now() + 24 * 60 * 60 * 1000
           ).toISOString(), // 24 hours
-        },
-      ),
+        }
+      )
     );
   },
   {
@@ -115,14 +115,14 @@ export const rotateJWKs = asyncHandler(
     enableLogging: true,
     timeout: 30000,
     retryAttempts: 1,
-  },
+  }
 );
 /**
  * Get JWK statistics
  * GET /api/v1/jwk/stats
  */
 export const getJWKStats = asyncHandler(
-  async(req, res) => {
+  async (req, res) => {
     // Call JWK service to get statistics
     const stats = await jwkService.getKeyStats();
     return res.status(200).json(
@@ -130,8 +130,8 @@ export const getJWKStats = asyncHandler(
         {
           stats,
         },
-        'JWK statistics retrieved successfully',
-      ),
+        'JWK statistics retrieved successfully'
+      )
     );
   },
   {
@@ -139,14 +139,14 @@ export const getJWKStats = asyncHandler(
     enableLogging: true,
     timeout: 10000,
     retryAttempts: 1,
-  },
+  }
 );
 /**
  * Generate new key pair
  * POST /api/v1/jwk/generate
  */
 export const generateKeyPair = asyncHandler(
-  async(req, res) => {
+  async (req, res) => {
     const { kid } = req.body;
     safeLogger.info('Key pair generation requested', {
       kid,
@@ -171,8 +171,8 @@ export const generateKeyPair = asyncHandler(
         {
           algorithm: 'RS256',
           keySize: 2048,
-        },
-      ),
+        }
+      )
     );
   },
   {
@@ -180,14 +180,14 @@ export const generateKeyPair = asyncHandler(
     enableLogging: true,
     timeout: 30000,
     retryAttempts: 1,
-  },
+  }
 );
 /**
  * Validate and rotate keys if needed
  * POST /api/v1/jwk/validate
  */
 export const validateAndRotateKeys = asyncHandler(
-  async(req, res) => {
+  async (req, res) => {
     const correlationId = req.correlationId;
     safeLogger.info('JWK validation requested', {
       correlationId,
@@ -208,8 +208,8 @@ export const validateAndRotateKeys = asyncHandler(
         },
         wasRotated
           ? 'Keys validated and rotated'
-          : 'Keys validated successfully',
-      ),
+          : 'Keys validated successfully'
+      )
     );
   },
   {
@@ -217,14 +217,14 @@ export const validateAndRotateKeys = asyncHandler(
     enableLogging: true,
     timeout: 15000,
     retryAttempts: 1,
-  },
+  }
 );
 /**
  * Clean up expired keys
  * POST /api/v1/jwk/cleanup
  */
 export const cleanupExpiredKeys = asyncHandler(
-  async(req, res) => {
+  async (req, res) => {
     const correlationId = req.correlationId;
     safeLogger.info('JWK cleanup requested', {
       correlationId,
@@ -246,8 +246,8 @@ export const cleanupExpiredKeys = asyncHandler(
         'Expired keys cleaned up successfully',
         {
           removedCount,
-        },
-      ),
+        }
+      )
     );
   },
   {
@@ -255,5 +255,5 @@ export const cleanupExpiredKeys = asyncHandler(
     enableLogging: true,
     timeout: 15000,
     retryAttempts: 1,
-  },
+  }
 );

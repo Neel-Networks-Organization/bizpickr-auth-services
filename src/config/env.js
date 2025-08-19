@@ -64,7 +64,8 @@ const coreConfig = {
 
   // JWT Configuration (used in auth middleware)
   jwtSecret: process.env.JWT_SECRET || 'default-jwt-secret',
-  refreshTokenSecret: process.env.REFRESH_TOKEN_SECRET || 'default-refresh-secret',
+  refreshTokenSecret:
+    process.env.REFRESH_TOKEN_SECRET || 'default-refresh-secret',
 
   // Database Configuration
   database: databaseConfig,
@@ -98,8 +99,16 @@ const coreConfig = {
     clients: {
       userService: {
         host: process.env.GRPC_USER_SERVICE_HOST || 'localhost',
-        port: validateEnvType(process.env.GRPC_USER_SERVICE_PORT, 'number', 50051),
-        timeout: validateEnvType(process.env.GRPC_USER_SERVICE_TIMEOUT, 'number', 5000),
+        port: validateEnvType(
+          process.env.GRPC_USER_SERVICE_PORT,
+          'number',
+          50051
+        ),
+        timeout: validateEnvType(
+          process.env.GRPC_USER_SERVICE_TIMEOUT,
+          'number',
+          5000
+        ),
       },
     },
   },
@@ -107,9 +116,21 @@ const coreConfig = {
   // Security Configuration
   security: {
     bcryptRounds: validateEnvType(process.env.BCRYPT_ROUNDS, 'number', 12),
-    passwordMinLength: validateEnvType(process.env.PASSWORD_MIN_LENGTH, 'number', 8),
-    passwordMaxLength: validateEnvType(process.env.PASSWORD_MAX_LENGTH, 'number', 128),
-    rateLimitWindowMs: validateEnvType(process.env.RATE_LIMIT_WINDOW_MS, 'number', 15 * 60 * 1000),
+    passwordMinLength: validateEnvType(
+      process.env.PASSWORD_MIN_LENGTH,
+      'number',
+      8
+    ),
+    passwordMaxLength: validateEnvType(
+      process.env.PASSWORD_MAX_LENGTH,
+      'number',
+      128
+    ),
+    rateLimitWindowMs: validateEnvType(
+      process.env.RATE_LIMIT_WINDOW_MS,
+      'number',
+      15 * 60 * 1000
+    ),
     rateLimitMax: validateEnvType(process.env.RATE_LIMIT_MAX, 'number', 100),
   },
 
@@ -134,7 +155,8 @@ const coreConfig = {
 };
 
 // ✅ MongoDB Configuration
-export const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/auth_service';
+export const MONGODB_URI =
+  process.env.MONGODB_URI || 'mongodb://localhost:27017/auth_service';
 
 // ✅ Export configuration
 export const env = coreConfig;

@@ -97,7 +97,7 @@ class CompressionMiddleware {
     const originalEmit = socket.emit;
     const originalOn = socket.on;
     // Wrap emit to compress outgoing data
-    socket.emit = async(event, data, ...args) => {
+    socket.emit = async (event, data, ...args) => {
       try {
         const compressedData = await this._compressIfNeeded(data);
         return originalEmit.call(socket, event, compressedData, ...args);
@@ -113,7 +113,7 @@ class CompressionMiddleware {
     };
     // Wrap on to decompress incoming data
     socket.on = (event, handler) => {
-      const wrappedHandler = async(...args) => {
+      const wrappedHandler = async (...args) => {
         try {
           if (args.length > 0) {
             // Decompress first argument (data)
@@ -176,7 +176,7 @@ class CompressionMiddleware {
     try {
       const decompressedData = await this._decompressData(
         data.data,
-        data.algorithm,
+        data.algorithm
       );
       return JSON.parse(decompressedData);
     } catch (error) {
@@ -197,20 +197,20 @@ class CompressionMiddleware {
     try {
       let compressedData;
       switch (this.config.algorithm) {
-      case 'gzip':
-        compressedData = await this.gzip(data, {
-          level: this.config.compressionLevel,
-        });
-        break;
-      case 'deflate':
-        compressedData = await this.deflate(data, {
-          level: this.config.compressionLevel,
-        });
-        break;
-      default:
-        throw new Error(
-          `Unsupported compression algorithm: ${this.config.algorithm}`,
-        );
+        case 'gzip':
+          compressedData = await this.gzip(data, {
+            level: this.config.compressionLevel,
+          });
+          break;
+        case 'deflate':
+          compressedData = await this.deflate(data, {
+            level: this.config.compressionLevel,
+          });
+          break;
+        default:
+          throw new Error(
+            `Unsupported compression algorithm: ${this.config.algorithm}`
+          );
       }
       const processingTime = Date.now() - startTime;
       const originalSize = Buffer.byteLength(data, 'utf8');
@@ -249,14 +249,14 @@ class CompressionMiddleware {
       const buffer = Buffer.from(compressedData, 'base64');
       let decompressedData;
       switch (algorithm) {
-      case 'gzip':
-        decompressedData = await this.gunzip(buffer);
-        break;
-      case 'deflate':
-        decompressedData = await this.inflate(buffer);
-        break;
-      default:
-        throw new Error(`Unsupported decompression algorithm: ${algorithm}`);
+        case 'gzip':
+          decompressedData = await this.gunzip(buffer);
+          break;
+        case 'deflate':
+          decompressedData = await this.inflate(buffer);
+          break;
+        default:
+          throw new Error(`Unsupported decompression algorithm: ${algorithm}`);
       }
       const processingTime = Date.now() - startTime;
       const compressedSize = buffer.length;
@@ -291,7 +291,7 @@ class CompressionMiddleware {
     originalSize,
     compressedSize,
     compressionTime,
-    decompressionTime,
+    decompressionTime
   ) {
     this.compressionStats.totalUncompressed += originalSize;
     this.compressionStats.totalCompressed += compressedSize;

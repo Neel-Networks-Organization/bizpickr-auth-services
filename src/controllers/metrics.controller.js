@@ -18,7 +18,7 @@ class MetricsController {
   /**
    * Get comprehensive metrics
    */
-  getMetrics = asyncErrorHandler(async(req, res) => {
+  getMetrics = asyncErrorHandler(async (req, res) => {
     const startTime = Date.now();
 
     try {
@@ -49,7 +49,7 @@ class MetricsController {
   /**
    * Get business metrics only
    */
-  getBusinessMetrics = asyncErrorHandler(async(req, res) => {
+  getBusinessMetrics = asyncErrorHandler(async (req, res) => {
     try {
       const businessMetrics = await metricsService.getMetrics();
 
@@ -72,7 +72,7 @@ class MetricsController {
   /**
    * Get technical metrics only
    */
-  getTechnicalMetrics = asyncErrorHandler(async(req, res) => {
+  getTechnicalMetrics = asyncErrorHandler(async (req, res) => {
     try {
       const metrics = await metricsService.getMetrics();
 
@@ -96,7 +96,7 @@ class MetricsController {
   /**
    * Get health status
    */
-  getHealth = asyncErrorHandler(async(req, res) => {
+  getHealth = asyncErrorHandler(async (req, res) => {
     try {
       const healthStatus = metricsService.getHealthStatus();
       const cacheWarmingStatus = cacheWarmingService.getWarmingStatus();
@@ -131,7 +131,7 @@ class MetricsController {
   /**
    * Reset metrics
    */
-  resetMetrics = asyncErrorHandler(async(req, res) => {
+  resetMetrics = asyncErrorHandler(async (req, res) => {
     try {
       // Check if user has permission to reset metrics
       if (req.user?.role !== 'super_admin' && req.user?.role !== 'admin') {
@@ -163,7 +163,7 @@ class MetricsController {
   /**
    * Get cache warming status
    */
-  getCacheWarmingStatus = asyncErrorHandler(async(req, res) => {
+  getCacheWarmingStatus = asyncErrorHandler(async (req, res) => {
     try {
       const status = cacheWarmingService.getWarmingStatus();
 
@@ -182,7 +182,7 @@ class MetricsController {
   /**
    * Trigger cache warming
    */
-  triggerCacheWarming = asyncErrorHandler(async(req, res) => {
+  triggerCacheWarming = asyncErrorHandler(async (req, res) => {
     try {
       // Check if user has permission
       if (req.user?.role !== 'super_admin' && req.user?.role !== 'admin') {
@@ -238,7 +238,7 @@ class MetricsController {
   /**
    * Get device analytics
    */
-  getDeviceAnalytics = asyncErrorHandler(async(req, res) => {
+  getDeviceAnalytics = asyncErrorHandler(async (req, res) => {
     try {
       const userId = req.params.userId || req.user?.id;
 
@@ -293,7 +293,7 @@ class MetricsController {
   /**
    * Get error statistics
    */
-  getErrorStats = asyncErrorHandler(async(req, res) => {
+  getErrorStats = asyncErrorHandler(async (req, res) => {
     try {
       // Check permissions
       if (req.user?.role !== 'super_admin' && req.user?.role !== 'admin') {
@@ -322,7 +322,7 @@ class MetricsController {
   /**
    * Get performance metrics
    */
-  getPerformanceMetrics = asyncErrorHandler(async(req, res) => {
+  getPerformanceMetrics = asyncErrorHandler(async (req, res) => {
     try {
       const metrics = await metricsService.getMetrics();
 

@@ -20,7 +20,7 @@ class SimpleLoggingMiddleware {
       maxLogSize: 10000, // 10KB
       enableMetrics: true,
     };
-    
+
     this.metrics = {
       totalRequests: 0,
       totalErrors: 0,
@@ -32,7 +32,7 @@ class SimpleLoggingMiddleware {
       endpoints: {},
       lastReset: Date.now(),
     };
-    
+
     this._startMetricsCollection();
   }
 
@@ -61,7 +61,11 @@ class SimpleLoggingMiddleware {
 
       // Log incoming request with enhanced details
       if (this.config.logRequests) {
-        const requestLog = this._createRequestLog(req, correlationId, requestId);
+        const requestLog = this._createRequestLog(
+          req,
+          correlationId,
+          requestId
+        );
         safeLogger.info('Request received', requestLog);
       }
 
@@ -77,28 +81,41 @@ class SimpleLoggingMiddleware {
 
       // Override response end for comprehensive logging
       const originalEnd = res.end;
-      res.end = function(chunk, encoding) {
+      res.end = function (chunk, encoding) {
         const responseTime = Date.now() - startTime;
         const responseSize = chunk ? chunk.length : 0;
-        
+
         // Update response metrics
         this._updateResponseMetrics(req, res, responseTime, responseSize);
-        
+
         if (this.config.logRequests) {
-          const responseLog = this._createResponseLog(req, res, responseTime, responseSize, correlationId, requestId);
+          const responseLog = this._createResponseLog(
+            req,
+            res,
+            responseTime,
+            responseSize,
+            correlationId,
+            requestId
+          );
           safeLogger.info('Request completed', responseLog);
         }
 
         // Performance logging
         if (this.config.logPerformance) {
-          this._logPerformanceMetrics(req, res, responseTime, responseSize, correlationId);
+          this._logPerformanceMetrics(
+            req,
+            res,
+            responseTime,
+            responseSize,
+            correlationId
+          );
         }
 
         // Analytics logging
         if (this.config.logAnalytics) {
           this._logAnalytics(req, res, responseTime, correlationId);
         }
-        
+
         originalEnd.call(this, chunk, encoding);
       }.bind(this);
 
@@ -124,10 +141,10 @@ class SimpleLoggingMiddleware {
 
     const correlationId = getCorrelationId();
     const requestId = req.requestId || 'unknown';
-    
+
     // Update error metrics
     this._updateErrorMetrics(req, error);
-    
+
     safeLogger.error('Request error', {
       method: req.method,
       url: req.originalUrl || req.url,
@@ -176,7 +193,14 @@ class SimpleLoggingMiddleware {
   /**
    * Create comprehensive response log
    */
-  _createResponseLog(req, res, responseTime, responseSize, correlationId, requestId) {
+  _createResponseLog(
+    req,
+    res,
+    responseTime,
+    responseSize,
+    correlationId,
+    requestId
+  ) {
     return {
       method: req.method,
       url: req.originalUrl || req.url,
@@ -198,18 +222,20 @@ class SimpleLoggingMiddleware {
    */
   _updateRequestMetrics(req) {
     this.metrics.totalRequests++;
-    
+
     const endpoint = req.originalUrl || req.url;
-    this.metrics.endpoints[endpoint] = (this.metrics.endpoints[endpoint] || 0) + 1;
-    
+    this.metrics.endpoints[endpoint] =
+      (this.metrics.endpoints[endpoint] || 0) + 1;
+
     const ip = req.ip || req.connection?.remoteAddress;
     if (ip) {
       this.metrics.ipAddresses[ip] = (this.metrics.ipAddresses[ip] || 0) + 1;
     }
-    
+
     const userAgent = req.headers['user-agent'];
     if (userAgent) {
-      this.metrics.userAgents[userAgent] = (this.metrics.userAgents[userAgent] || 0) + 1;
+      this.metrics.userAgents[userAgent] =
+        (this.metrics.userAgents[userAgent] || 0) + 1;
     }
   }
 
@@ -218,13 +244,15 @@ class SimpleLoggingMiddleware {
    */
   _updateResponseMetrics(req, res, responseTime, responseSize) {
     const statusCode = res.statusCode;
-    this.metrics.statusCodes[statusCode] = (this.metrics.statusCodes[statusCode] || 0) + 1;
-    
+    this.metrics.statusCodes[statusCode] =
+      (this.metrics.statusCodes[statusCode] || 0) + 1;
+
     // Update average response time
     const totalRequests = this.metrics.totalRequests;
-    this.metrics.averageResponseTime = 
-      ((this.metrics.averageResponseTime * (totalRequests - 1)) + responseTime) / totalRequests;
-    
+    this.metrics.averageResponseTime =
+      (this.metrics.averageResponseTime * (totalRequests - 1) + responseTime) /
+      totalRequests;
+
     // Track slow requests
     if (responseTime > 1000) {
       this.metrics.slowRequests++;
@@ -236,12 +264,13 @@ class SimpleLoggingMiddleware {
    */
   _updateErrorMetrics(req, error) {
     this.metrics.totalErrors++;
-    
+
     const errorType = error.constructor.name;
     if (!this.metrics.errorTypes) {
       this.metrics.errorTypes = {};
     }
-    this.metrics.errorTypes[errorType] = (this.metrics.errorTypes[errorType] || 0) + 1;
+    this.metrics.errorTypes[errorType] =
+      (this.metrics.errorTypes[errorType] || 0) + 1;
   }
 
   /**
@@ -249,20 +278,23 @@ class SimpleLoggingMiddleware {
    */
   _logSecurityEvents(req, correlationId) {
     const securityEvents = [];
-    
+
     // Check for suspicious patterns
-    if (req.headers['user-agent']?.includes('bot') || req.headers['user-agent']?.includes('crawler')) {
+    if (
+      req.headers['user-agent']?.includes('bot') ||
+      req.headers['user-agent']?.includes('crawler')
+    ) {
       securityEvents.push('bot_detected');
     }
-    
+
     if (req.ip && this._isPrivateIP(req.ip)) {
       securityEvents.push('private_ip_access');
     }
-    
+
     if (req.headers['x-forwarded-for']) {
       securityEvents.push('proxied_request');
     }
-    
+
     if (securityEvents.length > 0) {
       safeLogger.info('Security events detected', {
         events: securityEvents,
@@ -319,7 +351,7 @@ class SimpleLoggingMiddleware {
       timestamp: new Date().toISOString(),
       correlationId,
     };
-    
+
     safeLogger.debug('Analytics data', analyticsData);
   }
 
@@ -328,16 +360,22 @@ class SimpleLoggingMiddleware {
    */
   _sanitizeRequestBody(body) {
     if (!body || typeof body !== 'object') return body;
-    
+
     const sanitized = { ...body };
-    const sensitiveFields = ['password', 'token', 'secret', 'key', 'authorization'];
-    
+    const sensitiveFields = [
+      'password',
+      'token',
+      'secret',
+      'key',
+      'authorization',
+    ];
+
     sensitiveFields.forEach(field => {
       if (sanitized[field]) {
         sanitized[field] = '[REDACTED]';
       }
     });
-    
+
     return sanitized;
   }
 
@@ -346,16 +384,16 @@ class SimpleLoggingMiddleware {
    */
   _sanitizeHeaders(headers) {
     if (!headers || typeof headers !== 'object') return headers;
-    
+
     const sanitized = { ...headers };
     const sensitiveHeaders = ['authorization', 'cookie', 'x-api-key'];
-    
+
     sensitiveHeaders.forEach(header => {
       if (sanitized[header]) {
         sanitized[header] = '[REDACTED]';
       }
     });
-    
+
     return sanitized;
   }
 
@@ -373,7 +411,7 @@ class SimpleLoggingMiddleware {
       /^fc00:/,
       /^fe80:/,
     ];
-    
+
     return privateRanges.some(range => range.test(ip));
   }
 
@@ -411,9 +449,13 @@ class SimpleLoggingMiddleware {
     return {
       ...this.metrics,
       uptime: Date.now() - this.metrics.lastReset,
-      errorRate: this.metrics.totalRequests > 0 
-        ? (this.metrics.totalErrors / this.metrics.totalRequests * 100).toFixed(2)
-        : 0,
+      errorRate:
+        this.metrics.totalRequests > 0
+          ? (
+              (this.metrics.totalErrors / this.metrics.totalRequests) *
+              100
+            ).toFixed(2)
+          : 0,
     };
   }
 
@@ -427,11 +469,11 @@ class SimpleLoggingMiddleware {
       slowRequests: this.metrics.slowRequests,
       errorRate: `${this.getMetrics().errorRate}%`,
       topEndpoints: Object.entries(this.metrics.endpoints)
-        .sort(([,a], [,b]) => b - a)
+        .sort(([, a], [, b]) => b - a)
         .slice(0, 5)
         .map(([endpoint, count]) => ({ endpoint, count })),
       topStatusCodes: Object.entries(this.metrics.statusCodes)
-        .sort(([,a], [,b]) => b - a)
+        .sort(([, a], [, b]) => b - a)
         .slice(0, 5)
         .map(([status, count]) => ({ status, count })),
     };
@@ -453,7 +495,8 @@ export const logError = (req, res, error) => {
 
 // ✅ Export metrics and utility functions
 export const getLoggingMetrics = () => simpleLoggingMiddleware.getMetrics();
-export const getPerformanceSummary = () => simpleLoggingMiddleware.getPerformanceSummary();
+export const getPerformanceSummary = () =>
+  simpleLoggingMiddleware.getPerformanceSummary();
 
 // ✅ Export default
 export default simpleLoggingMiddleware;

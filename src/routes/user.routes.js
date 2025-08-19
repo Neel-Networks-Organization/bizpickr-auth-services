@@ -34,7 +34,7 @@ router
     verifyJWT,
     validateRequest(validateProfileUpdate),
     auditLog('profile_update'),
-    asyncHandler(updateUserProfile),
+    asyncHandler(updateUserProfile)
   );
 
 // User Activity & Statistics
@@ -44,7 +44,7 @@ router
   .post(
     verifyJWT,
     auditLog('activity_created'),
-    asyncHandler(createUserActivity),
+    asyncHandler(createUserActivity)
   );
 
 router.route('/stats').get(verifyJWT, asyncHandler(getUserStats));
@@ -55,7 +55,7 @@ router
   .delete(
     verifyJWT,
     auditLog('account_deletion'),
-    asyncHandler(deleteUserAccount),
+    asyncHandler(deleteUserAccount)
   );
 
 export default router;

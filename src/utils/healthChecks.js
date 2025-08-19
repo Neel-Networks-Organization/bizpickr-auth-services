@@ -55,17 +55,19 @@ export async function checkRabbitMQ() {
 export async function checkGrpc() {
   const registry = getServiceRegistry();
   const grpcStatus = {};
-  
+
   // Real-time check for user-client
   try {
     const userClientHealth = await userClientHealthCheck();
     grpcStatus['user-client'] =
       userClientHealth && userClientHealth.status === 'healthy' ? 'up' : 'down';
   } catch (error) {
-    safeLogger.error('gRPC user client health check failed', { error: error.message });
+    safeLogger.error('gRPC user client health check failed', {
+      error: error.message,
+    });
     grpcStatus['user-client'] = 'down';
   }
-  
+
   // Add other services from registry (e.g. auth-server)
   for (const [name, service] of registry.entries()) {
     if (name !== 'user-client') {
@@ -76,7 +78,7 @@ export async function checkGrpc() {
       }
     }
   }
-  
+
   return grpcStatus;
 }
 
@@ -103,7 +105,7 @@ export const checkCircuitBreaker = async () => {
   try {
     const stats = userServiceCircuitBreaker.stats;
     const state = userServiceCircuitBreaker.opened ? 'open' : 'closed';
-    
+
     return {
       status: state === 'open' ? 'degraded' : 'healthy',
       details: {
@@ -115,14 +117,16 @@ export const checkCircuitBreaker = async () => {
         fallbackCount: stats.fallbackCount,
         timeoutCount: stats.timeoutCount,
         rejectCount: stats.rejectCount,
-        isOpen: userServiceCircuitBreaker.opened
-      }
+        isOpen: userServiceCircuitBreaker.opened,
+      },
     };
   } catch (error) {
-    safeLogger.error('Circuit breaker health check failed', { error: error.message });
+    safeLogger.error('Circuit breaker health check failed', {
+      error: error.message,
+    });
     return {
       status: 'unhealthy',
-      details: { error: error.message }
+      details: { error: error.message },
     };
   }
 };

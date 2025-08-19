@@ -136,7 +136,7 @@ class ValidationMiddleware {
     };
     // Wrap on to add validation for incoming events
     socket.on = (event, handler) => {
-      const wrappedHandler = async(...args) => {
+      const wrappedHandler = async (...args) => {
         try {
           // Get schema for event if exists
           const schema = this._getEventSchema(event);
@@ -146,7 +146,7 @@ class ValidationMiddleware {
               event,
               args[0],
               schema,
-              socket,
+              socket
             );
             args[0] = validatedData;
           }

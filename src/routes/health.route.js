@@ -1,5 +1,12 @@
 import express from 'express';
-import { checkDb, checkRedis, checkRabbitMQ, checkGrpc, checkMongoDB, checkCircuitBreaker } from '../utils/healthChecks.js';
+import {
+  checkDb,
+  checkRedis,
+  checkRabbitMQ,
+  checkGrpc,
+  checkMongoDB,
+  checkCircuitBreaker,
+} from '../utils/healthChecks.js';
 
 const router = express.Router();
 
@@ -11,7 +18,7 @@ const router = express.Router();
 router.get('/', async (req, res) => {
   try {
     const startTime = Date.now();
-    
+
     // Check all service dependencies
     const healthChecks = await Promise.allSettled([
       checkDb(),
@@ -19,21 +26,29 @@ router.get('/', async (req, res) => {
       checkRabbitMQ(),
       checkGrpc(),
       checkMongoDB(),
-      checkCircuitBreaker()
+      checkCircuitBreaker(),
     ]);
 
     const results = {
-      database: healthChecks[0].status === 'fulfilled' ? healthChecks[0].value : 'down',
-      redis: healthChecks[1].status === 'fulfilled' ? healthChecks[1].value : 'down',
-      rabbitmq: healthChecks[2].status === 'fulfilled' ? healthChecks[2].value : 'down',
-      grpc: healthChecks[3].status === 'fulfilled' ? healthChecks[3].value : 'down',
-      mongodb: healthChecks[4].status === 'fulfilled' ? healthChecks[4].value : 'down',
-      circuitBreaker: healthChecks[5].status === 'fulfilled' ? healthChecks[5].value : 'down'
+      database:
+        healthChecks[0].status === 'fulfilled' ? healthChecks[0].value : 'down',
+      redis:
+        healthChecks[1].status === 'fulfilled' ? healthChecks[1].value : 'down',
+      rabbitmq:
+        healthChecks[2].status === 'fulfilled' ? healthChecks[2].value : 'down',
+      grpc:
+        healthChecks[3].status === 'fulfilled' ? healthChecks[3].value : 'down',
+      mongodb:
+        healthChecks[4].status === 'fulfilled' ? healthChecks[4].value : 'down',
+      circuitBreaker:
+        healthChecks[5].status === 'fulfilled' ? healthChecks[5].value : 'down',
     };
 
     // Determine overall health
-    const allHealthy = Object.values(results).every(result => 
-      result === 'up' || (typeof result === 'object' && result.status === 'healthy')
+    const allHealthy = Object.values(results).every(
+      result =>
+        result === 'up' ||
+        (typeof result === 'object' && result.status === 'healthy')
     );
 
     const responseTime = Date.now() - startTime;
@@ -45,18 +60,17 @@ router.get('/', async (req, res) => {
       version: process.env.npm_package_version || '1.0.0',
       uptime: process.uptime(),
       responseTime: `${responseTime}ms`,
-      checks: results
+      checks: results,
     };
 
     const statusCode = allHealthy ? 200 : 503;
     res.status(statusCode).json(healthResponse);
-
   } catch (error) {
     res.status(500).json({
       status: 'unhealthy',
       timestamp: new Date().toISOString(),
       service: 'AuthService',
-      error: error.message
+      error: error.message,
     });
   }
 });
@@ -69,26 +83,23 @@ router.get('/', async (req, res) => {
 router.get('/ready', async (req, res) => {
   try {
     // Check critical dependencies only
-    const criticalChecks = await Promise.allSettled([
-      checkDb(),
-      checkRedis()
-    ]);
+    const criticalChecks = await Promise.allSettled([checkDb(), checkRedis()]);
 
-    const isReady = criticalChecks.every(check => 
-      check.status === 'fulfilled' && check.value === 'up'
+    const isReady = criticalChecks.every(
+      check => check.status === 'fulfilled' && check.value === 'up'
     );
 
     if (isReady) {
       res.status(200).json({
         status: 'ready',
         timestamp: new Date().toISOString(),
-        service: 'AuthService'
+        service: 'AuthService',
       });
     } else {
       res.status(503).json({
         status: 'not ready',
         timestamp: new Date().toISOString(),
-        service: 'AuthService'
+        service: 'AuthService',
       });
     }
   } catch (error) {
@@ -96,7 +107,7 @@ router.get('/ready', async (req, res) => {
       status: 'not ready',
       timestamp: new Date().toISOString(),
       service: 'AuthService',
-      error: error.message
+      error: error.message,
     });
   }
 });
@@ -110,7 +121,7 @@ router.get('/live', (req, res) => {
   res.status(200).json({
     status: 'alive',
     timestamp: new Date().toISOString(),
-    service: 'AuthService'
+    service: 'AuthService',
   });
 });
 

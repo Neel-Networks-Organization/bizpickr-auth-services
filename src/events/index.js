@@ -90,7 +90,7 @@ export async function publishEvent(eventType, eventData = {}, options = {}) {
           eventType,
           timestamp: new Date().toISOString(),
         },
-      },
+      }
     );
 
     if (!published) {
@@ -164,17 +164,20 @@ export async function initializeRabbitMQ(options = {}) {
     });
   } catch (error) {
     const totalTime = Date.now() - startTime;
-    
+
     // In development mode, log warning but don't crash
     if (process.env.NODE_ENV === 'development') {
-      safeLogger.warn('⚠️ RabbitMQ initialization failed in development mode, continuing...', {
-        error: error.message,
-        note: 'Service will start without RabbitMQ functionality',
-        totalTime: `${totalTime}ms`,
-      });
+      safeLogger.warn(
+        '⚠️ RabbitMQ initialization failed in development mode, continuing...',
+        {
+          error: error.message,
+          note: 'Service will start without RabbitMQ functionality',
+          totalTime: `${totalTime}ms`,
+        }
+      );
       return; // Don't throw error in development
     }
-    
+
     safeLogger.error('Failed to initialize RabbitMQ event system', {
       error: error.message,
       stack: error.stack,
@@ -195,12 +198,15 @@ export async function initializeRabbitMQ(options = {}) {
  * @param {number} timeout - Timeout in milliseconds
  * @returns {Promise<void>}
  */
-async function waitForConnectionReady(timeout = 60000) { // Increased timeout to 60 seconds
+async function waitForConnectionReady(timeout = 60000) {
+  // Increased timeout to 60 seconds
   const startTime = Date.now();
   console.log('🔍 DEBUG: Waiting for RabbitMQ connection to be ready...');
   while (Date.now() - startTime < timeout) {
     const isHealthy = rabbitMQConnection.isHealthy();
-    console.log(`🔍 DEBUG: RabbitMQ health check: ${isHealthy} (${Date.now() - startTime}ms elapsed)`);
+    console.log(
+      `🔍 DEBUG: RabbitMQ health check: ${isHealthy} (${Date.now() - startTime}ms elapsed)`
+    );
     if (isHealthy) {
       console.log('✅ DEBUG: RabbitMQ connection is healthy!');
       return;
@@ -224,7 +230,7 @@ async function startAllConsumers(options = {}) {
     { name: 'userCreated', startFn: startUserCreatedConsumer },
     // Add more consumers here as needed
   ];
-  const consumerPromises = consumers.map(async({ name, startFn }) => {
+  const consumerPromises = consumers.map(async ({ name, startFn }) => {
     try {
       await startFn(options);
       eventMetrics.activeConsumers++;
@@ -260,7 +266,7 @@ async function startAllConsumers(options = {}) {
   });
   await Promise.allSettled(consumerPromises);
   const successfulConsumers = Array.from(consumerRegistry.values()).filter(
-    consumer => consumer.status === 'active',
+    consumer => consumer.status === 'active'
   ).length;
   safeLogger.info('Consumer startup completed', {
     totalConsumers: consumers.length,
@@ -273,7 +279,7 @@ async function startAllConsumers(options = {}) {
  * Start health monitoring
  */
 function startHealthMonitoring() {
-  setInterval(async() => {
+  setInterval(async () => {
     try {
       const health = await getEventSystemHealth();
       eventMetrics.lastHealthCheck = new Date().toISOString();
@@ -302,10 +308,10 @@ export async function getEventSystemHealth() {
   const uptime = Date.now() - eventMetrics.uptime;
   const connectionHealth = await rabbitMQConnection.getHealth();
   const activeConsumers = Array.from(consumerRegistry.values()).filter(
-    consumer => consumer.status === 'active',
+    consumer => consumer.status === 'active'
   ).length;
   const failedConsumers = Array.from(consumerRegistry.values()).filter(
-    consumer => consumer.status === 'failed',
+    consumer => consumer.status === 'failed'
   ).length;
   return {
     status:
@@ -379,7 +385,7 @@ export async function restartConsumer(consumerName) {
  */
 export async function restartFailedConsumers() {
   const failedConsumers = Array.from(consumerRegistry.values()).filter(
-    consumer => consumer.status === 'failed',
+    consumer => consumer.status === 'failed'
   );
   const results = {
     total: failedConsumers.length,
@@ -416,7 +422,7 @@ function setupGracefulShutdown() {
             // Cancel consumer if possible
             await rabbitMQConnection.cancelConsumer(
               `${name}-channel`,
-              `${name}-consumer`,
+              `${name}-consumer`
             );
             consumer.status = 'stopped';
             safeLogger.info('Consumer stopped', { consumerName: name });
@@ -454,22 +460,22 @@ function setupGracefulShutdown() {
  */
 export function updateEventMetrics(type, data = {}) {
   switch (type) {
-  case 'published':
-    eventMetrics.totalEventsPublished++;
-    break;
-  case 'consumed':
-    eventMetrics.totalEventsConsumed++;
-    break;
-  case 'failedPublish':
-    eventMetrics.failedPublishes++;
-    break;
-  case 'failedConsume':
-    eventMetrics.failedConsumes++;
-    break;
-  case 'reconnection':
-    eventMetrics.reconnectionAttempts++;
-    eventMetrics.lastReconnection = new Date().toISOString();
-    break;
+    case 'published':
+      eventMetrics.totalEventsPublished++;
+      break;
+    case 'consumed':
+      eventMetrics.totalEventsConsumed++;
+      break;
+    case 'failedPublish':
+      eventMetrics.failedPublishes++;
+      break;
+    case 'failedConsume':
+      eventMetrics.failedConsumes++;
+      break;
+    case 'reconnection':
+      eventMetrics.reconnectionAttempts++;
+      eventMetrics.lastReconnection = new Date().toISOString();
+      break;
   }
   safeLogger.debug('Event metrics updated', {
     type,
@@ -489,7 +495,7 @@ export function getConsumerRegistry() {
  * @returns {boolean} Ready status
  */
 export function isEventSystemReady() {
-      return rabbitMQConnection.isHealthy() && eventMetrics.activeConsumers > 0;
+  return rabbitMQConnection.isHealthy() && eventMetrics.activeConsumers > 0;
 }
 /**
  * Shutdown RabbitMQ connection and all consumers
@@ -506,7 +512,7 @@ export async function shutdownRabbitMQ() {
           // Cancel consumer if possible
           await rabbitMQConnection.cancelConsumer(
             `${name}-channel`,
-            `${name}-consumer`,
+            `${name}-consumer`
           );
           consumer.status = 'stopped';
           safeLogger.info('Consumer stopped', {

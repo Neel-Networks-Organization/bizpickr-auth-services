@@ -75,7 +75,7 @@ export async function generateAccessToken(user, options = {}) {
       tokenType: 'access',
       issuedAt: new Date().toISOString(),
       expiresAt: new Date(
-        Date.now() + parseInt(env.PRIVATE_KEY_EXIPRY) * 1000,
+        Date.now() + parseInt(env.PRIVATE_KEY_EXIPRY) * 1000
       ).toISOString(),
       kid,
       jti: payload.jti,
@@ -119,7 +119,7 @@ export async function generateRefreshToken(user, options = {}) {
       throw new ApiError(
         400,
         'Invalid user data for refresh token generation',
-        ['User object must contain id', 'Please provide valid user information'],
+        ['User object must contain id', 'Please provide valid user information']
       );
     }
     const payload = {
@@ -152,7 +152,7 @@ export async function generateRefreshToken(user, options = {}) {
       tokenType: 'refresh',
       issuedAt: new Date().toISOString(),
       expiresAt: new Date(
-        Date.now() + parseInt(env.REFRESH_TOKEN_EXPIRY) * 1000,
+        Date.now() + parseInt(env.REFRESH_TOKEN_EXPIRY) * 1000
       ).toISOString(),
       jti: payload.jti,
     };

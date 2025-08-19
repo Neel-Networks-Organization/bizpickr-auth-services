@@ -28,7 +28,7 @@ router.route('/.well-known/jwks.json').get(
     'X-Content-Type-Options': 'nosniff',
   }),
   auditLog('jwks_request'),
-  asyncHandler(getJWKs),
+  asyncHandler(getJWKs)
 );
 
 router.route('/keys/:kid').get(
@@ -40,7 +40,7 @@ router.route('/keys/:kid').get(
     'X-Content-Type-Options': 'nosniff',
   }),
   auditLog('jwk_specific_request'),
-  asyncHandler(getJWKByKid),
+  asyncHandler(getJWKByKid)
 );
 
 // JWK Operations
@@ -50,7 +50,7 @@ router
     rateLimiter('jwk-refresh', { windowMs: 60 * 60 * 1000, max: 10 }),
     validateRequest(validateJWKRequest),
     auditLog('jwks_refresh'),
-    asyncHandler(rotateJWKs),
+    asyncHandler(rotateJWKs)
   );
 
 router
@@ -59,7 +59,7 @@ router
     rateLimiter('jwk-validate', { windowMs: 60 * 1000, max: 30 }),
     validateRequest(validateJWKRequest),
     auditLog('jwk_validation'),
-    asyncHandler(validateAndRotateKeys),
+    asyncHandler(validateAndRotateKeys)
   );
 
 // JWK Statistics
@@ -68,7 +68,7 @@ router
   .get(
     rateLimiter('jwk-stats', { windowMs: 60 * 1000, max: 20 }),
     auditLog('jwk_stats'),
-    asyncHandler(getJWKStats),
+    asyncHandler(getJWKStats)
   );
 
 export default router;

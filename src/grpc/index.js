@@ -48,23 +48,26 @@ async function initializeGrpcServices(options = {}) {
     const timeoutPromise = new Promise((_, reject) =>
       setTimeout(() => {
         safeLogger.warn(
-          `gRPC connection timeout (${grpcTimeoutMs/1000}s): Unable to connect to gRPC server`,
+          `gRPC connection timeout (${grpcTimeoutMs / 1000}s): Unable to connect to gRPC server`
         );
         reject(new Error('gRPC connection timeout'));
-      }, grpcTimeoutMs),
+      }, grpcTimeoutMs)
     );
     await Promise.race([grpcConnectFunction(), timeoutPromise]);
     safeLogger.info('gRPC connection established');
   } catch (error) {
     // In development mode, log warning but don't crash
     if (process.env.NODE_ENV === 'development') {
-      safeLogger.warn('⚠️ gRPC connection failed in development mode, continuing...', {
-        error: error.message,
-        note: 'Service will start without gRPC client functionality',
-      });
+      safeLogger.warn(
+        '⚠️ gRPC connection failed in development mode, continuing...',
+        {
+          error: error.message,
+          note: 'Service will start without gRPC client functionality',
+        }
+      );
       return; // Don't throw error in development
     }
-    
+
     safeLogger.error('gRPC connection failed', {
       error: error.message,
       stack: error.stack,
@@ -107,7 +110,7 @@ function registerServices() {
  * Start health monitoring
  */
 function startHealthMonitoring() {
-  setInterval(async() => {
+  setInterval(async () => {
     try {
       const health = await getGrpcServicesHealth();
       grpcMetrics.lastHealthCheck = new Date().toISOString();
@@ -217,34 +220,34 @@ export function getGrpcPerformanceMetrics() {
  */
 export function updateGrpcMetrics(type, data = {}) {
   switch (type) {
-  case 'request':
-    grpcMetrics.totalRequests++;
-    break;
-  case 'success':
-    grpcMetrics.successfulRequests++;
-    break;
-  case 'failure':
-    grpcMetrics.failedRequests++;
-    if (data.error) {
-      const errorType = data.error.constructor.name;
-      grpcMetrics.errorCounts.set(
-        errorType,
-        (grpcMetrics.errorCounts.get(errorType) || 0) + 1,
-      );
-    }
-    break;
-  case 'latency':
-    if (data.latency) {
-      grpcMetrics.requestLatency.push(data.latency);
-      // Keep only last 100 latency measurements
-      if (grpcMetrics.requestLatency.length > 100) {
-        grpcMetrics.requestLatency.shift();
+    case 'request':
+      grpcMetrics.totalRequests++;
+      break;
+    case 'success':
+      grpcMetrics.successfulRequests++;
+      break;
+    case 'failure':
+      grpcMetrics.failedRequests++;
+      if (data.error) {
+        const errorType = data.error.constructor.name;
+        grpcMetrics.errorCounts.set(
+          errorType,
+          (grpcMetrics.errorCounts.get(errorType) || 0) + 1
+        );
       }
-    }
-    break;
-  case 'connection':
-    grpcMetrics.activeConnections = data.count || 0;
-    break;
+      break;
+    case 'latency':
+      if (data.latency) {
+        grpcMetrics.requestLatency.push(data.latency);
+        // Keep only last 100 latency measurements
+        if (grpcMetrics.requestLatency.length > 100) {
+          grpcMetrics.requestLatency.shift();
+        }
+      }
+      break;
+    case 'connection':
+      grpcMetrics.activeConnections = data.count || 0;
+      break;
   }
   safeLogger.debug('gRPC metrics updated', {
     type,
@@ -328,7 +331,7 @@ async function shutdownGrpcServices() {
             error: error.message,
           });
         }
-      },
+      }
     );
     await Promise.allSettled(shutdownPromises);
     const shutdownTime = Date.now() - startTime;
@@ -410,28 +413,38 @@ async function grpcConnectFunction() {
     if (process.env.NODE_ENV === 'development') {
       try {
         await startGrpcServer();
-        safeLogger.info('✅ gRPC server started successfully in development mode');
+        safeLogger.info(
+          '✅ gRPC server started successfully in development mode'
+        );
       } catch (error) {
-        safeLogger.warn('⚠️ gRPC server failed to start in development mode, continuing...', {
-          error: error.message,
-          note: 'Service will start without gRPC server functionality',
-        });
+        safeLogger.warn(
+          '⚠️ gRPC server failed to start in development mode, continuing...',
+          {
+            error: error.message,
+            note: 'Service will start without gRPC server functionality',
+          }
+        );
         return; // Don't throw error in development
       }
     } else {
       // In production mode, gRPC server is required
       await startGrpcServer();
     }
-    
+
     // Initialize user health monitor (both development and production)
     try {
       await initializeUserHealth();
-      safeLogger.info('✅ User service health monitor initialized successfully');
+      safeLogger.info(
+        '✅ User service health monitor initialized successfully'
+      );
     } catch (error) {
-      safeLogger.warn('⚠️ User service health monitor failed to initialize (optional)', {
-        error: error.message,
-        note: 'Service will continue without gRPC client functionality',
-      });
+      safeLogger.warn(
+        '⚠️ User service health monitor failed to initialize (optional)',
+        {
+          error: error.message,
+          note: 'Service will continue without gRPC client functionality',
+        }
+      );
     }
   } catch (error) {
     throw error;

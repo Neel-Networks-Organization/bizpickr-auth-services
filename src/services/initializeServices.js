@@ -1,7 +1,7 @@
 import { cacheWarmingService } from './cacheWarming.service.js';
 import { safeLogger } from '../config/logger.js';
 
-export const initializeServices = async() => {
+export const initializeServices = async () => {
   try {
     // Initialize cache warming
     await cacheWarmingService.scheduleWarming();

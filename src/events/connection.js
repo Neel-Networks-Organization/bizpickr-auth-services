@@ -39,15 +39,14 @@ class RabbitMQConnection {
 
       // Try simple connection first
       try {
-        this.connection = await amqplib.connect(
-          rabbitMQConfig.connection.url,
-          {
-            heartbeat: rabbitMQConfig.connection.heartbeat,
-            timeout: rabbitMQConfig.connection.timeout,
-          }
-        );
+        this.connection = await amqplib.connect(rabbitMQConfig.connection.url, {
+          heartbeat: rabbitMQConfig.connection.heartbeat,
+          timeout: rabbitMQConfig.connection.timeout,
+        });
       } catch (error) {
-        safeLogger.warn('Simple connection failed, trying detailed config', { error: error.message });
+        safeLogger.warn('Simple connection failed, trying detailed config', {
+          error: error.message,
+        });
         // Fallback to detailed configuration
         this.connection = await amqplib.connect(
           rabbitMQConfig.connection.url,
@@ -60,16 +59,16 @@ class RabbitMQConnection {
 
       safeLogger.info('Successfully connected to RabbitMQ');
       console.log('✅ DEBUG: RabbitMQ connection established');
-      
+
       console.log('🔍 DEBUG: Setting up event listeners...');
       this._setupEventListeners();
-      
+
       console.log('🔍 DEBUG: Setting up default exchanges...');
       await this._setupDefaultExchanges();
-      
+
       console.log('🔍 DEBUG: Setting up default queues...');
       await this._setupDefaultQueues();
-      
+
       console.log('✅ DEBUG: RabbitMQ setup completed');
     } catch (error) {
       this.isConnecting = false;
@@ -89,7 +88,7 @@ class RabbitMQConnection {
    * Setup event listeners
    */
   _setupEventListeners() {
-    this.connection.on('error', (error) => {
+    this.connection.on('error', error => {
       safeLogger.error('RabbitMQ connection error', { error: error.message });
       this._handleConnectionError();
     });
@@ -123,7 +122,7 @@ class RabbitMQConnection {
   async _setupDefaultExchanges() {
     try {
       const channel = await this.getChannel();
-      
+
       // Setup main exchange
       await channel.assertExchange('auth.events', 'topic', {
         durable: true,
@@ -141,7 +140,7 @@ class RabbitMQConnection {
   async _setupDefaultQueues() {
     try {
       const channel = await this.getChannel();
-      
+
       // Setup user events queue
       await channel.assertQueue('user.events', {
         durable: true,
@@ -171,7 +170,7 @@ class RabbitMQConnection {
     const channel = await this.connection.createChannel();
     this.channels.set(name, channel);
 
-    channel.on('error', (error) => {
+    channel.on('error', error => {
       safeLogger.error('Channel error', { name, error: error.message });
       this.channels.delete(name);
     });
@@ -191,7 +190,7 @@ class RabbitMQConnection {
     try {
       const channel = await this.getChannel();
       const messageBuffer = Buffer.from(JSON.stringify(message));
-      
+
       const result = channel.publish(exchange, routingKey, messageBuffer, {
         persistent: true,
         ...options,
@@ -220,25 +219,29 @@ class RabbitMQConnection {
   async consumeMessages(queue, handler, options = {}) {
     try {
       const channel = await this.getChannel();
-      
+
       // Don't assert queue - just use existing one to avoid conflicts
       // This prevents PRECONDITION_FAILED errors when queue already exists
-      
-      const result = await channel.consume(queue, async (msg) => {
-        if (msg) {
-          try {
-            const content = JSON.parse(msg.content.toString());
-            await handler(content, msg);
-            channel.ack(msg);
-          } catch (error) {
-            safeLogger.error('Message processing failed', {
-              queue,
-              error: error.message,
-            });
-            channel.nack(msg, false, false);
+
+      const result = await channel.consume(
+        queue,
+        async msg => {
+          if (msg) {
+            try {
+              const content = JSON.parse(msg.content.toString());
+              await handler(content, msg);
+              channel.ack(msg);
+            } catch (error) {
+              safeLogger.error('Message processing failed', {
+                queue,
+                error: error.message,
+              });
+              channel.nack(msg, false, false);
+            }
           }
-        }
-      }, options);
+        },
+        options
+      );
 
       safeLogger.info('Started consuming messages', { queue });
       return result;
@@ -284,15 +287,20 @@ class RabbitMQConnection {
     // amqplib connection doesn't have a 'closed' property
     // Instead, we check if connection exists and is not in error state
     const hasConnection = !!this.connection;
-    const connectionState = this.connection ? this.connection.connection?.state || 'unknown' : 'no-connection';
-    const isHealthy = hasConnection && connectionState !== 'closed' && connectionState !== 'error';
-    
+    const connectionState = this.connection
+      ? this.connection.connection?.state || 'unknown'
+      : 'no-connection';
+    const isHealthy =
+      hasConnection &&
+      connectionState !== 'closed' &&
+      connectionState !== 'error';
+
     console.log('🔍 DEBUG: isHealthy check:', {
       hasConnection,
       connectionState,
-      result: isHealthy
+      result: isHealthy,
     });
-    
+
     return isHealthy;
   }
 }
@@ -314,14 +322,19 @@ export const {
 } = rabbitMQConnection;
 
 // ✅ Add missing methods for backward compatibility
-export const getHealth = () => ({ 
-  status: rabbitMQConnection.isHealthy() ? 'connected' : 'disconnected', 
-  timestamp: new Date().toISOString() 
+export const getHealth = () => ({
+  status: rabbitMQConnection.isHealthy() ? 'connected' : 'disconnected',
+  timestamp: new Date().toISOString(),
 });
-export const getMetrics = () => ({ totalMessages: 0, failedMessages: 0, timestamp: new Date().toISOString() });
+export const getMetrics = () => ({
+  totalMessages: 0,
+  failedMessages: 0,
+  timestamp: new Date().toISOString(),
+});
 export const isReady = () => rabbitMQConnection.isHealthy();
-export const publish = (exchange, routingKey, message, options) => rabbitMQConnection.publishMessage(exchange, routingKey, message, options);
-export const createChannel = (name) => rabbitMQConnection.getChannel(name);
+export const publish = (exchange, routingKey, message, options) =>
+  rabbitMQConnection.publishMessage(exchange, routingKey, message, options);
+export const createChannel = name => rabbitMQConnection.getChannel(name);
 export const cancelConsumer = async (channelName, consumerTag) => {
   const channel = await rabbitMQConnection.getChannel(channelName);
   return channel.cancel(consumerTag);

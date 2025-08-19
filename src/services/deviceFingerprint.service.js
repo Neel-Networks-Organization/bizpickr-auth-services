@@ -69,7 +69,7 @@ class DeviceFingerprintService {
     try {
       const userDevices = await this.getUserDevices(userId);
       const isKnownDevice = userDevices.some(
-        device => device.fingerprint === fingerprint,
+        device => device.fingerprint === fingerprint
       );
 
       if (!isKnownDevice) {
@@ -77,7 +77,7 @@ class DeviceFingerprintService {
         const analysis = await this.analyzeDevicePattern(
           userId,
           fingerprint,
-          context,
+          context
         );
 
         if (analysis.isSuspicious) {
@@ -240,7 +240,7 @@ class DeviceFingerprintService {
       const recentChanges = deviceHistory.filter(
         change =>
           Date.now() - new Date(change.timestamp).getTime() <
-          this.suspiciousPatterns.rapidDeviceChanges.window,
+          this.suspiciousPatterns.rapidDeviceChanges.window
       );
 
       if (
@@ -374,10 +374,10 @@ class DeviceFingerprintService {
         totalDevices: devices.length,
         trustedDevices: devices.filter(d => d.isTrusted).length,
         activeDevices: devices.filter(
-          d => Date.now() - new Date(d.lastUsed).getTime() < 86400000, // Last 24 hours
+          d => Date.now() - new Date(d.lastUsed).getTime() < 86400000 // Last 24 hours
         ).length,
         recentActivity: history.filter(
-          h => Date.now() - new Date(h.timestamp).getTime() < 604800000, // Last 7 days
+          h => Date.now() - new Date(h.timestamp).getTime() < 604800000 // Last 7 days
         ).length,
         riskScore: this.calculateOverallRiskScore(devices, history),
       };
@@ -403,7 +403,7 @@ class DeviceFingerprintService {
 
     // Factor in recent activity
     const recentActivity = history.filter(
-      h => Date.now() - new Date(h.timestamp).getTime() < 3600000, // Last hour
+      h => Date.now() - new Date(h.timestamp).getTime() < 3600000 // Last hour
     ).length;
 
     if (recentActivity > 10) riskScore += 20;
