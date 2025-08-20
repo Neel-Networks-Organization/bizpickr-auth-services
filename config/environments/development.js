@@ -5,7 +5,7 @@
  * Replace .env files with this structured configuration
  */
 
-import { safeLogger } from "../logger.js";
+import { safeLogger } from '../logger.js';
 
 // Development environment configuration
 export const developmentConfig = {
@@ -13,11 +13,11 @@ export const developmentConfig = {
   // CORE CONFIGURATION
   // ========================================
   core: {
-    nodeEnv: "development",
+    nodeEnv: 'development',
     port: 3001,
-    host: "localhost",
-    apiVersion: "v1",
-    baseUrl: "http://localhost:3001",
+    host: 'localhost',
+    apiVersion: 'v1',
+    baseUrl: 'http://localhost:3001',
   },
 
   // ========================================
@@ -25,11 +25,11 @@ export const developmentConfig = {
   // ========================================
   database: {
     mysql: {
-      host: "localhost",
+      host: 'localhost',
       port: 3306,
-      database: "auth_service_dev",
-      username: "root",
-      password: "Develop@NN!2345", // Change this in production
+      database: 'auth_service_dev',
+      username: 'root',
+      password: 'Develop@NN!2345', // Change this in production
       pool: {
         max: 5,
         min: 0,
@@ -37,10 +37,10 @@ export const developmentConfig = {
         idle: 10000,
       },
       logging: false, // Disable SQL logging in development
-      timezone: "+00:00",
+      timezone: '+00:00',
     },
     mongodb: {
-      uri: "mongodb://localhost:27017/auth_service_dev",
+      uri: 'mongodb://localhost:27017/auth_service_dev',
     },
   },
 
@@ -48,9 +48,9 @@ export const developmentConfig = {
   // REDIS CONFIGURATION
   // ========================================
   redis: {
-    host: "127.0.0.1",
+    host: '127.0.0.1',
     port: 6379,
-    password: "",
+    password: '',
     db: 0,
     retryDelay: 100,
     maxRetries: 3,
@@ -62,12 +62,12 @@ export const developmentConfig = {
   // RABBITMQ CONFIGURATION
   // ========================================
   rabbitmq: {
-    url: "amqp://localhost",
-    host: "localhost",
+    url: 'amqp://localhost',
+    host: 'localhost',
     port: 5672,
-    username: "guest",
-    password: "guest",
-    vhost: "/",
+    username: 'guest',
+    password: 'guest',
+    vhost: '/',
     heartbeat: 60,
     timeout: 30000,
     prefetch: 10,
@@ -78,19 +78,19 @@ export const developmentConfig = {
   // ========================================
   auth: {
     jwt: {
-      secret: "dev-jwt-secret-change-in-production",
-      expiry: "15m",
+      secret: 'dev-jwt-secret-change-in-production',
+      expiry: '15m',
     },
     refreshToken: {
-      secret: "dev-refresh-secret-change-in-production",
-      expiry: "7d",
+      secret: 'dev-refresh-secret-change-in-production',
+      expiry: '7d',
     },
     cookie: {
-      secret: "dev-cookie-secret-change-in-production",
-      domain: "localhost",
+      secret: 'dev-cookie-secret-change-in-production',
+      domain: 'localhost',
       httpOnly: true,
       secure: false, // false for development
-      sameSite: "lax",
+      sameSite: 'lax',
     },
   },
 
@@ -111,9 +111,9 @@ export const developmentConfig = {
     },
     cors: {
       origins: [
-        "http://localhost:3000",
-        "http://localhost:3001",
-        "http://localhost:8080",
+        'http://localhost:3000',
+        'http://localhost:3001',
+        'http://localhost:8080',
       ],
       credentials: true,
       maxAge: 86400,
@@ -129,13 +129,13 @@ export const developmentConfig = {
       tokenExpiry: 3600,
     },
     session: {
-      secret: "dev-session-secret-change-in-production",
+      secret: 'dev-session-secret-change-in-production',
       maxAge: 86400000,
       secure: false, // false for development
     },
     encryption: {
-      key: "dev-32-char-encryption-key-here",
-      algorithm: "aes-256-gcm",
+      key: 'dev-32-char-encryption-key-here',
+      algorithm: 'aes-256-gcm',
     },
   },
 
@@ -144,7 +144,7 @@ export const developmentConfig = {
   // ========================================
   grpc: {
     server: {
-      host: "localhost",
+      host: 'localhost',
       port: 50051,
       maxReceiveLength: 4194304,
       maxSendLength: 4194304,
@@ -154,7 +154,7 @@ export const developmentConfig = {
     },
     services: {
       user: {
-        host: "localhost",
+        host: 'localhost',
         port: 50051,
         timeout: 5000,
       },
@@ -166,12 +166,12 @@ export const developmentConfig = {
   // ========================================
   services: {
     user: {
-      url: "http://localhost:8900",
+      url: 'http://localhost:8900',
       timeout: 5000,
       retries: 3,
     },
     notification: {
-      url: "http://localhost:8901",
+      url: 'http://localhost:8901',
       timeout: 5000,
       retries: 3,
     },
@@ -183,21 +183,21 @@ export const developmentConfig = {
   oauth: {
     google: {
       enabled: false,
-      clientId: "",
-      clientSecret: "",
-      redirectUri: "http://localhost:3001/auth/google/callback",
+      clientId: '',
+      clientSecret: '',
+      redirectUri: 'http://localhost:3001/auth/google/callback',
     },
     facebook: {
       enabled: false,
-      clientId: "",
-      clientSecret: "",
-      redirectUri: "",
+      clientId: '',
+      clientSecret: '',
+      redirectUri: '',
     },
     github: {
       enabled: false,
-      clientId: "",
-      clientSecret: "",
-      redirectUri: "",
+      clientId: '',
+      clientSecret: '',
+      redirectUri: '',
     },
   },
 
@@ -205,9 +205,9 @@ export const developmentConfig = {
   // CRYPTO & KEY MANAGEMENT
   // ========================================
   crypto: {
-    privateKeyExpiry: "1h",
-    keyRotationTime: "2h",
-    privateKeyRetention: "2h",
+    privateKeyExpiry: '1h',
+    keyRotationTime: '2h',
+    privateKeyRetention: '2h',
     keySize: 2048,
   },
 
@@ -222,53 +222,28 @@ export const developmentConfig = {
     passwordReset: true,
     accountLockout: false, // Disabled for development
     auditLogging: false, // Disabled for development
-    metrics: false, // Disabled for development
-  },
-
-  // ========================================
-  // MONITORING & OBSERVABILITY
-  // ========================================
-  monitoring: {
-    enabled: false, // Disabled for development
-    metrics: {
-      enabled: false,
-      port: 9090,
-      path: "/metrics",
-    },
-    healthCheck: {
-      enabled: true,
-      path: "/health",
-      interval: 30000,
-    },
-    tracing: {
-      enabled: false,
-      jaeger: {
-        host: "localhost",
-        port: 6832,
-      },
-    },
   },
 
   // ========================================
   // LOGGING CONFIGURATION
   // ========================================
   logging: {
-    level: "warn", // Only warnings and errors in development
-    format: "json",
+    level: 'warn', // Only warnings and errors in development
+    format: 'json',
     timestamp: true,
     colorize: true,
     console: true,
     file: {
       enabled: false, // Disabled for development
-      maxSize: "10m",
-      maxFiles: "14d",
+      maxSize: '10m',
+      maxFiles: '14d',
       compress: true,
     },
     external: {
       enabled: false,
-      service: "",
-      apiKey: "",
-      endpoint: "",
+      service: '',
+      apiKey: '',
+      endpoint: '',
     },
     // Development-specific logging controls
     audit: false, // Disable audit logging
@@ -294,22 +269,22 @@ export const developmentConfig = {
   // ========================================
   email: {
     enabled: false, // Disabled for development
-    provider: "smtp",
-    from: "dev@example.com",
+    provider: 'smtp',
+    from: 'dev@example.com',
     smtp: {
-      host: "localhost",
+      host: 'localhost',
       port: 1025,
       secure: false,
-      username: "",
-      password: "",
+      username: '',
+      password: '',
     },
     sendgrid: {
-      apiKey: "",
+      apiKey: '',
     },
     aws: {
-      region: "us-east-1",
-      accessKeyId: "",
-      secretAccessKey: "",
+      region: 'us-east-1',
+      accessKeyId: '',
+      secretAccessKey: '',
     },
   },
 
@@ -318,11 +293,11 @@ export const developmentConfig = {
   // ========================================
   sms: {
     enabled: false,
-    provider: "twilio",
+    provider: 'twilio',
     twilio: {
-      accountSid: "",
-      authToken: "",
-      fromNumber: "",
+      accountSid: '',
+      authToken: '',
+      fromNumber: '',
     },
   },
 
@@ -373,14 +348,13 @@ export const developmentConfig = {
 export const devUtils = {
   // Log development info
   logDevInfo: () => {
-    safeLogger.info("🚀 Development environment loaded", {
+    safeLogger.info('🚀 Development environment loaded', {
       nodeEnv: developmentConfig.core.nodeEnv,
       port: developmentConfig.core.port,
       database: developmentConfig.database.mysql.host,
       logLevel: developmentConfig.logging.level,
       features: {
         auditLogging: developmentConfig.features.auditLogging,
-        metrics: developmentConfig.features.metrics,
         emailVerification: developmentConfig.features.emailVerification,
       },
     });
@@ -388,13 +362,13 @@ export const devUtils = {
 
   // Check development requirements
   checkDevRequirements: () => {
-    const required = ["DB_HOST", "DB_USER", "DB_PASSWORD", "JWT_SECRET"];
-    const missing = required.filter((key) => !process.env[key]);
+    const required = ['DB_HOST', 'DB_USER', 'DB_PASSWORD', 'JWT_SECRET'];
+    const missing = required.filter(key => !process.env[key]);
 
     if (missing.length > 0) {
-      safeLogger.error("Missing required environment variables", { missing });
+      safeLogger.error('Missing required environment variables', { missing });
       safeLogger.info(
-        "Using development config from config/environments/development.js"
+        'Using development config from config/environments/development.js'
       );
       return true; // Continue with development config
     }
@@ -402,36 +376,16 @@ export const devUtils = {
     return true;
   },
 
-  // Development health check
-  devHealthCheck: async () => {
-    try {
-      // Check database connections
-      const { sequelize } = await import("../../db/index.js");
-      await sequelize.authenticate();
-
-      const { connectMongo } = await import("../../db/mongoose.js");
-      await connectMongo();
-
-      safeLogger.info("✅ Development health check passed");
-      return true;
-    } catch (error) {
-      safeLogger.error("❌ Development health check failed", {
-        error: error.message,
-      });
-      return false;
-    }
-  },
-
   // Get development configuration
   getConfig: () => developmentConfig,
 
   // Check if feature is enabled
-  isFeatureEnabled: (featureName) => {
+  isFeatureEnabled: featureName => {
     return developmentConfig.features[featureName] || false;
   },
 
   // Check if logging is enabled
-  isLoggingEnabled: (logType) => {
+  isLoggingEnabled: logType => {
     return developmentConfig.logging[logType] || false;
   },
 };

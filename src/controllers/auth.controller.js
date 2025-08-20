@@ -7,8 +7,7 @@
  * - OAuth integration
  * - Core authentication flows
  */
-import { ApiError } from '../utils/ApiError.js';
-import { ApiResponse } from '../utils/ApiResponse.js';
+import { ApiError, ApiResponse } from '../utils/index.js';
 import { signupSchemas, commonLoginSchema } from '../validators/validation.js';
 import { safeLogger } from '../config/logger.js';
 import { authService } from '../services/index.js';

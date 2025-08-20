@@ -1,5 +1,5 @@
 import { safeLogger } from '../config/logger.js';
-import { ApiError } from '../utils/ApiError.js';
+import { ApiError } from '../utils/index.js';
 import { v4 as uuidv4 } from 'uuid';
 
 /**

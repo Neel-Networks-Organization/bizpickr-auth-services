@@ -1,8 +1,8 @@
 import rabbitMQConnection from '../connection.js';
 import { safeLogger } from '../../config/logger.js';
 import { rabbitMQConfig } from '../../config/rabbitMQ.js';
-import { ApiError } from '../../utils/ApiError.js';
-import { updateEventMetrics } from '../index.js';
+import { ApiError } from '../../utils/index.js';
+
 import { getConsumerOptions } from '../../config/rabbitMQ.js';
 /**
  * Industry-level User Verified Event Consumer
@@ -10,7 +10,7 @@ import { getConsumerOptions } from '../../config/rabbitMQ.js';
  * Features:
  * - Enhanced error handling and validation
  * - Retry logic with exponential backoff
- * - Performance monitoring and metrics
+
  * - Structured logging with correlation IDs
  * - Event schema validation
  * - Dead letter queue handling
@@ -186,13 +186,7 @@ async function processUserVerifiedEvent(message, msg, channel) {
       1000
     );
     const processingTime = Date.now() - startTime;
-    // Update metrics
-    updateEventMetrics('consumed', {
-      eventType: 'user.verified',
-      processingTime,
-      correlationId,
-      userId: message.userId,
-    });
+
     safeLogger.info('User verified event processed successfully', {
       userId: message.userId,
       verificationStatus: message.verificationStatus,
@@ -202,14 +196,7 @@ async function processUserVerifiedEvent(message, msg, channel) {
     });
   } catch (error) {
     const processingTime = Date.now() - startTime;
-    // Update metrics
-    updateEventMetrics('failedConsume', {
-      eventType: 'user.verified',
-      processingTime,
-      correlationId,
-      userId: message.userId,
-      error: error.message,
-    });
+
     safeLogger.error('Failed to process user verified event', {
       error: error.message,
       stack: error.stack,
@@ -321,23 +308,7 @@ export async function stopUserVerifiedConsumer(consumerTag) {
     throw error;
   }
 }
-/**
- * Get consumer statistics
- * @returns {Object} Consumer statistics
- */
-export function getUserVerifiedConsumerStats() {
-  const metrics = rabbitMQConnection.getMetrics();
-  return {
-    totalConsumed: metrics.totalMessagesConsumed,
-    failedConsumes: metrics.failedConsumes,
-    lastConsume: metrics.lastHealthCheck,
-    processedMessages: processedMessages.size,
-    maxCacheSize: MAX_CACHE_SIZE,
-    connectionStatus: rabbitMQConnection.isReady()
-      ? 'connected'
-      : 'disconnected',
-  };
-}
+
 /**
  * Clear processed messages cache (for testing/debugging)
  */

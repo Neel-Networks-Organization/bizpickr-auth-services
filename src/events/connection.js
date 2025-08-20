@@ -278,31 +278,6 @@ class RabbitMQConnection {
       });
     }
   }
-
-  /**
-   * Check connection health
-   */
-  isHealthy() {
-    // For amqplib, check if connection exists and is not closed
-    // amqplib connection doesn't have a 'closed' property
-    // Instead, we check if connection exists and is not in error state
-    const hasConnection = !!this.connection;
-    const connectionState = this.connection
-      ? this.connection.connection?.state || 'unknown'
-      : 'no-connection';
-    const isHealthy =
-      hasConnection &&
-      connectionState !== 'closed' &&
-      connectionState !== 'error';
-
-    console.log('🔍 DEBUG: isHealthy check:', {
-      hasConnection,
-      connectionState,
-      result: isHealthy,
-    });
-
-    return isHealthy;
-  }
 }
 
 // ✅ Create singleton instance
@@ -312,26 +287,9 @@ const rabbitMQConnection = new RabbitMQConnection();
 export default rabbitMQConnection;
 
 // ✅ Export individual methods
-export const {
-  init,
-  getChannel,
-  publishMessage,
-  consumeMessages,
-  close,
-  isHealthy,
-} = rabbitMQConnection;
+export const { init, getChannel, publishMessage, consumeMessages, close } =
+  rabbitMQConnection;
 
-// ✅ Add missing methods for backward compatibility
-export const getHealth = () => ({
-  status: rabbitMQConnection.isHealthy() ? 'connected' : 'disconnected',
-  timestamp: new Date().toISOString(),
-});
-export const getMetrics = () => ({
-  totalMessages: 0,
-  failedMessages: 0,
-  timestamp: new Date().toISOString(),
-});
-export const isReady = () => rabbitMQConnection.isHealthy();
 export const publish = (exchange, routingKey, message, options) =>
   rabbitMQConnection.publishMessage(exchange, routingKey, message, options);
 export const createChannel = name => rabbitMQConnection.getChannel(name);
@@ -341,9 +299,6 @@ export const cancelConsumer = async (channelName, consumerTag) => {
 };
 
 // ✅ Add methods to the instance for backward compatibility
-rabbitMQConnection.getHealth = getHealth;
-rabbitMQConnection.getMetrics = getMetrics;
-rabbitMQConnection.isReady = isReady;
 rabbitMQConnection.publish = publish;
 rabbitMQConnection.createChannel = createChannel;
 rabbitMQConnection.cancelConsumer = cancelConsumer;

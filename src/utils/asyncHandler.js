@@ -1,226 +1,131 @@
-// src/utils/asyncHandler.js
 import { ApiError } from './ApiError.js';
 import { safeLogger } from '../config/logger.js';
+
 /**
- * Industry-level Async Handler for Express.js
+ * Simple Async Handler for Express.js Routes
  *
+ * Purpose: Handle async/await errors in route handlers
  * Features:
  * - Automatic async/await error handling
- * - Performance monitoring and timing
- * - Request correlation tracking
- * - Detailed error logging
- * - Request/response validation
- * - Memory leak prevention
- * - Custom error transformation
- * - Middleware chaining support
+ * - Basic request logging
+ * - Error response formatting
+ * - Correlation ID tracking
  */
-// Performance monitoring
-const performanceMarks = new Map();
-// Request tracking
-const activeRequests = new Map();
-// Enhanced async handler with comprehensive features
-const asyncHandler = (requestHandler, options = {}) => {
-  const {
-    enableTiming = true,
-    enableLogging = true,
-    timeout = 30000, // 30 seconds default
-    retryAttempts = 0,
-    errorTransformer = null,
-    preHandler = null,
-    postHandler = null,
-  } = options;
+
+/**
+ * Wrapper for async route handlers
+ * @param {Function} requestHandler - Async route handler function
+ * @returns {Function} Express middleware function
+ */
+const asyncHandler = requestHandler => {
   return async (req, res, next) => {
     const requestId =
       req.correlationId ||
       `req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     const startTime = Date.now();
-    let timeoutId = null;
+
     // Set correlation ID if not present
     if (!req.correlationId) {
       req.correlationId = requestId;
     }
-    // Track active request
-    if (enableLogging) {
-      activeRequests.set(requestId, {
-        url: req.originalUrl || req.url,
-        method: req.method,
-        startTime,
-        user: req.user?.id,
-      });
-    }
-    // Performance mark
-    if (enableTiming) {
-      performanceMarks.set(requestId, startTime);
-    }
-    // Pre-handler middleware
-    if (preHandler && typeof preHandler === 'function') {
-      try {
-        await preHandler(req, res);
-      } catch (error) {
-        safeLogger.warn('Pre-handler error', {
-          requestId,
-          error: error.message,
-          url: req.originalUrl,
-        });
-      }
-    }
 
-    // Set timeout
-    if (timeout > 0) {
-      timeoutId = setTimeout(() => {
-        const timeoutError = new ApiError(408, 'Request timeout', [
-          `Request exceeded ${timeout}ms timeout limit`,
-        ]);
-        next(timeoutError);
-      }, timeout);
-    }
-    // Execute handler with retry logic
-    let lastError = null;
-    for (let attempt = 0; attempt <= retryAttempts; attempt++) {
-      try {
-        // Clear timeout on successful attempt
-        if (timeoutId) {
-          clearTimeout(timeoutId);
-          timeoutId = null;
-        }
-        // Execute the actual handler
-        const result = await requestHandler(req, res, next);
-        // Post-handler middleware
-        if (postHandler && typeof postHandler === 'function') {
-          try {
-            await postHandler(req, res, result);
-          } catch (error) {
-            safeLogger.warn('Post-handler error', {
-              requestId,
-              error: error.message,
-              url: req.originalUrl,
-            });
-          }
-        }
-        // Log successful request
-        if (enableLogging) {
-          const duration = Date.now() - startTime;
-          safeLogger.info('Request completed', {
-            requestId,
-            url: req.originalUrl || req.url,
-            method: req.method,
-            statusCode: res.statusCode,
-            duration: `${duration}ms`,
-            user: req.user?.id,
-            userAgent: req.headers['user-agent'],
-            ip: req.ip || req.connection?.remoteAddress,
-          });
-        }
-        // Cleanup
-        cleanup(requestId);
-        return result;
-      } catch (error) {
-        lastError = error;
-        // Log retry attempt
-        if (attempt < retryAttempts) {
-          safeLogger.warn('Request retry', {
-            requestId,
-            attempt: attempt + 1,
-            maxAttempts: retryAttempts + 1,
-            error: error.message,
-            url: req.originalUrl,
-          });
-          // Wait before retry (exponential backoff)
-          if (attempt > 0) {
-            const delay = Math.min(1000 * Math.pow(2, attempt), 5000);
-            await new Promise(resolve => setTimeout(resolve, delay));
-          }
-        }
-      }
-    }
-    // All retry attempts failed
-    if (timeoutId) {
-      clearTimeout(timeoutId);
-    }
-    // Transform error if custom transformer provided
-    if (errorTransformer && typeof errorTransformer === 'function') {
-      lastError = errorTransformer(lastError, req, res);
-    }
-    // Log final error
-    if (enableLogging) {
+    try {
+      // Execute the route handler
+      const result = await requestHandler(req, res, next);
+
+      // Log successful request
+      const duration = Date.now() - startTime;
+      safeLogger.info('Request completed successfully', {
+        requestId,
+        method: req.method,
+        url: req.originalUrl || req.url,
+        duration: `${duration}ms`,
+        statusCode: res.statusCode || 200,
+      });
+
+      return result;
+    } catch (error) {
+      // Log error
       const duration = Date.now() - startTime;
       safeLogger.error('Request failed', {
         requestId,
-        url: req.originalUrl || req.url,
         method: req.method,
+        url: req.originalUrl || req.url,
         duration: `${duration}ms`,
         error: {
-          message: lastError.message,
-          stack: lastError.stack,
-          name: lastError.name,
-          code: lastError.code,
+          message: error.message,
+          name: error.name,
+          stack:
+            process.env.NODE_ENV === 'development' ? error.stack : undefined,
         },
-        user: req.user?.id,
-        userAgent: req.headers['user-agent'],
-        ip: req.ip || req.connection?.remoteAddress,
-        attempts: retryAttempts + 1,
       });
+
+      // Handle different error types
+      if (error instanceof ApiError) {
+        // API Error - pass to error handler
+        next(error);
+      } else {
+        // Unknown error - convert to API Error
+        const apiError = new ApiError(
+          500,
+          'Internal Server Error',
+          [error.message],
+          process.env.NODE_ENV === 'development' ? error.stack : ''
+        );
+        next(apiError);
+      }
     }
-    // Cleanup
-    cleanup(requestId);
-    // Pass error to next middleware
-    next(lastError);
   };
 };
 
-// Cleanup helper
-const cleanup = requestId => {
-  activeRequests.delete(requestId);
-  performanceMarks.delete(requestId);
-};
-// Utility functions for monitoring and debugging
-const getActiveRequests = () => {
-  return Array.from(activeRequests.entries()).map(([id, data]) => ({
-    id,
-    ...data,
-    duration: Date.now() - data.startTime,
-  }));
-};
-const getRequestStats = () => {
-  const active = activeRequests.size;
-  const total = performanceMarks.size;
-  const avgDuration =
-    total > 0
-      ? Array.from(performanceMarks.values()).reduce(
-          (sum, startTime) => sum + (Date.now() - startTime),
-          0
-        ) / total
-      : 0;
-  return {
-    activeRequests: active,
-    totalRequests: total,
-    averageDuration: `${Math.round(avgDuration)}ms`,
+/**
+ * Wrapper for async middleware functions
+ * @param {Function} middleware - Async middleware function
+ * @returns {Function} Express middleware function
+ */
+const asyncMiddleware = middleware => {
+  return async (req, res, next) => {
+    try {
+      await middleware(req, res, next);
+    } catch (error) {
+      safeLogger.error('Middleware error', {
+        error: error.message,
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+        url: req.originalUrl || req.url,
+      });
+      next(error);
+    }
   };
 };
-const clearRequestData = () => {
-  activeRequests.clear();
-  performanceMarks.clear();
+
+/**
+ * Wrapper for async error handlers
+ * @param {Function} errorHandler - Async error handler function
+ * @returns {Function} Express error handler function
+ */
+const asyncErrorHandler = errorHandler => {
+  return async (error, req, res, next) => {
+    try {
+      await errorHandler(error, req, res, next);
+    } catch (handlerError) {
+      safeLogger.error('Error handler failed', {
+        originalError: error.message,
+        handlerError: handlerError.message,
+        stack:
+          process.env.NODE_ENV === 'development'
+            ? handlerError.stack
+            : undefined,
+      });
+
+      // Fallback to default error response
+      res.status(500).json({
+        success: false,
+        message: 'Internal Server Error',
+        error: 'Error handler failed',
+      });
+    }
+  };
 };
-// Factory functions for common use cases
-const asyncHandlerWithTimeout = timeout => handler =>
-  asyncHandler(handler, { timeout });
-const asyncHandlerWithRetry = retryAttempts => handler =>
-  asyncHandler(handler, { retryAttempts });
-const asyncHandlerWithValidation = handler =>
-  asyncHandler(handler, { enableValidation: true });
-const asyncHandlerWithLogging = handler =>
-  asyncHandler(handler, { enableLogging: true });
-const asyncHandlerWithTiming = handler =>
-  asyncHandler(handler, { enableTiming: true });
-// Export main function and utilities
-export {
-  asyncHandler,
-  getActiveRequests,
-  getRequestStats,
-  clearRequestData,
-  asyncHandlerWithTimeout,
-  asyncHandlerWithRetry,
-  asyncHandlerWithValidation,
-  asyncHandlerWithLogging,
-  asyncHandlerWithTiming,
-};
+
+export { asyncHandler, asyncMiddleware, asyncErrorHandler };
+export default asyncHandler;

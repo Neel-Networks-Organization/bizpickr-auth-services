@@ -3,25 +3,34 @@ class ApiError extends Error {
   constructor(statusCode, message, errors = undefined, stack = '') {
     // Convert string status codes to numbers
     const numericStatusCode = Number(statusCode);
-    // More flexible status code validation - allow negative numbers too
+
+    // Validate status code
     if (isNaN(numericStatusCode)) {
       throw new Error('Invalid HTTP status code');
     }
-    super(message);
+
+    // Call parent constructor with message
+    super(message || 'API Error');
+
+    // Set properties
     this.statusCode = numericStatusCode;
-    this.message = message; // Keep the original message (can be undefined if explicitly passed)
     this.success = false;
     this.errors = errors;
     this.isOperational = true;
+    this.timestamp = new Date().toISOString();
+
+    // Handle stack trace
     if (stack) {
       this.stack = stack;
     } else {
       Error.captureStackTrace(this, this.constructor);
     }
   }
+
   toString() {
     return `ApiError: ${this.message}`;
   }
+
   toJSON() {
     return {
       statusCode: this.statusCode,
@@ -29,7 +38,9 @@ class ApiError extends Error {
       errors: this.errors,
       success: this.success,
       isOperational: this.isOperational,
+      timestamp: this.timestamp,
     };
   }
 }
+
 export { ApiError };

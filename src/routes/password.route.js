@@ -27,7 +27,7 @@ import {
   validatePasswordChange,
   validatePasswordReset,
 } from '../validators/authValidators.js';
-import { asyncHandler } from '../utils/asyncHandler.js';
+import { asyncHandler } from '../utils/index.js';
 
 const router = Router();
 

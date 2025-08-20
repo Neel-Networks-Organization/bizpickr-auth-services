@@ -2,7 +2,7 @@ import { SignJWT } from 'jose';
 import { getPrivateKey } from './getKeys.js';
 import { env } from '../config/env.js';
 import { safeLogger } from '../config/logger.js';
-import { ApiError } from '../utils/ApiError.js';
+import { ApiError } from '../utils/index.js';
 /**
  * Industry-level Token Service
  *

@@ -1,5 +1,6 @@
 import Joi from 'joi';
 import { safeLogger } from '../config/logger.js';
+
 /**
  * Enhanced Validation Service
  *
@@ -13,10 +14,10 @@ import { safeLogger } from '../config/logger.js';
  * - File upload validation
  * - Rate limiting validation
  * - Security threat detection
- * - Validation metrics and logging
  * - Schema versioning and migration
  * - Enterprise-grade validation rules
  */
+
 // ✅ Validation Configuration
 const VALIDATION_CONFIG = {
   // Password settings
@@ -44,17 +45,7 @@ const VALIDATION_CONFIG = {
   enableSanitization: true,
   enableNormalization: true,
 };
-// ✅ Validation Metrics
-const validationMetrics = {
-  totalValidations: 0,
-  successfulValidations: 0,
-  failedValidations: 0,
-  securityThreats: 0,
-  passwordViolations: 0,
-  emailViolations: 0,
-  phoneViolations: 0,
-  schemaErrors: {},
-};
+
 /**
  * Custom password strength validator
  */
@@ -116,11 +107,11 @@ const passwordStrengthValidator = (value, helpers) => {
     }
   }
   if (errors.length > 0) {
-    validationMetrics.passwordViolations++;
     return helpers.error('any.invalid', { message: errors.join('; ') });
   }
   return value;
 };
+
 /**
  * Custom email validator with basic validation
  */
@@ -129,7 +120,6 @@ const emailValidator = (value, helpers) => {
     // Basic email format validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(value)) {
-      validationMetrics.emailViolations++;
       return helpers.error('any.invalid', {
         message: 'Invalid email format',
       });
@@ -146,7 +136,6 @@ const emailValidator = (value, helpers) => {
     ];
     const domain = value.split('@')[1];
     if (disposableDomains.includes(domain)) {
-      validationMetrics.emailViolations++;
       return helpers.error('any.invalid', {
         message: 'Disposable email addresses are not allowed',
       });
@@ -161,12 +150,12 @@ const emailValidator = (value, helpers) => {
     return helpers.error('any.invalid', { message: 'Email validation failed' });
   }
 };
+
 /**
  * Custom phone number validator
  */
 const phoneValidator = (value, helpers) => {
   if (!VALIDATION_CONFIG.phoneRegex.test(value)) {
-    validationMetrics.phoneViolations++;
     return helpers.error('any.invalid', {
       message: 'Invalid phone number format',
     });
@@ -174,13 +163,13 @@ const phoneValidator = (value, helpers) => {
   // Remove all non-digit characters for length check
   const digitsOnly = value.replace(/\D/g, '');
   if (digitsOnly.length < 10 || digitsOnly.length > 15) {
-    validationMetrics.phoneViolations++;
     return helpers.error('any.invalid', {
       message: 'Phone number must be between 10 and 15 digits',
     });
   }
   return value;
 };
+
 /**
  * Custom name validator
  */
@@ -203,434 +192,302 @@ const nameValidator = (value, helpers) => {
       message: 'Name cannot contain special characters',
     });
   }
-  // Check for suspicious patterns
-  if (VALIDATION_CONFIG.enableThreatDetection) {
-    const suspiciousPatterns = [
-      /\b(union|select|insert|update|delete|drop|create|alter)\b/i,
-      /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi,
-      /javascript:/gi,
-    ];
-    for (const pattern of suspiciousPatterns) {
-      if (pattern.test(value)) {
-        validationMetrics.securityThreats++;
-        return helpers.error('any.invalid', {
-          message: 'Name contains invalid characters',
-        });
-      }
-    }
-  }
   return value;
 };
+
 /**
- * Input sanitization function
+ * Input sanitization utility
  */
-function sanitizeInput(data) {
-  if (!VALIDATION_CONFIG.enableSanitization) return data;
-  const sanitized = {};
-  for (const [key, value] of Object.entries(data)) {
+export const sanitizeInput = input => {
+  if (typeof input === 'string') {
+    return input.trim().replace(/\s+/g, ' ');
+  }
+  if (typeof input === 'object' && input !== null) {
+    const sanitized = {};
+    for (const [key, value] of Object.entries(input)) {
+      sanitized[key] = sanitizeInput(value);
+    }
+    return sanitized;
+  }
+  return input;
+};
+
+/**
+ * Security threat detection
+ */
+const detectSecurityThreats = data => {
+  const threats = [];
+
+  // Check for SQL injection patterns
+  const sqlPatterns = [
+    /(\b(union|select|insert|update|delete|drop|create|alter|exec|execute)\b)/i,
+    /(--|\/\*|\*\/|;|xp_|sp_)/i,
+  ];
+
+  const checkValue = value => {
     if (typeof value === 'string') {
-      // Remove null bytes and control characters
-      // eslint-disable-next-line no-control-regex
-      let sanitizedValue = value.replace(/[\u0000-\u001F\u007F]/g, '');
-      // Trim whitespace
-      sanitizedValue = sanitizedValue.trim();
-      // Normalize unicode
-      sanitizedValue = sanitizedValue.normalize('NFC');
-      sanitized[key] = sanitizedValue;
-    } else {
-      sanitized[key] = value;
+      for (const pattern of sqlPatterns) {
+        if (pattern.test(value)) {
+          threats.push('SQL Injection attempt detected');
+          break;
+        }
+      }
     }
-  }
-  return sanitized;
-}
-/**
- * Enhanced signup validation schema - AUTHENTICATION ONLY
- */
-export const signupSchemas = data => {
-  validationMetrics.totalValidations++;
-  try {
-    // Sanitize input
-    const sanitizedData = sanitizeInput(data);
-    const schema = Joi.object({
-      email: Joi.string()
-        .email({ tlds: { allow: false } })
-        .custom(emailValidator, 'email validation')
-        .required()
-        .messages({
-          'string.email': 'Please provide a valid email address',
-          'string.empty': 'Email is required',
-          'any.required': 'Email is required',
-        }),
-      password: Joi.string()
-        .custom(passwordStrengthValidator, 'password strength validation')
-        .required()
-        .messages({
-          'string.empty': 'Password is required',
-          'any.required': 'Password is required',
-        }),
-      confirmPassword: Joi.string()
-        .valid(Joi.ref('password'))
-        .required()
-        .messages({
-          'any.only': 'Passwords do not match',
-          'any.required': 'Password confirmation is required',
-        }),
-      type: Joi.string()
-        .valid('customer', 'vendor', 'staff', 'admin')
-        .required()
-        .messages({
-          'any.only': 'Type must be customer, vendor, staff, or admin',
-          'any.required': 'Type is required',
-        }),
-      role: Joi.string()
-        .valid(
-          'customer',
-          'vendor',
-          'requirement_coordinator',
-          'hr_admin',
-          'admin',
-          'super_admin'
-        )
-        .allow('', null)
-        .default('customer')
-        .messages({
-          'any.only': 'Invalid role specified',
-        }),
-      termsAccepted: Joi.boolean().valid(true).required().messages({
-        'any.only': 'You must accept the terms and conditions',
-        'any.required': 'Terms acceptance is required',
-      }),
-      privacyAccepted: Joi.boolean().valid(true).required().messages({
-        'any.only': 'You must accept the privacy policy',
-        'any.required': 'Privacy policy acceptance is required',
-      }),
-      marketingConsent: Joi.boolean().default(false).messages({
-        'boolean.base': 'Marketing consent must be a boolean value',
-      }),
-    });
-    const result = schema.validate(sanitizedData, {
-      abortEarly: false,
-      stripUnknown: true,
-      allowUnknown: false,
-    });
-    if (result.error) {
-      validationMetrics.failedValidations++;
-      validationMetrics.schemaErrors[result.error.name] =
-        (validationMetrics.schemaErrors[result.error.name] || 0) + 1;
-      safeLogger.warn('Signup validation failed', {
-        errors: result.error.details,
-        data: sanitizedData,
-      });
-      return result;
+  };
+
+  if (typeof data === 'object' && data !== null) {
+    for (const value of Object.values(data)) {
+      checkValue(value);
     }
-    validationMetrics.successfulValidations++;
-    safeLogger.debug('Signup validation successful', {
-      email: sanitizedData.email,
-      type: sanitizedData.type,
-    });
-    return result;
-  } catch (error) {
-    validationMetrics.failedValidations++;
-    safeLogger.error('Signup validation error', {
-      error: error.message,
-      stack: error.stack,
-      data,
-    });
-    return {
-      error: {
-        name: 'ValidationError',
-        message: 'Validation processing error',
-        details: [{ message: 'Internal validation error' }],
-      },
-    };
+  } else {
+    checkValue(data);
   }
+
+  return threats;
 };
-/**
- * Enhanced login validation schema
- */
-export const commonLoginSchema = data => {
-  validationMetrics.totalValidations++;
-  try {
-    // Sanitize input
+
+// ✅ Joi Schemas
+export const signupSchemas = {
+  // Individual signup schema
+  individual: data => {
     const sanitizedData = sanitizeInput(data);
-    const schema = Joi.object({
-      email: Joi.string()
-        .email({ tlds: { allow: false } })
-        .custom(emailValidator, 'email validation')
-        .required()
-        .messages({
-          'string.email': 'Please provide a valid email address',
-          'string.empty': 'Email is required',
-          'any.required': 'Email is required',
-        }),
-      password: Joi.string().required().messages({
-        'string.empty': 'Password is required',
-        'any.required': 'Password is required',
-      }),
-      type: Joi.string()
-        .valid('customer', 'vendor', 'staff', 'admin')
-        .optional()
-        .messages({
-          'any.only': 'Type must be customer, vendor, staff, or admin',
-        }),
-      rememberMe: Joi.boolean().default(false).messages({
-        'boolean.base': 'Remember me must be a boolean value',
-      }),
-      deviceInfo: Joi.object({
-        userAgent: Joi.string().optional(),
-        ip: Joi.string().ip().optional(),
-        deviceId: Joi.string().optional(),
-      }).optional(),
-      captchaToken: Joi.string()
-        .when('loginAttempts', {
-          is: Joi.number().min(VALIDATION_CONFIG.maxLoginAttempts),
-          then: Joi.required(),
-          otherwise: Joi.optional(),
-        })
-        .messages({
-          'any.required':
-            'Captcha verification required after multiple failed attempts',
-        }),
-      loginAttempts: Joi.number().default(0).messages({
-        'number.base': 'Login attempts must be a number',
-      }),
-    });
-    const result = schema.validate(sanitizedData, {
-      abortEarly: false,
-      stripUnknown: true,
-      allowUnknown: false,
-    });
-    if (result.error) {
-      validationMetrics.failedValidations++;
-      validationMetrics.schemaErrors[result.error.name] =
-        (validationMetrics.schemaErrors[result.error.name] || 0) + 1;
-      safeLogger.warn('Login validation failed', {
-        errors: result.error.details,
-        email: sanitizedData.email,
-      });
-      return result;
+
+    // Security threat detection
+    if (VALIDATION_CONFIG.enableThreatDetection) {
+      const threats = detectSecurityThreats(sanitizedData);
+      if (threats.length > 0) {
+        safeLogger.warn('Security threats detected during validation', {
+          threats,
+        });
+        return {
+          error: {
+            name: 'SecurityThreat',
+            message: 'Security threats detected',
+            details: threats.map(threat => ({ message: threat })),
+          },
+        };
+      }
     }
-    validationMetrics.successfulValidations++;
-    safeLogger.debug('Login validation successful', {
-      email: sanitizedData.email,
-      type: sanitizedData.type,
-    });
-    return result;
-  } catch (error) {
-    validationMetrics.failedValidations++;
-    safeLogger.error('Login validation error', {
-      error: error.message,
-      stack: error.stack,
-      data,
-    });
-    return {
-      error: {
-        name: 'ValidationError',
-        message: 'Validation processing error',
-        details: [{ message: 'Internal validation error' }],
-      },
-    };
-  }
-};
-/**
- * Password reset validation schema
- */
-export const passwordResetSchema = data => {
-  validationMetrics.totalValidations++;
-  try {
-    const sanitizedData = sanitizeInput(data);
-    const schema = Joi.object({
-      email: Joi.string()
-        .email({ tlds: { allow: false } })
-        .custom(emailValidator, 'email validation')
-        .required()
-        .messages({
-          'string.email': 'Please provide a valid email address',
-          'string.empty': 'Email is required',
-          'any.required': 'Email is required',
-        }),
-      resetToken: Joi.string()
-        .min(32)
-        .max(256)
-        .when('action', {
-          is: 'reset',
-          then: Joi.required(),
-          otherwise: Joi.optional(),
-        })
-        .messages({
-          'string.min': 'Invalid reset token',
-          'string.max': 'Invalid reset token',
-          'any.required': 'Reset token is required',
-        }),
-      newPassword: Joi.string()
-        .custom(passwordStrengthValidator, 'password strength validation')
-        .when('action', {
-          is: 'reset',
-          then: Joi.required(),
-          otherwise: Joi.optional(),
-        })
-        .messages({
-          'any.required': 'New password is required',
-        }),
-      confirmPassword: Joi.string()
-        .valid(Joi.ref('newPassword'))
-        .when('action', {
-          is: 'reset',
-          then: Joi.required(),
-          otherwise: Joi.optional(),
-        })
-        .messages({
-          'any.only': 'Passwords do not match',
-          'any.required': 'Password confirmation is required',
-        }),
-      action: Joi.string().valid('request', 'reset').required().messages({
-        'any.only': 'Action must be request or reset',
-        'any.required': 'Action is required',
-      }),
-    });
-    const result = schema.validate(sanitizedData, {
-      abortEarly: false,
-      stripUnknown: true,
-      allowUnknown: false,
-    });
-    if (result.error) {
-      validationMetrics.failedValidations++;
-      return result;
-    }
-    validationMetrics.successfulValidations++;
-    return result;
-  } catch (error) {
-    validationMetrics.failedValidations++;
-    safeLogger.error('Password reset validation error', {
-      error: error.message,
-    });
-    return {
-      error: {
-        name: 'ValidationError',
-        message: 'Validation processing error',
-        details: [{ message: 'Internal validation error' }],
-      },
-    };
-  }
-};
-/**
- * Profile update validation schema
- */
-export const profileUpdateSchema = data => {
-  validationMetrics.totalValidations++;
-  try {
-    const sanitizedData = sanitizeInput(data);
+
     const schema = Joi.object({
       fullName: Joi.string()
-        .custom(nameValidator, 'name validation')
+        .custom(nameValidator)
+        .required()
         .min(VALIDATION_CONFIG.nameMinLength)
-        .max(VALIDATION_CONFIG.nameMaxLength)
-        .optional()
-        .messages({
-          'string.min': `Full name must be at least ${VALIDATION_CONFIG.nameMinLength} characters long`,
-          'string.max': `Full name must not exceed ${VALIDATION_CONFIG.nameMaxLength} characters`,
-        }),
-      phone: Joi.string()
-        .custom(phoneValidator, 'phone validation')
-        .optional()
-        .messages({
-          'any.invalid': 'Please provide a valid phone number',
-        }),
-      dateOfBirth: Joi.date().max('now').optional().messages({
-        'date.max': 'Date of birth cannot be in the future',
+        .max(VALIDATION_CONFIG.nameMaxLength),
+      email: Joi.string().custom(emailValidator).required().email().lowercase(),
+      password: Joi.string()
+        .custom(passwordStrengthValidator)
+        .required()
+        .min(VALIDATION_CONFIG.passwordMinLength)
+        .max(VALIDATION_CONFIG.passwordMaxLength),
+      phone: Joi.string().custom(phoneValidator).optional(),
+      type: Joi.string().valid('individual').required(),
+      acceptTerms: Joi.boolean().valid(true).required().messages({
+        'any.only': 'You must accept the terms and conditions',
       }),
-      address: Joi.object({
-        street: Joi.string().min(5).max(200).optional(),
-        city: Joi.string().min(2).max(100).optional(),
-        state: Joi.string().min(2).max(100).optional(),
-        zipCode: Joi.string()
-          .pattern(/^\d{5}(-\d{4})?$/)
-          .optional(),
-        country: Joi.string().min(2).max(100).optional(),
-      }).optional(),
-      preferences: Joi.object({
-        language: Joi.string().valid('en', 'es', 'fr', 'de').optional(),
-        timezone: Joi.string().optional(),
-        currency: Joi.string().valid('USD', 'EUR', 'GBP', 'CAD').optional(),
-        notifications: Joi.object({
-          email: Joi.boolean().default(true),
-          sms: Joi.boolean().default(false),
-          push: Joi.boolean().default(true),
-        }).optional(),
-      }).optional(),
-      avatar: Joi.object({
-        file: Joi.binary().max(VALIDATION_CONFIG.maxFileSize).optional(),
-        mimeType: Joi.string()
-          .valid(...VALIDATION_CONFIG.allowedFileTypes)
-          .optional(),
-      }).optional(),
     });
+
     const result = schema.validate(sanitizedData, {
       abortEarly: false,
       stripUnknown: true,
       allowUnknown: false,
     });
+
     if (result.error) {
-      validationMetrics.failedValidations++;
       return result;
     }
-    validationMetrics.successfulValidations++;
     return result;
-  } catch (error) {
-    validationMetrics.failedValidations++;
-    safeLogger.error('Profile update validation error', {
-      error: error.message,
+  },
+
+  // Company signup schema
+  company: data => {
+    const sanitizedData = sanitizeInput(data);
+
+    // Security threat detection
+    if (VALIDATION_CONFIG.enableThreatDetection) {
+      const threats = detectSecurityThreats(sanitizedData);
+      if (threats.length > 0) {
+        safeLogger.warn('Security threats detected during validation', {
+          threats,
+        });
+        return {
+          error: {
+            name: 'SecurityThreat',
+            message: 'Security threats detected',
+            details: threats.map(threat => ({ message: threat })),
+          },
+        };
+      }
+    }
+
+    const schema = Joi.object({
+      companyName: Joi.string().required().min(2).max(200),
+      fullName: Joi.string()
+        .custom(nameValidator)
+        .required()
+        .min(VALIDATION_CONFIG.nameMinLength)
+        .max(VALIDATION_CONFIG.nameMaxLength),
+      email: Joi.string().custom(emailValidator).required().email().lowercase(),
+      password: Joi.string()
+        .custom(passwordStrengthValidator)
+        .required()
+        .min(VALIDATION_CONFIG.passwordMinLength)
+        .max(VALIDATION_CONFIG.passwordMaxLength),
+      phone: Joi.string().custom(phoneValidator).optional(),
+      type: Joi.string().valid('company').required(),
+      companyType: Joi.string()
+        .valid('corporation', 'llc', 'partnership', 'sole_proprietorship')
+        .required(),
+      taxId: Joi.string()
+        .pattern(/^[0-9]{9}$/)
+        .required()
+        .messages({
+          'string.pattern.base': 'Tax ID must be exactly 9 digits',
+        }),
+      industry: Joi.string().optional().max(100),
+      website: Joi.string().uri().optional(),
+      acceptTerms: Joi.boolean().valid(true).required().messages({
+        'any.only': 'You must accept the terms and conditions',
+      }),
     });
-    return {
-      error: {
-        name: 'ValidationError',
-        message: 'Validation processing error',
-        details: [{ message: 'Internal validation error' }],
-      },
-    };
-  }
+
+    const result = schema.validate(sanitizedData, {
+      abortEarly: false,
+      stripUnknown: true,
+      allowUnknown: false,
+    });
+
+    if (result.error) {
+      return result;
+    }
+    return result;
+  },
 };
-/**
- * Get validation metrics
- */
-export function getValidationMetrics() {
-  return {
-    ...validationMetrics,
-    successRate:
-      validationMetrics.totalValidations > 0
-        ? (validationMetrics.successfulValidations /
-            validationMetrics.totalValidations) *
-          100
-        : 0,
-    failureRate:
-      validationMetrics.totalValidations > 0
-        ? (validationMetrics.failedValidations /
-            validationMetrics.totalValidations) *
-          100
-        : 0,
-    threatRate:
-      validationMetrics.totalValidations > 0
-        ? (validationMetrics.securityThreats /
-            validationMetrics.totalValidations) *
-          100
-        : 0,
-  };
-}
-/**
- * Reset validation metrics
- */
-export function resetValidationMetrics() {
-  Object.assign(validationMetrics, {
-    totalValidations: 0,
-    successfulValidations: 0,
-    failedValidations: 0,
-    securityThreats: 0,
-    passwordViolations: 0,
-    emailViolations: 0,
-    phoneViolations: 0,
-    schemaErrors: {},
+
+// Common login schema
+export const commonLoginSchema = data => {
+  const sanitizedData = sanitizeInput(data);
+
+  // Security threat detection
+  if (VALIDATION_CONFIG.enableThreatDetection) {
+    const threats = detectSecurityThreats(sanitizedData);
+    if (threats.length > 0) {
+      safeLogger.warn('Security threats detected during validation', {
+        threats,
+      });
+      return {
+        error: {
+          name: 'SecurityThreat',
+          message: 'Security threats detected',
+          details: threats.map(threat => ({ message: threat })),
+        },
+      };
+    }
+  }
+
+  const schema = Joi.object({
+    email: Joi.string().custom(emailValidator).required().email().lowercase(),
+    password: Joi.string()
+      .required()
+      .min(VALIDATION_CONFIG.passwordMinLength)
+      .max(VALIDATION_CONFIG.passwordMaxLength),
+    rememberMe: Joi.boolean().default(false),
   });
-}
+
+  const result = schema.validate(sanitizedData, {
+    abortEarly: false,
+    stripUnknown: true,
+    allowUnknown: false,
+  });
+
+  if (result.error) {
+    return result;
+  }
+  return result;
+};
+
+// Password reset schema
+export const passwordResetSchema = data => {
+  const sanitizedData = sanitizeInput(data);
+
+  // Security threat detection
+  if (VALIDATION_CONFIG.enableThreatDetection) {
+    const threats = detectSecurityThreats(sanitizedData);
+    if (threats.length > 0) {
+      safeLogger.warn('Security threats detected during validation', {
+        threats,
+      });
+      return {
+        error: {
+          name: 'SecurityThreat',
+          message: 'Security threats detected',
+          details: threats.map(threat => ({ message: threat })),
+        },
+      };
+    }
+  }
+
+  const schema = Joi.object({
+    email: Joi.string().custom(emailValidator).required().email().lowercase(),
+  });
+
+  const result = schema.validate(sanitizedData, {
+    abortEarly: false,
+    stripUnknown: true,
+    allowUnknown: false,
+  });
+
+  if (result.error) {
+    return result;
+  }
+  return result;
+};
+
+// Profile update schema
+export const profileUpdateSchema = data => {
+  const sanitizedData = sanitizeInput(data);
+
+  // Security threat detection
+  if (VALIDATION_CONFIG.enableThreatDetection) {
+    const threats = detectSecurityThreats(sanitizedData);
+    if (threats.length > 0) {
+      safeLogger.warn('Security threats detected during validation', {
+        threats,
+      });
+      return {
+        error: {
+          name: 'SecurityThreat',
+          message: 'Security threats detected',
+          details: threats.map(threat => ({ message: threat })),
+        },
+      };
+    }
+  }
+
+  const schema = Joi.object({
+    fullName: Joi.string()
+      .custom(nameValidator)
+      .optional()
+      .min(VALIDATION_CONFIG.nameMinLength)
+      .max(VALIDATION_CONFIG.nameMaxLength),
+    phone: Joi.string().custom(phoneValidator).optional(),
+    bio: Joi.string().max(500).optional(),
+    avatar: Joi.string().uri().optional(),
+  });
+
+  const result = schema.validate(sanitizedData, {
+    abortEarly: false,
+    stripUnknown: true,
+    allowUnknown: false,
+  });
+
+  if (result.error) {
+    return result;
+  }
+  return result;
+};
+
 /**
  * Update validation configuration
  */
@@ -638,6 +495,7 @@ export function updateValidationConfig(newConfig) {
   Object.assign(VALIDATION_CONFIG, newConfig);
   safeLogger.info('Validation configuration updated', { newConfig });
 }
+
 // Email verification schema
 export const emailVerificationSchema = data => {
   const sanitizedData = sanitizeInput(data);
@@ -652,10 +510,8 @@ export const emailVerificationSchema = data => {
   });
 
   if (result.error) {
-    validationMetrics.failedValidations++;
     return result;
   }
-  validationMetrics.successfulValidations++;
   return result;
 };
 
@@ -677,10 +533,8 @@ export const twoFactorVerificationSchema = data => {
   });
 
   if (result.error) {
-    validationMetrics.failedValidations++;
     return result;
   }
-  validationMetrics.successfulValidations++;
   return result;
 };
 
@@ -701,10 +555,8 @@ export const twoFactorDisableSchema = data => {
   });
 
   if (result.error) {
-    validationMetrics.failedValidations++;
     return result;
   }
-  validationMetrics.successfulValidations++;
   return result;
 };
 
@@ -716,7 +568,5 @@ export default {
   emailVerificationSchema,
   twoFactorVerificationSchema,
   twoFactorDisableSchema,
-  getValidationMetrics,
-  resetValidationMetrics,
   updateValidationConfig,
 };

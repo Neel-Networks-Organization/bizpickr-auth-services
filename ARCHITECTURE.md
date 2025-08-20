@@ -113,7 +113,6 @@ Open for extension, closed for modification.
 - `session.controller.js` - Session operations
 - `password.controller.js` - Password operations
 - `jwk.controller.js` - JWT key management
-- `metrics.controller.js` - System metrics
 
 **Responsibilities**:
 
@@ -145,8 +144,6 @@ Open for extension, closed for modification.
 
 - `email.service.js` - Email operations
 - `emailVerification.service.js` - Email verification
-- `metrics.service.js` - Performance metrics
-- `cacheWarming.service.js` - Cache management
 - `errorClassification.service.js` - Error handling
 
 ### 3. **Models Layer**

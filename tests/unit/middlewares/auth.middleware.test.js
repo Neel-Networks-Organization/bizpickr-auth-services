@@ -1,7 +1,7 @@
 import { jest } from '@jest/globals';
 import jwt from 'jsonwebtoken';
 import { verifyJWT } from '../../../src/middlewares/auth.middleware.js';
-import { ApiError } from '../../../src/utils/ApiError.js';
+import { ApiError } from '../../../src/utils/index.js';
 
 // Mock jwt
 jest.mock('jsonwebtoken');
@@ -17,16 +17,16 @@ describe('Auth Middleware Unit Tests', () => {
       const mockUser = {
         id: 1,
         email: 'test@example.com',
-        type: 'customer'
+        type: 'customer',
       };
 
       const req = {
         cookies: {
-          accessToken: 'valid-token'
+          accessToken: 'valid-token',
         },
         headers: {
-          authorization: 'Bearer valid-token'
-        }
+          authorization: 'Bearer valid-token',
+        },
       };
 
       const res = {};
@@ -38,7 +38,10 @@ describe('Auth Middleware Unit Tests', () => {
       await verifyJWT(req, res, next);
 
       // Assert
-      expect(jwt.verify).toHaveBeenCalledWith('valid-token', process.env.ACCESS_TOKEN_SECRET);
+      expect(jwt.verify).toHaveBeenCalledWith(
+        'valid-token',
+        process.env.ACCESS_TOKEN_SECRET
+      );
       expect(req.user).toEqual(mockUser);
       expect(next).toHaveBeenCalled();
     });
@@ -48,14 +51,14 @@ describe('Auth Middleware Unit Tests', () => {
       const mockUser = {
         id: 1,
         email: 'test@example.com',
-        type: 'customer'
+        type: 'customer',
       };
 
       const req = {
         cookies: {},
         headers: {
-          authorization: 'Bearer valid-token'
-        }
+          authorization: 'Bearer valid-token',
+        },
       };
 
       const res = {};
@@ -67,7 +70,10 @@ describe('Auth Middleware Unit Tests', () => {
       await verifyJWT(req, res, next);
 
       // Assert
-      expect(jwt.verify).toHaveBeenCalledWith('valid-token', process.env.ACCESS_TOKEN_SECRET);
+      expect(jwt.verify).toHaveBeenCalledWith(
+        'valid-token',
+        process.env.ACCESS_TOKEN_SECRET
+      );
       expect(req.user).toEqual(mockUser);
       expect(next).toHaveBeenCalled();
     });
@@ -76,7 +82,7 @@ describe('Auth Middleware Unit Tests', () => {
       // Arrange
       const req = {
         cookies: {},
-        headers: {}
+        headers: {},
       };
 
       const res = {};
@@ -89,7 +95,7 @@ describe('Auth Middleware Unit Tests', () => {
       expect(next).toHaveBeenCalledWith(
         expect.objectContaining({
           statusCode: 401,
-          message: 'Unauthorized request'
+          message: 'Unauthorized request',
         })
       );
     });
@@ -98,9 +104,9 @@ describe('Auth Middleware Unit Tests', () => {
       // Arrange
       const req = {
         cookies: {
-          accessToken: 'invalid-token'
+          accessToken: 'invalid-token',
         },
-        headers: {}
+        headers: {},
       };
 
       const res = {};
@@ -117,7 +123,7 @@ describe('Auth Middleware Unit Tests', () => {
       expect(next).toHaveBeenCalledWith(
         expect.objectContaining({
           statusCode: 401,
-          message: 'Invalid access token'
+          message: 'Invalid access token',
         })
       );
     });
@@ -126,9 +132,9 @@ describe('Auth Middleware Unit Tests', () => {
       // Arrange
       const req = {
         cookies: {
-          accessToken: 'expired-token'
+          accessToken: 'expired-token',
         },
-        headers: {}
+        headers: {},
       };
 
       const res = {};
@@ -147,7 +153,7 @@ describe('Auth Middleware Unit Tests', () => {
       expect(next).toHaveBeenCalledWith(
         expect.objectContaining({
           statusCode: 401,
-          message: 'Access token expired'
+          message: 'Access token expired',
         })
       );
     });
@@ -157,8 +163,8 @@ describe('Auth Middleware Unit Tests', () => {
       const req = {
         cookies: {},
         headers: {
-          authorization: 'InvalidFormat token'
-        }
+          authorization: 'InvalidFormat token',
+        },
       };
 
       const res = {};
@@ -171,9 +177,9 @@ describe('Auth Middleware Unit Tests', () => {
       expect(next).toHaveBeenCalledWith(
         expect.objectContaining({
           statusCode: 401,
-          message: 'Unauthorized request'
+          message: 'Unauthorized request',
         })
       );
     });
   });
-}); 
+});

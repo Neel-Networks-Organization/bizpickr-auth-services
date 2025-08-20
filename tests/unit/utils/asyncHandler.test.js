@@ -5,19 +5,13 @@ import {
   expect,
   beforeEach,
   afterEach,
-} from "@jest/globals";
+} from '@jest/globals';
 import {
   asyncHandler,
-  getActiveRequests,
-  getRequestStats,
-  clearRequestData,
-  asyncHandlerWithTimeout,
-  asyncHandlerWithRetry,
-  asyncHandlerWithValidation,
-  asyncHandlerWithLogging,
-  asyncHandlerWithTiming,
-} from "../../../src/utils/asyncHandler.js";
-import { ApiError } from "../../../src/utils/ApiError.js";
+  asyncMiddleware,
+  asyncErrorHandler,
+} from '../../../src/utils/index.js';
+import { ApiError } from '../../../src/utils/index.js';
 
 /**
  * AsyncHandler Utility Tests
@@ -38,7 +32,7 @@ import { ApiError } from "../../../src/utils/ApiError.js";
  */
 
 // Mock the logger
-jest.mock("@auth/config/logger.js", () => ({
+jest.mock('@auth/config/logger.js', () => ({
   safeLogger: {
     error: jest.fn(),
     warn: jest.fn(),
@@ -47,7 +41,7 @@ jest.mock("@auth/config/logger.js", () => ({
   },
 }));
 
-describe("AsyncHandler Utility Tests", () => {
+describe('AsyncHandler Utility Tests', () => {
   let mockReq;
   let mockRes;
   let mockNext;
@@ -59,22 +53,22 @@ describe("AsyncHandler Utility Tests", () => {
 
     // Mock request object
     mockReq = {
-      originalUrl: "/api/test",
-      url: "/api/test",
-      method: "GET",
+      originalUrl: '/api/test',
+      url: '/api/test',
+      method: 'GET',
       headers: {
-        "user-agent": "Mozilla/5.0 (Test Browser)",
-        "content-type": "application/json",
+        'user-agent': 'Mozilla/5.0 (Test Browser)',
+        'content-type': 'application/json',
       },
       body: {},
       query: {},
       user: {
-        id: "user-123",
-        email: "test@example.com",
+        id: 'user-123',
+        email: 'test@example.com',
       },
-      ip: "192.168.1.1",
+      ip: '192.168.1.1',
       connection: {
-        remoteAddress: "192.168.1.1",
+        remoteAddress: '192.168.1.1',
       },
     };
 
@@ -89,7 +83,7 @@ describe("AsyncHandler Utility Tests", () => {
     mockNext = jest.fn();
 
     // Get logger mock
-    const { safeLogger } = await import("@auth/config/logger.js");
+    const { safeLogger } = require('@auth/config/logger.js');
     mockLogger = safeLogger;
 
     // Clear any existing request data
@@ -101,11 +95,11 @@ describe("AsyncHandler Utility Tests", () => {
     clearRequestData();
   });
 
-  describe("Basic Async Handler Functionality", () => {
-    it("should handle successful async operations", async () => {
+  describe('Basic Async Handler Functionality', () => {
+    it('should handle successful async operations', async () => {
       // Arrange
       const handler = async (req, res) => {
-        return { success: true, data: "test" };
+        return { success: true, data: 'test' };
       };
       const wrappedHandler = asyncHandler(handler);
 
@@ -115,19 +109,19 @@ describe("AsyncHandler Utility Tests", () => {
       // Assert
       expect(mockNext).not.toHaveBeenCalled();
       expect(mockLogger.info).toHaveBeenCalledWith(
-        "Request completed",
+        'Request completed',
         expect.objectContaining({
-          url: "/api/test",
-          method: "GET",
+          url: '/api/test',
+          method: 'GET',
           statusCode: 200,
         })
       );
     });
 
-    it("should handle synchronous operations", async () => {
+    it('should handle synchronous operations', async () => {
       // Arrange
       const handler = (req, res) => {
-        return { success: true, data: "sync" };
+        return { success: true, data: 'sync' };
       };
       const wrappedHandler = asyncHandler(handler);
 
@@ -137,17 +131,17 @@ describe("AsyncHandler Utility Tests", () => {
       // Assert
       expect(mockNext).not.toHaveBeenCalled();
       expect(mockLogger.info).toHaveBeenCalledWith(
-        "Request completed",
+        'Request completed',
         expect.objectContaining({
-          url: "/api/test",
-          method: "GET",
+          url: '/api/test',
+          method: 'GET',
         })
       );
     });
 
-    it("should handle errors and pass them to next", async () => {
+    it('should handle errors and pass them to next', async () => {
       // Arrange
-      const error = new Error("Test error");
+      const error = new Error('Test error');
       const handler = async () => {
         throw error;
       };
@@ -159,18 +153,18 @@ describe("AsyncHandler Utility Tests", () => {
       // Assert
       expect(mockNext).toHaveBeenCalledWith(error);
       expect(mockLogger.error).toHaveBeenCalledWith(
-        "Request failed",
+        'Request failed',
         expect.objectContaining({
           error: expect.objectContaining({
-            message: "Test error",
+            message: 'Test error',
           }),
         })
       );
     });
 
-    it("should handle ApiError instances", async () => {
+    it('should handle ApiError instances', async () => {
       // Arrange
-      const apiError = new ApiError(400, "Bad Request", ["Invalid input"]);
+      const apiError = new ApiError(400, 'Bad Request', ['Invalid input']);
       const handler = async () => {
         throw apiError;
       };
@@ -182,18 +176,18 @@ describe("AsyncHandler Utility Tests", () => {
       // Assert
       expect(mockNext).toHaveBeenCalledWith(apiError);
       expect(mockLogger.error).toHaveBeenCalledWith(
-        "Request failed",
+        'Request failed',
         expect.objectContaining({
           error: expect.objectContaining({
-            message: "Bad Request",
+            message: 'Bad Request',
           }),
         })
       );
     });
   });
 
-  describe("Request Correlation and Tracking", () => {
-    it("should generate correlation ID if not present", async () => {
+  describe('Request Correlation and Tracking', () => {
+    it('should generate correlation ID if not present', async () => {
       // Arrange
       const handler = async (req, res) => {
         return { success: true };
@@ -208,9 +202,9 @@ describe("AsyncHandler Utility Tests", () => {
       expect(mockReq.correlationId).toMatch(/^req-\d+-\w+$/);
     });
 
-    it("should use existing correlation ID if present", async () => {
+    it('should use existing correlation ID if present', async () => {
       // Arrange
-      mockReq.correlationId = "existing-correlation-id";
+      mockReq.correlationId = 'existing-correlation-id';
       const handler = async (req, res) => {
         return { success: true };
       };
@@ -220,10 +214,10 @@ describe("AsyncHandler Utility Tests", () => {
       await wrappedHandler(mockReq, mockRes, mockNext);
 
       // Assert
-      expect(mockReq.correlationId).toBe("existing-correlation-id");
+      expect(mockReq.correlationId).toBe('existing-correlation-id');
     });
 
-    it("should track active requests", async () => {
+    it('should track active requests', async () => {
       // Arrange
       const handler = async (req, res) => {
         return { success: true };
@@ -238,7 +232,7 @@ describe("AsyncHandler Utility Tests", () => {
       expect(activeRequests).toHaveLength(0); // Should be cleaned up after completion
     });
 
-    it("should provide request statistics", () => {
+    it('should provide request statistics', () => {
       // Arrange & Act
       const stats = getRequestStats();
 
@@ -246,16 +240,16 @@ describe("AsyncHandler Utility Tests", () => {
       expect(stats).toEqual({
         activeRequests: 0,
         totalRequests: 0,
-        averageDuration: "0ms",
+        averageDuration: '0ms',
       });
     });
   });
 
-  describe("Timeout Handling", () => {
-    it("should handle request timeout", async () => {
+  describe('Timeout Handling', () => {
+    it('should handle request timeout', async () => {
       // Arrange
       const handler = async () => {
-        await new Promise((resolve) => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, 100));
         return { success: true };
       };
       const wrappedHandler = asyncHandler(handler, { timeout: 50 });
@@ -267,12 +261,12 @@ describe("AsyncHandler Utility Tests", () => {
       expect(mockNext).toHaveBeenCalledWith(
         expect.objectContaining({
           statusCode: 408,
-          message: "Request timeout",
+          message: 'Request timeout',
         })
       );
     });
 
-    it("should not timeout if request completes quickly", async () => {
+    it('should not timeout if request completes quickly', async () => {
       // Arrange
       const handler = async () => {
         return { success: true };
@@ -285,15 +279,15 @@ describe("AsyncHandler Utility Tests", () => {
       // Assert
       expect(mockNext).not.toHaveBeenCalled();
       expect(mockLogger.info).toHaveBeenCalledWith(
-        "Request completed",
+        'Request completed',
         expect.any(Object)
       );
     });
 
-    it("should disable timeout when set to 0", async () => {
+    it('should disable timeout when set to 0', async () => {
       // Arrange
       const handler = async () => {
-        await new Promise((resolve) => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, 100));
         return { success: true };
       };
       const wrappedHandler = asyncHandler(handler, { timeout: 0 });
@@ -304,20 +298,20 @@ describe("AsyncHandler Utility Tests", () => {
       // Assert
       expect(mockNext).not.toHaveBeenCalled();
       expect(mockLogger.info).toHaveBeenCalledWith(
-        "Request completed",
+        'Request completed',
         expect.any(Object)
       );
     });
   });
 
-  describe("Retry Logic", () => {
-    it("should retry failed requests", async () => {
+  describe('Retry Logic', () => {
+    it('should retry failed requests', async () => {
       // Arrange
       let attempts = 0;
       const handler = async () => {
         attempts++;
         if (attempts < 3) {
-          throw new Error("Temporary failure");
+          throw new Error('Temporary failure');
         }
         return { success: true };
       };
@@ -331,14 +325,14 @@ describe("AsyncHandler Utility Tests", () => {
       expect(mockNext).not.toHaveBeenCalled();
       expect(mockLogger.warn).toHaveBeenCalledTimes(2); // 2 retry attempts
       expect(mockLogger.info).toHaveBeenCalledWith(
-        "Request completed",
+        'Request completed',
         expect.any(Object)
       );
     });
 
-    it("should fail after all retry attempts", async () => {
+    it('should fail after all retry attempts', async () => {
       // Arrange
-      const error = new Error("Persistent failure");
+      const error = new Error('Persistent failure');
       const handler = async () => {
         throw error;
       };
@@ -351,21 +345,21 @@ describe("AsyncHandler Utility Tests", () => {
       expect(mockNext).toHaveBeenCalledWith(error);
       expect(mockLogger.warn).toHaveBeenCalledTimes(2); // 2 retry attempts
       expect(mockLogger.error).toHaveBeenCalledWith(
-        "Request failed",
+        'Request failed',
         expect.objectContaining({
           attempts: 3,
         })
       );
     });
 
-    it("should use exponential backoff for retries", async () => {
+    it('should use exponential backoff for retries', async () => {
       // Arrange
       let attempts = 0;
       const startTime = Date.now();
       const handler = async () => {
         attempts++;
         if (attempts < 3) {
-          throw new Error("Temporary failure");
+          throw new Error('Temporary failure');
         }
         return { success: true };
       };
@@ -382,8 +376,8 @@ describe("AsyncHandler Utility Tests", () => {
     });
   });
 
-  describe("Request Validation", () => {
-    it("should validate requests when enabled", async () => {
+  describe('Request Validation', () => {
+    it('should validate requests when enabled', async () => {
       // Arrange
       const handler = async (req, res) => {
         return { success: true };
@@ -396,12 +390,12 @@ describe("AsyncHandler Utility Tests", () => {
       // Assert
       expect(mockNext).not.toHaveBeenCalled();
       expect(mockLogger.info).toHaveBeenCalledWith(
-        "Request completed",
+        'Request completed',
         expect.any(Object)
       );
     });
 
-    it("should reject invalid requests", async () => {
+    it('should reject invalid requests', async () => {
       // Arrange
       const invalidReq = { ...mockReq };
       delete invalidReq.method;
@@ -418,16 +412,16 @@ describe("AsyncHandler Utility Tests", () => {
       expect(mockNext).toHaveBeenCalledWith(
         expect.objectContaining({
           statusCode: 400,
-          message: "Invalid request",
+          message: 'Invalid request',
         })
       );
     });
 
-    it("should validate content type for POST requests", async () => {
+    it('should validate content type for POST requests', async () => {
       // Arrange
       const postReq = {
         ...mockReq,
-        method: "POST",
+        method: 'POST',
         headers: {}, // No content-type
       };
 
@@ -443,17 +437,17 @@ describe("AsyncHandler Utility Tests", () => {
       expect(mockNext).toHaveBeenCalledWith(
         expect.objectContaining({
           statusCode: 400,
-          message: "Invalid request",
+          message: 'Invalid request',
         })
       );
     });
 
-    it("should validate body size", async () => {
+    it('should validate body size', async () => {
       // Arrange
       const largeBodyReq = {
         ...mockReq,
-        method: "POST",
-        body: { data: "x".repeat(11 * 1024 * 1024) }, // 11MB
+        method: 'POST',
+        body: { data: 'x'.repeat(11 * 1024 * 1024) }, // 11MB
       };
 
       const handler = async (req, res) => {
@@ -468,14 +462,14 @@ describe("AsyncHandler Utility Tests", () => {
       expect(mockNext).toHaveBeenCalledWith(
         expect.objectContaining({
           statusCode: 400,
-          message: "Invalid request",
+          message: 'Invalid request',
         })
       );
     });
   });
 
-  describe("Pre/Post Handler Middleware", () => {
-    it("should execute pre-handler middleware", async () => {
+  describe('Pre/Post Handler Middleware', () => {
+    it('should execute pre-handler middleware', async () => {
       // Arrange
       const preHandler = jest.fn();
       const handler = async (req, res) => {
@@ -491,11 +485,11 @@ describe("AsyncHandler Utility Tests", () => {
       expect(mockNext).not.toHaveBeenCalled();
     });
 
-    it("should execute post-handler middleware", async () => {
+    it('should execute post-handler middleware', async () => {
       // Arrange
       const postHandler = jest.fn();
       const handler = async (req, res) => {
-        return { success: true, data: "test" };
+        return { success: true, data: 'test' };
       };
       const wrappedHandler = asyncHandler(handler, { postHandler });
 
@@ -505,15 +499,15 @@ describe("AsyncHandler Utility Tests", () => {
       // Assert
       expect(postHandler).toHaveBeenCalledWith(mockReq, mockRes, {
         success: true,
-        data: "test",
+        data: 'test',
       });
       expect(mockNext).not.toHaveBeenCalled();
     });
 
-    it("should handle pre-handler errors gracefully", async () => {
+    it('should handle pre-handler errors gracefully', async () => {
       // Arrange
       const preHandler = async () => {
-        throw new Error("Pre-handler error");
+        throw new Error('Pre-handler error');
       };
       const handler = async (req, res) => {
         return { success: true };
@@ -525,18 +519,18 @@ describe("AsyncHandler Utility Tests", () => {
 
       // Assert
       expect(mockLogger.warn).toHaveBeenCalledWith(
-        "Pre-handler error",
+        'Pre-handler error',
         expect.objectContaining({
-          error: "Pre-handler error",
+          error: 'Pre-handler error',
         })
       );
       expect(mockNext).not.toHaveBeenCalled();
     });
 
-    it("should handle post-handler errors gracefully", async () => {
+    it('should handle post-handler errors gracefully', async () => {
       // Arrange
       const postHandler = async () => {
-        throw new Error("Post-handler error");
+        throw new Error('Post-handler error');
       };
       const handler = async (req, res) => {
         return { success: true };
@@ -548,20 +542,20 @@ describe("AsyncHandler Utility Tests", () => {
 
       // Assert
       expect(mockLogger.warn).toHaveBeenCalledWith(
-        "Post-handler error",
+        'Post-handler error',
         expect.objectContaining({
-          error: "Post-handler error",
+          error: 'Post-handler error',
         })
       );
       expect(mockNext).not.toHaveBeenCalled();
     });
   });
 
-  describe("Error Transformation", () => {
-    it("should transform errors using custom transformer", async () => {
+  describe('Error Transformation', () => {
+    it('should transform errors using custom transformer', async () => {
       // Arrange
-      const originalError = new Error("Original error");
-      const transformedError = new ApiError(500, "Transformed error");
+      const originalError = new Error('Original error');
+      const transformedError = new ApiError(500, 'Transformed error');
 
       const errorTransformer = jest.fn().mockReturnValue(transformedError);
       const handler = async () => {
@@ -581,9 +575,9 @@ describe("AsyncHandler Utility Tests", () => {
       expect(mockNext).toHaveBeenCalledWith(transformedError);
     });
 
-    it("should handle transformer that returns null", async () => {
+    it('should handle transformer that returns null', async () => {
       // Arrange
-      const originalError = new Error("Original error");
+      const originalError = new Error('Original error');
       const errorTransformer = jest.fn().mockReturnValue(null);
       const handler = async () => {
         throw originalError;
@@ -598,11 +592,11 @@ describe("AsyncHandler Utility Tests", () => {
     });
   });
 
-  describe("Factory Functions", () => {
-    it("should create handler with timeout", async () => {
+  describe('Factory Functions', () => {
+    it('should create handler with timeout', async () => {
       // Arrange
       const handler = async () => {
-        await new Promise((resolve) => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, 100));
         return { success: true };
       };
       const wrappedHandler = asyncHandlerWithTimeout(50)(handler);
@@ -614,18 +608,18 @@ describe("AsyncHandler Utility Tests", () => {
       expect(mockNext).toHaveBeenCalledWith(
         expect.objectContaining({
           statusCode: 408,
-          message: "Request timeout",
+          message: 'Request timeout',
         })
       );
     });
 
-    it("should create handler with retry", async () => {
+    it('should create handler with retry', async () => {
       // Arrange
       let attempts = 0;
       const handler = async () => {
         attempts++;
         if (attempts < 2) {
-          throw new Error("Temporary failure");
+          throw new Error('Temporary failure');
         }
         return { success: true };
       };
@@ -639,7 +633,7 @@ describe("AsyncHandler Utility Tests", () => {
       expect(mockNext).not.toHaveBeenCalled();
     });
 
-    it("should create handler with validation", async () => {
+    it('should create handler with validation', async () => {
       // Arrange
       const invalidReq = { ...mockReq };
       delete invalidReq.method;
@@ -656,12 +650,12 @@ describe("AsyncHandler Utility Tests", () => {
       expect(mockNext).toHaveBeenCalledWith(
         expect.objectContaining({
           statusCode: 400,
-          message: "Invalid request",
+          message: 'Invalid request',
         })
       );
     });
 
-    it("should create handler with logging", async () => {
+    it('should create handler with logging', async () => {
       // Arrange
       const handler = async (req, res) => {
         return { success: true };
@@ -673,12 +667,12 @@ describe("AsyncHandler Utility Tests", () => {
 
       // Assert
       expect(mockLogger.info).toHaveBeenCalledWith(
-        "Request completed",
+        'Request completed',
         expect.any(Object)
       );
     });
 
-    it("should create handler with timing", async () => {
+    it('should create handler with timing', async () => {
       // Arrange
       const handler = async (req, res) => {
         return { success: true };
@@ -690,7 +684,7 @@ describe("AsyncHandler Utility Tests", () => {
 
       // Assert
       expect(mockLogger.info).toHaveBeenCalledWith(
-        "Request completed",
+        'Request completed',
         expect.objectContaining({
           duration: expect.stringMatching(/\d+ms/),
         })
@@ -698,8 +692,8 @@ describe("AsyncHandler Utility Tests", () => {
     });
   });
 
-  describe("Configuration Options", () => {
-    it("should disable timing when configured", async () => {
+  describe('Configuration Options', () => {
+    it('should disable timing when configured', async () => {
       // Arrange
       const handler = async (req, res) => {
         return { success: true };
@@ -711,12 +705,12 @@ describe("AsyncHandler Utility Tests", () => {
 
       // Assert
       expect(mockLogger.info).toHaveBeenCalledWith(
-        "Request completed",
+        'Request completed',
         expect.any(Object)
       );
     });
 
-    it("should disable logging when configured", async () => {
+    it('should disable logging when configured', async () => {
       // Arrange
       const handler = async (req, res) => {
         return { success: true };
@@ -731,7 +725,7 @@ describe("AsyncHandler Utility Tests", () => {
       expect(mockLogger.error).not.toHaveBeenCalled();
     });
 
-    it("should handle all options disabled", async () => {
+    it('should handle all options disabled', async () => {
       // Arrange
       const handler = async (req, res) => {
         return { success: true };
@@ -754,8 +748,8 @@ describe("AsyncHandler Utility Tests", () => {
     });
   });
 
-  describe("Edge Cases", () => {
-    it("should handle null/undefined handlers", async () => {
+  describe('Edge Cases', () => {
+    it('should handle null/undefined handlers', async () => {
       // Arrange
       const wrappedHandler = asyncHandler(null);
 
@@ -765,12 +759,12 @@ describe("AsyncHandler Utility Tests", () => {
       // Assert
       expect(mockNext).toHaveBeenCalledWith(
         expect.objectContaining({
-          message: expect.stringContaining("null"),
+          message: expect.stringContaining('null'),
         })
       );
     });
 
-    it("should handle handlers that return undefined", async () => {
+    it('should handle handlers that return undefined', async () => {
       // Arrange
       const handler = async () => {
         return undefined;
@@ -783,16 +777,16 @@ describe("AsyncHandler Utility Tests", () => {
       // Assert
       expect(mockNext).not.toHaveBeenCalled();
       expect(mockLogger.info).toHaveBeenCalledWith(
-        "Request completed",
+        'Request completed',
         expect.any(Object)
       );
     });
 
-    it("should handle very long request URLs", async () => {
+    it('should handle very long request URLs', async () => {
       // Arrange
       const longUrlReq = {
         ...mockReq,
-        originalUrl: "/api/" + "a".repeat(10000),
+        originalUrl: '/api/' + 'a'.repeat(10000),
       };
 
       const handler = async (req, res) => {
@@ -806,14 +800,14 @@ describe("AsyncHandler Utility Tests", () => {
       // Assert
       expect(mockNext).not.toHaveBeenCalled();
       expect(mockLogger.info).toHaveBeenCalledWith(
-        "Request completed",
+        'Request completed',
         expect.any(Object)
       );
     });
 
-    it("should handle circular references in request body", async () => {
+    it('should handle circular references in request body', async () => {
       // Arrange
-      const circularBody = { name: "test" };
+      const circularBody = { name: 'test' };
       circularBody.self = circularBody;
 
       const circularReq = {
@@ -832,14 +826,14 @@ describe("AsyncHandler Utility Tests", () => {
       // Assert
       expect(mockNext).not.toHaveBeenCalled();
       expect(mockLogger.info).toHaveBeenCalledWith(
-        "Request completed",
+        'Request completed',
         expect.any(Object)
       );
     });
   });
 
-  describe("Performance Tests", () => {
-    it("should handle requests quickly", async () => {
+  describe('Performance Tests', () => {
+    it('should handle requests quickly', async () => {
       // Arrange
       const handler = async (req, res) => {
         return { success: true };
@@ -859,7 +853,7 @@ describe("AsyncHandler Utility Tests", () => {
       expect(averageTime).toBeLessThan(10); // Less than 10ms per request
     });
 
-    it("should handle memory efficiently", async () => {
+    it('should handle memory efficiently', async () => {
       // Arrange
       const handler = async (req, res) => {
         return { success: true };
@@ -880,15 +874,15 @@ describe("AsyncHandler Utility Tests", () => {
     });
   });
 
-  describe("Integration Scenarios", () => {
-    it("should handle complete request lifecycle", async () => {
+  describe('Integration Scenarios', () => {
+    it('should handle complete request lifecycle', async () => {
       // Arrange
       const preHandler = jest.fn();
       const postHandler = jest.fn();
       const errorTransformer = jest.fn();
 
       const handler = async (req, res) => {
-        return { success: true, data: "processed" };
+        return { success: true, data: 'processed' };
       };
 
       const wrappedHandler = asyncHandler(handler, {
@@ -909,11 +903,11 @@ describe("AsyncHandler Utility Tests", () => {
       expect(preHandler).toHaveBeenCalledWith(mockReq, mockRes);
       expect(postHandler).toHaveBeenCalledWith(mockReq, mockRes, {
         success: true,
-        data: "processed",
+        data: 'processed',
       });
       expect(mockNext).not.toHaveBeenCalled();
       expect(mockLogger.info).toHaveBeenCalledWith(
-        "Request completed",
+        'Request completed',
         expect.objectContaining({
           duration: expect.stringMatching(/\d+ms/),
           statusCode: 200,
@@ -921,10 +915,10 @@ describe("AsyncHandler Utility Tests", () => {
       );
     });
 
-    it("should handle error scenario with all features", async () => {
+    it('should handle error scenario with all features', async () => {
       // Arrange
-      const error = new Error("Database connection failed");
-      const transformedError = new ApiError(503, "Service unavailable");
+      const error = new Error('Database connection failed');
+      const transformedError = new ApiError(503, 'Service unavailable');
 
       const preHandler = jest.fn();
       const postHandler = jest.fn();
@@ -955,7 +949,7 @@ describe("AsyncHandler Utility Tests", () => {
       expect(mockNext).toHaveBeenCalledWith(transformedError);
       expect(mockLogger.warn).toHaveBeenCalledTimes(2); // 2 retry attempts
       expect(mockLogger.error).toHaveBeenCalledWith(
-        "Request failed",
+        'Request failed',
         expect.objectContaining({
           attempts: 3,
           duration: expect.stringMatching(/\d+ms/),

@@ -358,7 +358,7 @@ class EmailVerification extends Model {
    */
   static async validateEmail(email) {
     try {
-      const { validateEmail } = await import('../utils/validationUtils.js');
+      const { validateEmail } = await import('../utils/index.js');
       return await validateEmail(email);
     } catch (error) {
       safeLogger.error('Email validation error', {

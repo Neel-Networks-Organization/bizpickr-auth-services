@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
-import { ApiError } from '../../utils/ApiError.js';
+import { ApiError } from '../../utils/index.js';
 import { env } from '../../config/env.js';
 import { safeLogger } from '../../config/logger.js';
 import { getCorrelationId } from '../../config/requestContext.js';

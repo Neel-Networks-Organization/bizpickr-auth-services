@@ -5,7 +5,7 @@ import { exportPKCS8, exportSPKI } from 'jose';
 import ms from 'ms';
 import { env } from '../config/env.js';
 import { safeLogger } from '../config/logger.js';
-import { ApiError } from '../utils/ApiError.js';
+import { ApiError } from '../utils/index.js';
 /**
  * Industry-level Key Manager Service
  *
@@ -19,14 +19,7 @@ import { ApiError } from '../utils/ApiError.js';
  */
 const KEYS_DIR = path.join(process.cwd(), 'keys');
 const KEYS_JSON = path.join(KEYS_DIR, 'keys.json');
-// Key management metrics
-const keyMetrics = {
-  totalRotations: 0,
-  lastRotation: null,
-  failedRotations: 0,
-  keyGenerationTime: 0,
-  activeKeys: 0,
-};
+
 /**
  * Load keys metadata with enhanced error handling
  * @returns {Object} Keys metadata
@@ -263,7 +256,7 @@ export async function rotateKeys(options = {}) {
       extractable: true,
     });
     const keyGenTime = Date.now() - keyGenStartTime;
-    keyMetrics.keyGenerationTime = keyGenTime;
+
     safeLogger.info('Key pair generated successfully', {
       kid,
       keyGenTime: `${keyGenTime}ms`,
@@ -331,24 +324,17 @@ export async function rotateKeys(options = {}) {
       meta.keys = meta.keys.slice(-5);
     }
     saveKeysMeta(meta);
-    // Update metrics
-    keyMetrics.totalRotations++;
-    keyMetrics.lastRotation = now.toISOString();
-    keyMetrics.activeKeys = meta.keys.length;
+
     const totalTime = Date.now() - startTime;
     safeLogger.info('Key rotation completed successfully', {
       kid,
       totalTime: `${totalTime}ms`,
       keyGenTime: `${keyGenTime}ms`,
-      totalRotations: keyMetrics.totalRotations,
-      activeKeys: keyMetrics.activeKeys,
     });
   } catch (error) {
-    keyMetrics.failedRotations++;
     safeLogger.error('Key rotation failed', {
       error: error.message,
       stack: error.stack,
-      failedRotations: keyMetrics.failedRotations,
     });
     if (error instanceof ApiError) {
       throw error;
@@ -359,41 +345,7 @@ export async function rotateKeys(options = {}) {
     ]);
   }
 }
-/**
- * Get key management metrics
- * @returns {Object} Key metrics
- */
-export function getKeyMetrics() {
-  return {
-    ...keyMetrics,
-    currentTime: new Date().toISOString(),
-    keysDirectory: KEYS_DIR,
-    metadataFile: KEYS_JSON,
-  };
-}
-/**
- * Get key health status
- * @returns {Object} Health status
- */
-export function getKeyHealth() {
-  const currentKey = getCurrentKeyMeta();
-  const allKeys = getAllPublicKeysMeta();
-  return {
-    status: currentKey ? 'healthy' : 'unhealthy',
-    currentKey: currentKey
-      ? {
-          kid: currentKey.kid,
-          createdAt: currentKey.createdAt,
-          expiresAt: currentKey.expiresAt,
-          isValid: hasValidCurrentKey(),
-        }
-      : null,
-    totalKeys: allKeys.length,
-    lastRotation: keyMetrics.lastRotation,
-    totalRotations: keyMetrics.totalRotations,
-    failedRotations: keyMetrics.failedRotations,
-  };
-}
+
 /**
  * Clean up expired keys
  * @returns {number} Number of keys cleaned

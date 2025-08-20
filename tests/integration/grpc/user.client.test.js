@@ -1,12 +1,12 @@
-import { jest } from "@jest/globals";
-import grpc from "@grpc/grpc-js";
-import { createUserProfile, getUserById } from "@/grpc/client/user.client.js";
-import { env } from "@/config/env.js";
-import { ApiError } from "@/utils/ApiError.js";
+import { jest } from '@jest/globals';
+import grpc from '@grpc/grpc-js';
+import { createUserProfile, getUserById } from '@/grpc/client/user.client.js';
+import { env } from '@/config/env.js';
+import { ApiError } from '@/utils/index.js';
 
 // Mock dependencies
-jest.mock("@/config/env.js");
-jest.mock("@/config/logger.js", () => ({
+jest.mock('@/config/env.js');
+jest.mock('@/config/logger.js', () => ({
   safeLogger: {
     info: jest.fn(),
     error: jest.fn(),
@@ -14,7 +14,7 @@ jest.mock("@/config/logger.js", () => ({
   },
 }));
 
-describe("gRPC User Client Integration", () => {
+describe('gRPC User Client Integration', () => {
   let mockClient;
   let mockChannel;
 
@@ -22,8 +22,8 @@ describe("gRPC User Client Integration", () => {
     jest.clearAllMocks();
 
     // Mock environment variables
-    env.GRPC_USER_SERVICE_HOST = "localhost";
-    env.GRPC_USER_SERVICE_PORT = "50052";
+    env.GRPC_USER_SERVICE_HOST = 'localhost';
+    env.GRPC_USER_SERVICE_PORT = '50052';
 
     // Mock gRPC client
     mockClient = {
@@ -39,26 +39,26 @@ describe("gRPC User Client Integration", () => {
     };
 
     // Mock grpc.Client
-    jest.doMock("@grpc/grpc-js", () => ({
-      ...jest.requireActual("@grpc/grpc-js"),
+    jest.doMock('@grpc/grpc-js', () => ({
+      ...jest.requireActual('@grpc/grpc-js'),
       Client: jest.fn().mockImplementation(() => mockClient),
     }));
   });
 
-  describe("createUserProfile", () => {
-    it("should create user profile successfully", async () => {
+  describe('createUserProfile', () => {
+    it('should create user profile successfully', async () => {
       const userData = {
-        email: "test@example.com",
-        type: "customer",
-        fullName: "Test User",
-        role: "user",
+        email: 'test@example.com',
+        type: 'customer',
+        fullName: 'Test User',
+        role: 'user',
         reportsToId: null,
         reportsToRole: null,
       };
 
       const expectedResponse = {
-        userId: "user-123",
-        message: "User profile created successfully",
+        userId: 'user-123',
+        message: 'User profile created successfully',
         success: true,
       };
 
@@ -76,112 +76,112 @@ describe("gRPC User Client Integration", () => {
       );
     });
 
-    it("should handle user service unavailable error", async () => {
+    it('should handle user service unavailable error', async () => {
       const userData = {
-        email: "test@example.com",
-        type: "customer",
-        fullName: "Test User",
-        role: "user",
+        email: 'test@example.com',
+        type: 'customer',
+        fullName: 'Test User',
+        role: 'user',
       };
 
       mockClient.CreateProfile.mockImplementation((data, options, callback) => {
-        const error = new Error("User service is not available");
+        const error = new Error('User service is not available');
         error.code = grpc.status.UNAVAILABLE;
         callback(error);
       });
 
       await expect(createUserProfile(userData)).rejects.toThrow(
-        "User service is not available"
+        'User service is not available'
       );
     });
 
-    it("should handle user not found error", async () => {
+    it('should handle user not found error', async () => {
       const userData = {
-        email: "test@example.com",
-        type: "customer",
-        fullName: "Test User",
-        role: "user",
+        email: 'test@example.com',
+        type: 'customer',
+        fullName: 'Test User',
+        role: 'user',
       };
 
       mockClient.CreateProfile.mockImplementation((data, options, callback) => {
-        const error = new Error("User not found");
+        const error = new Error('User not found');
         error.code = grpc.status.NOT_FOUND;
         callback(error);
       });
 
       await expect(createUserProfile(userData)).rejects.toThrow(
-        "User not found"
+        'User not found'
       );
     });
 
-    it("should handle validation errors", async () => {
+    it('should handle validation errors', async () => {
       const userData = {
-        email: "invalid-email",
-        type: "customer",
-        fullName: "Test User",
-        role: "user",
+        email: 'invalid-email',
+        type: 'customer',
+        fullName: 'Test User',
+        role: 'user',
       };
 
       mockClient.CreateProfile.mockImplementation((data, options, callback) => {
-        const error = new Error("Invalid email format");
+        const error = new Error('Invalid email format');
         error.code = grpc.status.INVALID_ARGUMENT;
         callback(error);
       });
 
       await expect(createUserProfile(userData)).rejects.toThrow(
-        "Invalid email format"
+        'Invalid email format'
       );
     });
 
-    it("should handle timeout errors", async () => {
+    it('should handle timeout errors', async () => {
       const userData = {
-        email: "test@example.com",
-        type: "customer",
-        fullName: "Test User",
-        role: "user",
+        email: 'test@example.com',
+        type: 'customer',
+        fullName: 'Test User',
+        role: 'user',
       };
 
       mockClient.CreateProfile.mockImplementation((data, options, callback) => {
-        const error = new Error("Request timeout");
+        const error = new Error('Request timeout');
         error.code = grpc.status.DEADLINE_EXCEEDED;
         callback(error);
       });
 
       await expect(createUserProfile(userData)).rejects.toThrow(
-        "Request timeout"
+        'Request timeout'
       );
     });
 
-    it("should handle internal server errors", async () => {
+    it('should handle internal server errors', async () => {
       const userData = {
-        email: "test@example.com",
-        type: "customer",
-        fullName: "Test User",
-        role: "user",
+        email: 'test@example.com',
+        type: 'customer',
+        fullName: 'Test User',
+        role: 'user',
       };
 
       mockClient.CreateProfile.mockImplementation((data, options, callback) => {
-        const error = new Error("Internal server error");
+        const error = new Error('Internal server error');
         error.code = grpc.status.INTERNAL;
         callback(error);
       });
 
       await expect(createUserProfile(userData)).rejects.toThrow(
-        "Internal server error"
+        'Internal server error'
       );
     });
 
-    it("should use correct deadline for requests", async () => {
+    it('should use correct deadline for requests', async () => {
       const userData = {
-        email: "test@example.com",
-        type: "customer",
-        fullName: "Test User",
-        role: "user",
+        email: 'test@example.com',
+        type: 'customer',
+        fullName: 'Test User',
+        role: 'user',
       };
 
       const expectedResponse = {
-        userId: "user-123",
-        message: "User profile created successfully",
+        userId: 'user-123',
+        message: 'User profile created successfully',
         success: true,
       };
 
@@ -194,18 +194,18 @@ describe("gRPC User Client Integration", () => {
       await createUserProfile(userData);
     });
 
-    it("should handle missing optional fields", async () => {
+    it('should handle missing optional fields', async () => {
       const userData = {
-        email: "test@example.com",
-        type: "customer",
-        fullName: "Test User",
-        role: "user",
+        email: 'test@example.com',
+        type: 'customer',
+        fullName: 'Test User',
+        role: 'user',
         // missing reportsToId and reportsToRole
       };
 
       const expectedResponse = {
-        userId: "user-123",
-        message: "User profile created successfully",
+        userId: 'user-123',
+        message: 'User profile created successfully',
         success: true,
       };
 
@@ -218,19 +218,19 @@ describe("gRPC User Client Integration", () => {
       expect(result).toEqual(expectedResponse);
     });
 
-    it("should handle admin user creation", async () => {
+    it('should handle admin user creation', async () => {
       const userData = {
-        email: "admin@example.com",
-        type: "admin",
-        fullName: "Admin User",
-        role: "admin",
+        email: 'admin@example.com',
+        type: 'admin',
+        fullName: 'Admin User',
+        role: 'admin',
         reportsToId: null,
         reportsToRole: null,
       };
 
       const expectedResponse = {
-        userId: "admin-123",
-        message: "Admin profile created successfully",
+        userId: 'admin-123',
+        message: 'Admin profile created successfully',
         success: true,
       };
 
@@ -244,17 +244,17 @@ describe("gRPC User Client Integration", () => {
     });
   });
 
-  describe("getUserById", () => {
-    it("should get user by ID successfully", async () => {
-      const userId = "user-123";
-      const type = "customer";
+  describe('getUserById', () => {
+    it('should get user by ID successfully', async () => {
+      const userId = 'user-123';
+      const type = 'customer';
 
       const expectedResponse = {
-        userId: "user-123",
-        email: "test@example.com",
-        fullName: "Test User",
-        type: "customer",
-        role: "user",
+        userId: 'user-123',
+        email: 'test@example.com',
+        fullName: 'Test User',
+        type: 'customer',
+        role: 'user',
         success: true,
       };
 
@@ -272,84 +272,84 @@ describe("gRPC User Client Integration", () => {
       );
     });
 
-    it("should handle user not found error", async () => {
-      const userId = "non-existent-user";
-      const type = "customer";
+    it('should handle user not found error', async () => {
+      const userId = 'non-existent-user';
+      const type = 'customer';
 
       mockClient.GetUserById.mockImplementation((data, options, callback) => {
-        const error = new Error("User not found");
+        const error = new Error('User not found');
         error.code = grpc.status.NOT_FOUND;
         callback(error);
       });
 
-      await expect(getUserById(userId, type)).rejects.toThrow("User not found");
+      await expect(getUserById(userId, type)).rejects.toThrow('User not found');
     });
 
-    it("should handle invalid user ID format", async () => {
-      const userId = "invalid-id-format";
-      const type = "customer";
+    it('should handle invalid user ID format', async () => {
+      const userId = 'invalid-id-format';
+      const type = 'customer';
 
       mockClient.GetUserById.mockImplementation((data, options, callback) => {
-        const error = new Error("Invalid user ID format");
+        const error = new Error('Invalid user ID format');
         error.code = grpc.status.INVALID_ARGUMENT;
         callback(error);
       });
 
       await expect(getUserById(userId, type)).rejects.toThrow(
-        "Invalid user ID format"
+        'Invalid user ID format'
       );
     });
 
-    it("should handle user type mismatch", async () => {
-      const userId = "user-123";
-      const type = "admin"; // wrong type
+    it('should handle user type mismatch', async () => {
+      const userId = 'user-123';
+      const type = 'admin'; // wrong type
 
       mockClient.GetUserById.mockImplementation((data, options, callback) => {
-        const error = new Error("User type mismatch");
+        const error = new Error('User type mismatch');
         error.code = grpc.status.FAILED_PRECONDITION;
         callback(error);
       });
 
       await expect(getUserById(userId, type)).rejects.toThrow(
-        "User type mismatch"
+        'User type mismatch'
       );
     });
 
-    it("should handle timeout errors", async () => {
-      const userId = "user-123";
-      const type = "customer";
+    it('should handle timeout errors', async () => {
+      const userId = 'user-123';
+      const type = 'customer';
 
       mockClient.GetUserById.mockImplementation((data, options, callback) => {
-        const error = new Error("Request timeout");
+        const error = new Error('Request timeout');
         error.code = grpc.status.DEADLINE_EXCEEDED;
         callback(error);
       });
 
       await expect(getUserById(userId, type)).rejects.toThrow(
-        "Request timeout"
+        'Request timeout'
       );
     });
 
-    it("should handle service unavailable errors", async () => {
-      const userId = "user-123";
-      const type = "customer";
+    it('should handle service unavailable errors', async () => {
+      const userId = 'user-123';
+      const type = 'customer';
 
       mockClient.GetUserById.mockImplementation((data, options, callback) => {
-        const error = new Error("Service unavailable");
+        const error = new Error('Service unavailable');
         error.code = grpc.status.UNAVAILABLE;
         callback(error);
       });
 
       await expect(getUserById(userId, type)).rejects.toThrow(
-        "Service unavailable"
+        'Service unavailable'
       );
     });
 
-    it("should handle different user types", async () => {
+    it('should handle different user types', async () => {
       const testCases = [
-        { userId: "user-123", type: "customer" },
-        { userId: "admin-456", type: "admin" },
-        { userId: "vendor-789", type: "vendor" },
+        { userId: 'user-123', type: 'customer' },
+        { userId: 'admin-456', type: 'admin' },
+        { userId: 'vendor-789', type: 'vendor' },
       ];
 
       for (const testCase of testCases) {
@@ -373,16 +373,16 @@ describe("gRPC User Client Integration", () => {
       }
     });
 
-    it("should use correct deadline for requests", async () => {
-      const userId = "user-123";
-      const type = "customer";
+    it('should use correct deadline for requests', async () => {
+      const userId = 'user-123';
+      const type = 'customer';
 
       const expectedResponse = {
-        userId: "user-123",
-        email: "test@example.com",
-        fullName: "Test User",
-        type: "customer",
-        role: "user",
+        userId: 'user-123',
+        email: 'test@example.com',
+        fullName: 'Test User',
+        type: 'customer',
+        role: 'user',
         success: true,
       };
 
@@ -396,8 +396,8 @@ describe("gRPC User Client Integration", () => {
     });
   });
 
-  describe("Error Handling", () => {
-    it("should map gRPC status codes to HTTP status codes correctly", async () => {
+  describe('Error Handling', () => {
+    it('should map gRPC status codes to HTTP status codes correctly', async () => {
       const statusCodeMappings = [
         { grpcCode: grpc.status.INVALID_ARGUMENT, httpCode: 400 },
         { grpcCode: grpc.status.UNAUTHENTICATED, httpCode: 401 },
@@ -410,15 +410,15 @@ describe("gRPC User Client Integration", () => {
 
       for (const mapping of statusCodeMappings) {
         const userData = {
-          email: "test@example.com",
-          type: "customer",
-          fullName: "Test User",
-          role: "user",
+          email: 'test@example.com',
+          type: 'customer',
+          fullName: 'Test User',
+          role: 'user',
         };
 
         mockClient.CreateProfile.mockImplementation(
           (data, options, callback) => {
-            const error = new Error("Test error");
+            const error = new Error('Test error');
             error.code = mapping.grpcCode;
             callback(error);
           }
@@ -433,16 +433,16 @@ describe("gRPC User Client Integration", () => {
       }
     });
 
-    it("should handle unknown gRPC status codes", async () => {
+    it('should handle unknown gRPC status codes', async () => {
       const userData = {
-        email: "test@example.com",
-        type: "customer",
-        fullName: "Test User",
-        role: "user",
+        email: 'test@example.com',
+        type: 'customer',
+        fullName: 'Test User',
+        role: 'user',
       };
 
       mockClient.CreateProfile.mockImplementation((data, options, callback) => {
-        const error = new Error("Unknown error");
+        const error = new Error('Unknown error');
         error.code = 999; // Unknown status code
         callback(error);
       });
@@ -455,18 +455,18 @@ describe("gRPC User Client Integration", () => {
       }
     });
 
-    it("should include error details in ApiError", async () => {
+    it('should include error details in ApiError', async () => {
       const userData = {
-        email: "test@example.com",
-        type: "customer",
-        fullName: "Test User",
-        role: "user",
+        email: 'test@example.com',
+        type: 'customer',
+        fullName: 'Test User',
+        role: 'user',
       };
 
       mockClient.CreateProfile.mockImplementation((data, options, callback) => {
-        const error = new Error("Validation failed");
+        const error = new Error('Validation failed');
         error.code = grpc.status.INVALID_ARGUMENT;
-        error.details = "Email format is invalid";
+        error.details = 'Email format is invalid';
         callback(error);
       });
 
@@ -474,19 +474,19 @@ describe("gRPC User Client Integration", () => {
         await createUserProfile(userData);
       } catch (error) {
         expect(error).toBeInstanceOf(ApiError);
-        expect(error.message).toContain("Validation failed");
-        expect(error.errors).toContain("Email format is invalid");
+        expect(error.message).toContain('Validation failed');
+        expect(error.errors).toContain('Email format is invalid');
       }
     });
   });
 
-  describe("Connection Management", () => {
-    it("should handle connection state changes", async () => {
+  describe('Connection Management', () => {
+    it('should handle connection state changes', async () => {
       const userData = {
-        email: "test@example.com",
-        type: "customer",
-        fullName: "Test User",
-        role: "user",
+        email: 'test@example.com',
+        type: 'customer',
+        fullName: 'Test User',
+        role: 'user',
       };
 
       // Mock connection state changes
@@ -495,8 +495,8 @@ describe("gRPC User Client Integration", () => {
       );
 
       const expectedResponse = {
-        userId: "user-123",
-        message: "User profile created successfully",
+        userId: 'user-123',
+        message: 'User profile created successfully',
         success: true,
       };
 
@@ -509,38 +509,38 @@ describe("gRPC User Client Integration", () => {
       expect(result).toEqual(expectedResponse);
     });
 
-    it("should handle connection failures gracefully", async () => {
+    it('should handle connection failures gracefully', async () => {
       const userData = {
-        email: "test@example.com",
-        type: "customer",
-        fullName: "Test User",
-        role: "user",
+        email: 'test@example.com',
+        type: 'customer',
+        fullName: 'Test User',
+        role: 'user',
       };
 
       mockClient.CreateProfile.mockImplementation((data, options, callback) => {
-        const error = new Error("Connection failed");
+        const error = new Error('Connection failed');
         error.code = grpc.status.UNAVAILABLE;
         callback(error);
       });
 
       await expect(createUserProfile(userData)).rejects.toThrow(
-        "Connection failed"
+        'Connection failed'
       );
     });
   });
 
-  describe("Performance", () => {
-    it("should handle concurrent requests efficiently", async () => {
+  describe('Performance', () => {
+    it('should handle concurrent requests efficiently', async () => {
       const userData = {
-        email: "test@example.com",
-        type: "customer",
-        fullName: "Test User",
-        role: "user",
+        email: 'test@example.com',
+        type: 'customer',
+        fullName: 'Test User',
+        role: 'user',
       };
 
       const expectedResponse = {
-        userId: "user-123",
-        message: "User profile created successfully",
+        userId: 'user-123',
+        message: 'User profile created successfully',
         success: true,
       };
 
@@ -556,23 +556,23 @@ describe("gRPC User Client Integration", () => {
       const results = await Promise.all(promises);
 
       expect(results).toHaveLength(5);
-      results.forEach((result) => {
+      results.forEach(result => {
         expect(result).toEqual(expectedResponse);
       });
     });
 
-    it("should respect request deadlines", async () => {
+    it('should respect request deadlines', async () => {
       const userData = {
-        email: "test@example.com",
-        type: "customer",
-        fullName: "Test User",
-        role: "user",
+        email: 'test@example.com',
+        type: 'customer',
+        fullName: 'Test User',
+        role: 'user',
       };
 
       // Mock slow response
       mockClient.CreateProfile.mockImplementation((data, options, callback) => {
         setTimeout(() => {
-          const error = new Error("Request timeout");
+          const error = new Error('Request timeout');
           error.code = grpc.status.DEADLINE_EXCEEDED;
           callback(error);
         }, 15000); // 15 seconds delay
@@ -585,66 +585,66 @@ describe("gRPC User Client Integration", () => {
       } catch (error) {
         const endTime = Date.now();
         expect(endTime - startTime).toBeLessThan(11000); // Should timeout within 10 seconds
-        expect(error.message).toContain("Request timeout");
+        expect(error.message).toContain('Request timeout');
       }
     });
   });
 
-  describe("Data Validation", () => {
-    it("should validate required fields in user data", async () => {
+  describe('Data Validation', () => {
+    it('should validate required fields in user data', async () => {
       const invalidUserData = {
         // missing email
-        type: "customer",
-        fullName: "Test User",
-        role: "user",
+        type: 'customer',
+        fullName: 'Test User',
+        role: 'user',
       };
 
       mockClient.CreateProfile.mockImplementation((data, options, callback) => {
-        const error = new Error("Missing required field: email");
+        const error = new Error('Missing required field: email');
         error.code = grpc.status.INVALID_ARGUMENT;
         callback(error);
       });
 
       await expect(createUserProfile(invalidUserData)).rejects.toThrow(
-        "Missing required field: email"
+        'Missing required field: email'
       );
     });
 
-    it("should validate email format", async () => {
+    it('should validate email format', async () => {
       const userData = {
-        email: "invalid-email-format",
-        type: "customer",
-        fullName: "Test User",
-        role: "user",
+        email: 'invalid-email-format',
+        type: 'customer',
+        fullName: 'Test User',
+        role: 'user',
       };
 
       mockClient.CreateProfile.mockImplementation((data, options, callback) => {
-        const error = new Error("Invalid email format");
+        const error = new Error('Invalid email format');
         error.code = grpc.status.INVALID_ARGUMENT;
         callback(error);
       });
 
       await expect(createUserProfile(userData)).rejects.toThrow(
-        "Invalid email format"
+        'Invalid email format'
       );
     });
 
-    it("should validate user type values", async () => {
+    it('should validate user type values', async () => {
       const userData = {
-        email: "test@example.com",
-        type: "invalid-type",
-        fullName: "Test User",
-        role: "user",
+        email: 'test@example.com',
+        type: 'invalid-type',
+        fullName: 'Test User',
+        role: 'user',
       };
 
       mockClient.CreateProfile.mockImplementation((data, options, callback) => {
-        const error = new Error("Invalid user type");
+        const error = new Error('Invalid user type');
         error.code = grpc.status.INVALID_ARGUMENT;
         callback(error);
       });
 
       await expect(createUserProfile(userData)).rejects.toThrow(
-        "Invalid user type"
+        'Invalid user type'
       );
     });
   });

@@ -4,7 +4,7 @@ import CircuitBreaker from 'opossum';
 
 /**
  * Industry-Standard Auth Cache
- * Professional caching with circuit breakers, performance metrics, and advanced features
+ * Professional caching with circuit breakers and advanced features
  */
 
 // ✅ Industry-standard cache prefixes
@@ -15,7 +15,7 @@ const PREFIX = {
   USER_PERMISSIONS: 'user:permissions:',
   RATE_LIMIT: 'rate:limit:',
   USER_STATS: 'user:stats:',
-  CACHE_METRICS: 'cache:metrics:',
+
   DISTRIBUTED_LOCK: 'lock:',
   CACHE_WARMING: 'warming:',
 };
@@ -28,7 +28,7 @@ const EXPIRY = {
   USER_PERMISSIONS: 30 * 60, // 30 minutes
   RATE_LIMIT: 15 * 60, // 15 minutes
   USER_STATS: 5 * 60, // 5 minutes
-  CACHE_METRICS: 60, // 1 minute
+
   DISTRIBUTED_LOCK: 30, // 30 seconds
   CACHE_WARMING: 300, // 5 minutes
 };
@@ -50,20 +50,13 @@ const CACHE_CONFIG = {
 class AuthCache {
   constructor() {
     this.redis = null;
-    this.metrics = {
-      hits: 0,
-      misses: 0,
-      errors: 0,
-      operations: 0,
-      lastReset: Date.now(),
-    };
+
     this.circuitBreaker = new CircuitBreaker(this._redisOperation.bind(this), {
       timeout: CACHE_CONFIG.CIRCUIT_BREAKER_TIMEOUT,
       errorThresholdPercentage: CACHE_CONFIG.CIRCUIT_BREAKER_THRESHOLD,
       resetTimeout: 30000,
     });
     this._setupCircuitBreakerListeners();
-    this._startMetricsCollection();
   }
 
   /**
@@ -121,53 +114,13 @@ class AuthCache {
   }
 
   /**
-   * Start metrics collection
-   */
-  _startMetricsCollection() {
-    setInterval(() => {
-      this._resetMetrics();
-    }, 60000); // Reset every minute
-  }
-
-  /**
-   * Reset metrics
-   */
-  _resetMetrics() {
-    this.metrics = {
-      hits: 0,
-      misses: 0,
-      errors: 0,
-      operations: 0,
-      lastReset: Date.now(),
-    };
-  }
-
-  /**
-   * Get cache metrics
-   */
-  getMetrics() {
-    const hitRate =
-      this.metrics.operations > 0
-        ? ((this.metrics.hits / this.metrics.operations) * 100).toFixed(2)
-        : 0;
-
-    return {
-      ...this.metrics,
-      hitRate: `${hitRate}%`,
-      circuitBreakerState: this.circuitBreaker.opened ? 'open' : 'closed',
-    };
-  }
-
-  /**
    * Wrapper for Redis operations with circuit breaker
    */
   async _redisOperation(operation, ...args) {
     try {
       const result = await operation(...args);
-      this.metrics.operations++;
       return result;
     } catch (error) {
-      this.metrics.errors++;
       throw error;
     }
   }
@@ -194,10 +147,8 @@ class AuthCache {
         }
       });
 
-      this.metrics.hits++;
       return result === 'OK';
     } catch (error) {
-      this.metrics.errors++;
       safeLogger.error('Cache set error', { key, error: error.message });
       return false;
     }
@@ -216,11 +167,8 @@ class AuthCache {
       );
 
       if (!value) {
-        this.metrics.misses++;
         return null;
       }
-
-      this.metrics.hits++;
 
       // Decompress if needed
       let parsedValue;
@@ -233,7 +181,6 @@ class AuthCache {
 
       return parsedValue;
     } catch (error) {
-      this.metrics.errors++;
       safeLogger.error('Cache get error', { key, error: error.message });
       return null;
     }
@@ -421,11 +368,9 @@ class AuthCache {
       });
 
       const results = await pipeline.exec();
-      this.metrics.operations += operations.length;
 
       return results.every(result => result[1] === 'OK');
     } catch (error) {
-      this.metrics.errors++;
       safeLogger.error('Batch set error', {
         error: error.message,
         operationCount: operations.length,
@@ -478,32 +423,6 @@ class AuthCache {
         error: error.message,
       });
       return [];
-    }
-  }
-
-  /**
-   * Health check for cache system
-   */
-  async healthCheck() {
-    try {
-      const redis = await this._getRedis();
-      const ping = await redis.ping();
-      const info = await redis.info();
-
-      return {
-        status: 'healthy',
-        ping: ping === 'PONG',
-        info: info ? 'Redis info available' : 'Redis info unavailable',
-        metrics: this.getMetrics(),
-        circuitBreaker: this.circuitBreaker.opened ? 'open' : 'closed',
-        timestamp: Date.now(),
-      };
-    } catch (error) {
-      return {
-        status: 'unhealthy',
-        error: error.message,
-        timestamp: Date.now(),
-      };
     }
   }
 
@@ -634,13 +553,11 @@ export const {
   getUserProfile,
   incrementRateLimit,
   getRateLimit,
-  getMetrics,
   acquireLock,
   releaseLock,
   batchSet,
   warmCache,
   getWarmingStatus,
-  healthCheck,
   initialize,
   shutdown,
 } = authCache;

@@ -1,138 +1,52 @@
-import { validateEnvType } from './utils.js';
 import { safeLogger } from './logger.js';
 
 /**
- * Redis Configuration Module
+ * Redis Configuration Module - Simple & Clean
  *
+ * Purpose: Essential Redis configuration for authService caching
  * Features:
- * - Centralized Redis configuration
- * - Environment-based configuration
- * - Validation and type checking
- * - Security settings
- * - Performance optimizations
- * - Cluster and Sentinel support
- * - Health monitoring settings
+ * - Core connection settings
+ * - Essential timeouts and retry
+ * - Security (TLS)
+ * - Performance optimization
  */
 
-// ✅ Redis Configuration
+// ✅ Core Redis Configuration
 export const redisConfig = {
-  // Basic Connection Settings
+  // Core Connection
   host: process.env.REDIS_HOST || 'localhost',
-  port: validateEnvType(process.env.REDIS_PORT, 'number', 6379),
-  password: process.env.REDIS_PASSWORD || '',
-  db: validateEnvType(process.env.REDIS_DB, 'number', 0),
+  port: parseInt(process.env.REDIS_PORT) || 6379,
+  password: process.env.REDIS_PASSWORD || undefined,
+  db: parseInt(process.env.REDIS_DB) || 0,
 
-  // Connection Options
-  connectTimeout: validateEnvType(
-    process.env.REDIS_CONNECT_TIMEOUT,
-    'number',
-    10000
-  ),
-  commandTimeout: validateEnvType(
-    process.env.REDIS_COMMAND_TIMEOUT,
-    'number',
-    5000
-  ),
-  lazyConnect: false, // only true if you want to connect to redis on startup
-  keepAlive: validateEnvType(process.env.REDIS_KEEPALIVE, 'number', 30000),
+  // Essential Timeouts
+  connectTimeout: 10000,
+  commandTimeout: 5000,
+  keepAlive: 30000,
 
-  // Retry Configuration
-  maxRetriesPerRequest: validateEnvType(
-    process.env.REDIS_MAX_RETRIES_PER_REQUEST,
-    'number',
-    3
-  ),
-  maxReconnectAttempts: validateEnvType(
-    process.env.REDIS_MAX_RECONNECT_ATTEMPTS,
-    'number',
-    5
-  ),
-  retryDelay: validateEnvType(process.env.REDIS_RETRY_DELAY, 'number', 100),
+  // Retry Strategy
+  maxRetriesPerRequest: 3,
+  retryDelayOnFailover: 100,
 
-  // Performance Settings
+  // Performance
+  enableAutoPipelining: true,
   enableReadyCheck: true,
   enableOfflineQueue: true,
-  enableAutoPipelining: true,
-  autoPipeliningIgnoredCommands: ['ping', 'info'],
 
-  // Security Settings
-  tls: validateEnvType(process.env.REDIS_TLS, 'boolean', false)
-    ? {
-        rejectUnauthorized: false,
-      }
-    : undefined,
+  // Security
+  tls:
+    process.env.REDIS_TLS === 'true'
+      ? {
+          rejectUnauthorized: false,
+        }
+      : undefined,
 
-  // Key Prefix
-  keyPrefix: process.env.REDIS_KEY_PREFIX || 'authService:',
+  // Key Management
+  keyPrefix: process.env.REDIS_KEY_PREFIX || 'auth:',
 
-  // Family (IPv4/IPv6)
-  family: validateEnvType(process.env.REDIS_FAMILY, 'number', 4),
-
-  // Slow Command Detection
-  slowCommandThreshold: validateEnvType(
-    process.env.REDIS_SLOW_COMMAND_THRESHOLD,
-    'number',
-    100
-  ),
-
-  // Health Monitoring
-  healthCheckInterval: validateEnvType(
-    process.env.REDIS_HEALTH_CHECK_INTERVAL,
-    'number',
-    30000
-  ),
-
-  // Cluster Configuration
-  cluster: {
-    enabled: validateEnvType(
-      process.env.REDIS_CLUSTER_ENABLED,
-      'boolean',
-      false
-    ),
-    enableReadyCheck: true,
-    scaleReads: process.env.REDIS_CLUSTER_SCALE_READS || 'slave',
-    maxRedirections: validateEnvType(
-      process.env.REDIS_CLUSTER_MAX_REDIRECTIONS,
-      'number',
-      16
-    ),
-    retryDelayOnFailover: validateEnvType(
-      process.env.REDIS_CLUSTER_RETRY_DELAY,
-      'number',
-      100
-    ),
-  },
-
-  // Sentinel Configuration
-  sentinel: {
-    enabled: validateEnvType(
-      process.env.REDIS_SENTINEL_ENABLED,
-      'boolean',
-      false
-    ),
-    password: process.env.REDIS_SENTINEL_PASSWORD,
-    masterName: process.env.REDIS_SENTINEL_MASTER_NAME || 'mymaster',
-    nodes: validateEnvType(process.env.REDIS_SENTINEL_NODES, 'array', []),
-  },
-
-  // Memory Management
-  maxMemoryPolicy: process.env.REDIS_MAX_MEMORY_POLICY || 'allkeys-lru',
-  maxMemory: process.env.REDIS_MAX_MEMORY,
-
-  // Logging
-  logging: {
-    enabled: validateEnvType(
-      process.env.REDIS_LOGGING_ENABLED,
-      'boolean',
-      true
-    ),
-    level: process.env.REDIS_LOG_LEVEL || 'info',
-    slowQueryLogging: validateEnvType(
-      process.env.REDIS_SLOW_QUERY_LOGGING,
-      'boolean',
-      true
-    ),
-  },
+  // Connection Options
+  lazyConnect: false,
+  family: 4, // IPv4
 };
 
 // ✅ Redis URL Construction
@@ -155,14 +69,13 @@ export const getRedisConnectionOptions = () => {
     db: redisConfig.db,
     connectTimeout: redisConfig.connectTimeout,
     commandTimeout: redisConfig.commandTimeout,
-    lazyConnect: redisConfig.lazyConnect,
     keepAlive: redisConfig.keepAlive,
     maxRetriesPerRequest: redisConfig.maxRetriesPerRequest,
     enableReadyCheck: redisConfig.enableReadyCheck,
     enableOfflineQueue: redisConfig.enableOfflineQueue,
     enableAutoPipelining: redisConfig.enableAutoPipelining,
-    autoPipeliningIgnoredCommands: redisConfig.autoPipeliningIgnoredCommands,
     keyPrefix: redisConfig.keyPrefix,
+    lazyConnect: redisConfig.lazyConnect,
     family: redisConfig.family,
   };
 
@@ -171,87 +84,44 @@ export const getRedisConnectionOptions = () => {
     options.tls = redisConfig.tls;
   }
 
-  // Add cluster configuration if enabled
-  if (redisConfig.cluster.enabled) {
-    options.cluster = {
-      enableReadyCheck: redisConfig.cluster.enableReadyCheck,
-      scaleReads: redisConfig.cluster.scaleReads,
-      maxRedirections: redisConfig.cluster.maxRedirections,
-      retryDelayOnFailover: redisConfig.cluster.retryDelayOnFailover,
-    };
-  }
-
-  // Add sentinel configuration if enabled
-  if (redisConfig.sentinel.enabled) {
-    options.sentinels = redisConfig.sentinel.nodes;
-    options.name = redisConfig.sentinel.masterName;
-    if (redisConfig.sentinel.password) {
-      options.sentinelPassword = redisConfig.sentinel.password;
-    }
-  }
-
   return options;
 };
 
 // ✅ Redis Retry Strategy
 export const getRedisRetryStrategy = () => {
   return times => {
-    const maxRetries = redisConfig.maxReconnectAttempts;
-    const backoffDelay = Math.min(times * redisConfig.retryDelay, 2000);
+    const maxRetries = 5;
+    const backoffDelay = Math.min(times * 100, 2000);
 
     if (times > maxRetries) {
-      safeLogger.error('Redis max retries exceeded', {
-        times,
-        maxRetries,
-        host: redisConfig.host,
-        port: redisConfig.port,
-      });
+      safeLogger.error('Redis max retries exceeded', { times, maxRetries });
       return null; // Stop retrying
     }
-
-    safeLogger.warn('Redis retry attempt', {
-      attempt: times,
-      maxRetries,
-      delay: `${backoffDelay}ms`,
-    });
 
     return backoffDelay;
   };
 };
 
-// ✅ Redis Configuration Validation
+// ✅ Basic Configuration Validation
 export const validateRedisConfig = () => {
   const errors = [];
 
-  // Validate required fields
   if (!redisConfig.host) {
     errors.push('REDIS_HOST is required');
   }
 
-  if (!redisConfig.port || redisConfig.port < 1 || redisConfig.port > 65535) {
+  if (redisConfig.port < 1 || redisConfig.port > 65535) {
     errors.push('REDIS_PORT must be a valid port number (1-65535)');
-  }
-
-  // Validate cluster configuration
-  if (redisConfig.cluster.enabled && redisConfig.sentinel.enabled) {
-    errors.push('Cannot enable both Redis Cluster and Sentinel simultaneously');
-  }
-
-  // Validate sentinel configuration
-  if (redisConfig.sentinel.enabled && redisConfig.sentinel.nodes.length === 0) {
-    errors.push('REDIS_SENTINEL_NODES is required when Sentinel is enabled');
   }
 
   if (errors.length > 0) {
     safeLogger.error('Redis configuration validation failed', { errors });
     throw new Error(`Redis configuration errors: ${errors.join(', ')}`);
   }
-  safeLogger.info('Redis config being used', getRedisConnectionOptions());
-  safeLogger.info('Redis configuration validation passed', {
+
+  safeLogger.info('Redis configuration validated', {
     host: redisConfig.host,
     port: redisConfig.port,
-    cluster: redisConfig.cluster.enabled,
-    sentinel: redisConfig.sentinel.enabled,
     tls: !!redisConfig.tls,
   });
 };

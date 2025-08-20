@@ -1,7 +1,7 @@
 import rabbitMQConnection from '../connection.js';
 import { safeLogger } from '../../config/logger.js';
 import { rabbitMQConfig } from '../../config/rabbitMQ.js';
-import { ApiError } from '../../utils/ApiError.js';
+import { ApiError } from '../../utils/index.js';
 import { getCorrelationId } from '../../config/requestContext.js';
 import { updateEventMetrics } from '../index.js';
 /**

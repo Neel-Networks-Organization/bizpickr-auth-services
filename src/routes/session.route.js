@@ -21,7 +21,7 @@ import {
   requireRole,
   auditLog,
 } from '../middlewares/auth.middleware.js';
-import { asyncHandler } from '../utils/asyncHandler.js';
+import { asyncHandler } from '../utils/index.js';
 
 const router = Router();
 

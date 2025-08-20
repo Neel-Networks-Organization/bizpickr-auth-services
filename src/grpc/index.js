@@ -9,7 +9,7 @@ import {
   stopMonitoring,
   getUserServiceHealth,
 } from './client/userHealth.js';
-import { ApiError } from '../utils/ApiError.js';
+import { ApiError } from '../utils/index.js';
 /**
  * Industry-level gRPC Service Manager
  *

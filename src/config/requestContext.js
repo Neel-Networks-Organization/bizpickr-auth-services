@@ -3,60 +3,47 @@ import { v4 as uuidv4 } from 'uuid';
 import { safeLogger } from './logger.js';
 
 /**
- * Request Context Management
+ * Request Context Management - Industry Standard
  *
+ * Purpose: Request tracing and correlation for distributed systems
  * Features:
  * - AsyncLocalStorage for request context
  * - Correlation ID generation and tracking
- * - Request metadata management
- * - Performance monitoring
- * - Security context
- * - Audit trail support
+ * - Request metadata for distributed tracing
+ * - Header propagation for microservices
+ * - Industry-standard tracing headers
  */
 
 // ✅ AsyncLocalStorage for request context
 const asyncLocalStorage = new AsyncLocalStorage();
 
-// ✅ Request context structure
+// ✅ Industry-standard request context structure
 const createRequestContext = (req = null) => ({
-  // Core identifiers
+  // ✅ CORRECT - Request tracing identifiers
   correlationId: req?.headers['x-correlation-id'] || uuidv4(),
   requestId: req?.headers['x-request-id'] || uuidv4(),
-  sessionId: req?.headers['x-session-id'] || null,
+  traceId: req?.headers['x-trace-id'] || uuidv4(),
+  spanId: req?.headers['x-span-id'] || uuidv4(),
 
-  // User context
-  userId: null,
-  userRole: null,
-  userPermissions: [],
-
-  // Request metadata
+  // ✅ CORRECT - Basic request metadata
   method: req?.method || null,
   url: req?.url || null,
   userAgent: req?.headers['user-agent'] || null,
   ipAddress: req?.ip || req?.connection?.remoteAddress || null,
 
-  // Performance tracking
+  // ✅ CORRECT - Request lifecycle timestamp
   startTime: Date.now(),
-  timers: new Map(),
 
-  // Security context
-  isAuthenticated: false,
-  authToken: req?.headers?.authorization || null,
-  clientVersion: req?.headers['x-client-version'] || null,
-  clientPlatform: req?.headers['x-client-platform'] || null,
+  // ✅ CORRECT - Headers for propagation
+  headers: req?.headers || {},
 
-  // Business context
-  tenantId: req?.headers['x-tenant-id'] || null,
-  organizationId: req?.headers['x-organization-id'] || null,
+  // ✅ CORRECT - Request path and query
+  path: req?.path || null,
+  query: req?.query || null,
 
-  // Audit trail
-  auditEvents: [],
-
-  // Error tracking
-  errors: [],
-
-  // Custom metadata
-  metadata: new Map(),
+  // ✅ CORRECT - Content type and length
+  contentType: req?.headers['content-type'] || null,
+  contentLength: req?.headers['content-length'] || null,
 });
 
 // ✅ Get current request context
@@ -86,101 +73,44 @@ export const getRequestId = () => {
   return context.requestId;
 };
 
-// ✅ Set user context
-const setUserContext = (userId, userRole, permissions = []) => {
+// ✅ Get trace ID
+export const getTraceId = () => {
   const context = getRequestContext();
-  context.userId = userId;
-  context.userRole = userRole;
-  context.userPermissions = permissions;
-  context.isAuthenticated = true;
+  return context.traceId;
 };
 
-// ✅ Get user context
-const getUserContext = () => {
+// ✅ Get span ID
+export const getSpanId = () => {
+  const context = getRequestContext();
+  return context.spanId;
+};
+
+// ✅ Get request metadata
+export const getRequestMetadata = () => {
   const context = getRequestContext();
   return {
-    userId: context.userId,
-    userRole: context.userRole,
-    userPermissions: context.userPermissions,
-    isAuthenticated: context.isAuthenticated,
+    method: context.method,
+    url: context.url,
+    path: context.path,
+    ipAddress: context.ipAddress,
+    userAgent: context.userAgent,
+    contentType: context.contentType,
+    contentLength: context.contentLength,
   };
 };
 
-// ✅ Add audit event
-const addAuditEvent = (event, details = {}) => {
-  const context = getRequestContext();
-  context.auditEvents.push({
-    event,
-    details,
-    timestamp: new Date().toISOString(),
-    correlationId: context.correlationId,
-  });
-};
-
-// ✅ Add error to context
-const addError = error => {
-  const context = getRequestContext();
-  context.errors.push({
-    message: error.message,
-    stack: error.stack,
-    timestamp: new Date().toISOString(),
-    correlationId: context.correlationId,
-  });
-};
-
-// ✅ Add metadata
-const addMetadata = (key, value) => {
-  const context = getRequestContext();
-  context.metadata.set(key, value);
-};
-
-// ✅ Get metadata
-const getMetadata = key => {
-  const context = getRequestContext();
-  return context.metadata.get(key);
-};
-
-// ✅ Start timer
-const startTimer = name => {
-  const context = getRequestContext();
-  context.timers.set(name, Date.now());
-};
-
-// ✅ End timer
-const endTimer = name => {
-  const context = getRequestContext();
-  const startTime = context.timers.get(name);
-  if (startTime) {
-    const duration = Date.now() - startTime;
-    context.timers.delete(name);
-    return duration;
-  }
-  return null;
-};
-
-// ✅ Get timer duration
-const getTimerDuration = name => {
-  const context = getRequestContext();
-  const startTime = context.timers.get(name);
-  if (startTime) {
-    return Date.now() - startTime;
-  }
-  return null;
-};
-
-// ✅ Get context summary
-const getContextSummary = () => {
+// ✅ Get context summary for logging
+export const getContextSummary = () => {
   const context = getRequestContext();
   return {
     correlationId: context.correlationId,
     requestId: context.requestId,
-    userId: context.userId,
+    traceId: context.traceId,
+    spanId: context.spanId,
     method: context.method,
     url: context.url,
+    path: context.path,
     duration: Date.now() - context.startTime,
-    errorCount: context.errors.length,
-    auditEventCount: context.auditEvents.length,
-    metadataCount: context.metadata.size,
   };
 };
 
@@ -193,32 +123,23 @@ const clearContext = () => {
 export const correlationIdMiddleware = (req, res, next) => {
   const context = createRequestContext(req);
 
-  // Set correlation ID in response headers
+  // ✅ Set industry-standard tracing headers in response
   res.setHeader('x-correlation-id', context.correlationId);
   res.setHeader('x-request-id', context.requestId);
+  res.setHeader('x-trace-id', context.traceId);
+  res.setHeader('x-span-id', context.spanId);
 
-  // Add context to request
+  // ✅ Add context to request for easy access
   req.correlationId = context.correlationId;
   req.requestId = context.requestId;
+  req.traceId = context.traceId;
+  req.spanId = context.spanId;
 
-  // Run request in async context
+  // ✅ Run request in async context
   asyncLocalStorage.run(context, () => {
     next();
   });
 };
 
-// ✅ Export all functions
-export {
-  createRequestContext,
-  setRequestContext,
-  getUserContext,
-  addAuditEvent,
-  addError,
-  addMetadata,
-  getMetadata,
-  startTimer,
-  endTimer,
-  getTimerDuration,
-  getContextSummary,
-  clearContext,
-};
+// ✅ Export only industry-standard functions
+export { createRequestContext, setRequestContext, clearContext };

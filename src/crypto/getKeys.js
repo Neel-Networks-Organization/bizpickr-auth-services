@@ -3,7 +3,7 @@ import path from 'path';
 import { importPKCS8, importSPKI } from 'jose/key/import';
 import { getCurrentKeyMeta } from './keyManager.js';
 import { safeLogger } from '../config/logger.js';
-import { ApiError } from '../utils/ApiError.js';
+import { ApiError } from '../utils/index.js';
 /**
  * Industry-level Key Management Service
  *

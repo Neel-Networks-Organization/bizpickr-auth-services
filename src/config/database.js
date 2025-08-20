@@ -1,20 +1,18 @@
 import { config } from 'dotenv';
 config(); // Load .env file first
 
-import { validateEnvType } from './utils.js';
 import { safeLogger } from './logger.js';
 
 /**
- * Database Configuration Module
+ * Database Configuration Module - Industry Standard
  *
+ * Purpose: MySQL database configuration for production microservices
  * Features:
- * - Centralized database configuration
- * - Environment-based configuration
- * - Validation and type checking
- * - Security settings
- * - Performance optimizations
- * - Connection pooling settings
- * - SSL configuration
+ * - Core connection settings
+ * - Connection pooling
+ * - Security (SSL)
+ * - Performance optimization
+ * - Retry mechanisms
  */
 
 // ✅ Database Configuration
@@ -22,7 +20,7 @@ export const databaseConfig = {
   // MySQL Configuration
   mysql: {
     host: process.env.DB_HOST || 'localhost',
-    port: validateEnvType(process.env.DB_PORT, 'number', 3306),
+    port: parseInt(process.env.DB_PORT) || 3306,
     database: process.env.DB_NAME || 'auth_service',
     username: process.env.DB_USER || 'root',
     password: process.env.DB_PASSWORD || '',
@@ -30,34 +28,25 @@ export const databaseConfig = {
 
     // Connection Pool
     pool: {
-      max: validateEnvType(process.env.DB_POOL_MAX, 'number', 20),
-      min: validateEnvType(process.env.DB_POOL_MIN, 'number', 5),
-      acquire: validateEnvType(process.env.DB_POOL_ACQUIRE, 'number', 60000),
-      idle: validateEnvType(process.env.DB_POOL_IDLE, 'number', 10000),
-      evict: validateEnvType(process.env.DB_POOL_EVICT, 'number', 60000),
+      max: parseInt(process.env.DB_POOL_MAX) || 20,
+      min: parseInt(process.env.DB_POOL_MIN) || 5,
+      acquire: parseInt(process.env.DB_POOL_ACQUIRE) || 60000,
+      idle: parseInt(process.env.DB_POOL_IDLE) || 10000,
+      evict: parseInt(process.env.DB_POOL_EVICT) || 60000,
     },
 
     // Connection Options
-    connectTimeout: validateEnvType(
-      process.env.DB_CONNECT_TIMEOUT,
-      'number',
-      60000
-    ),
-    acquireTimeout: validateEnvType(
-      process.env.DB_ACQUIRE_TIMEOUT,
-      'number',
-      60000
-    ),
-    timeout: validateEnvType(process.env.DB_TIMEOUT, 'number', 60000),
+    connectTimeout: parseInt(process.env.DB_CONNECT_TIMEOUT) || 60000,
+    acquireTimeout: parseInt(process.env.DB_ACQUIRE_TIMEOUT) || 60000,
+    timeout: parseInt(process.env.DB_TIMEOUT) || 60000,
 
     // Logging
-    logging: validateEnvType(process.env.DB_LOGGING, 'boolean', false),
+    logging: process.env.DB_LOGGING === 'true',
     benchmark: process.env.NODE_ENV === 'development',
 
     // SSL Configuration
     ssl:
-      process.env.NODE_ENV === 'production' ||
-      validateEnvType(process.env.DB_SSL, 'boolean', false)
+      process.env.NODE_ENV === 'production' || process.env.DB_SSL === 'true'
         ? {
             require: true,
             rejectUnauthorized: false,
@@ -78,17 +67,9 @@ export const databaseConfig = {
 
     // Retry Configuration
     retry: {
-      max: validateEnvType(process.env.DB_RETRY_MAX, 'number', 3),
-      backoffBase: validateEnvType(
-        process.env.DB_RETRY_BACKOFF_BASE,
-        'number',
-        1000
-      ),
-      backoffExponent: validateEnvType(
-        process.env.DB_RETRY_BACKOFF_EXPONENT,
-        'number',
-        1.5
-      ),
+      max: parseInt(process.env.DB_RETRY_MAX) || 3,
+      backoffBase: parseInt(process.env.DB_RETRY_BACKOFF_BASE) || 1000,
+      backoffExponent: parseFloat(process.env.DB_RETRY_BACKOFF_EXPONENT) || 1.5,
     },
 
     // Model Settings
@@ -104,18 +85,6 @@ export const databaseConfig = {
     isolationLevel: 'READ_COMMITTED',
   },
 };
-
-// Debug print
-// console.log("DATABASE CONFIG DEBUG:", {
-//   host: databaseConfig.mysql.host,
-//   port: databaseConfig.mysql.port,
-//   database: databaseConfig.mysql.database,
-//   username: databaseConfig.mysql.username,
-//   password: databaseConfig.mysql.password
-//     ? `${databaseConfig.mysql.password.substring(0, 3)}***`
-//     : "empty",
-//   processEnvPassword: process.env.DB_PASSWORD ? "exists" : "missing",
-// });
 
 // ✅ Database URL Construction
 export const getDatabaseUrl = () => {
@@ -146,8 +115,6 @@ export const getDatabaseConnectionOptions = () => {
     // Connection options
     dialectOptions: {
       connectTimeout: mysql.connectTimeout,
-      // acquireTimeout: mysql.acquireTimeout,
-      // timeout: mysql.timeout,
       charset: mysql.charset,
       supportBigNumbers: mysql.supportBigNumbers,
       bigNumberStrings: mysql.bigNumberStrings,
@@ -212,7 +179,8 @@ export const validateDatabaseConfig = () => {
     safeLogger.error('Database configuration validation failed', { errors });
     throw new Error(`Database configuration errors: ${errors.join(', ')}`);
   }
-  safeLogger.info('Database configuration validation passed', {
+
+  safeLogger.info('Database configuration validated', {
     host: mysql.host,
     port: mysql.port,
     database: mysql.database,

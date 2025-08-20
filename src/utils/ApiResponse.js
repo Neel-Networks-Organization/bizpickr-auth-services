@@ -3,22 +3,48 @@ class ApiResponse {
   constructor(statusCode, data, message, details = undefined) {
     // Convert string status codes to numbers
     const numericStatusCode = Number(statusCode);
+
     // Validate status code
-    if (isNaN(numericStatusCode) || numericStatusCode < 0) {
-      throw new Error('Invalid HTTP status code');
+    if (
+      isNaN(numericStatusCode) ||
+      numericStatusCode < 100 ||
+      numericStatusCode > 599
+    ) {
+      throw new Error('Invalid HTTP status code. Must be between 100 and 599');
     }
+
     this.statusCode = numericStatusCode;
     this.data = data;
-    this.message = message;
-    this.success = numericStatusCode < 400;
+    this.message = message || this.getDefaultMessage(statusCode);
+    this.success = numericStatusCode >= 200 && numericStatusCode < 300;
     this.details = details;
     this.timestamp = new Date().toISOString();
     this.isOperational = true;
   }
+
+  // Get default message based on status code
+  getDefaultMessage(statusCode) {
+    const messages = {
+      200: 'OK',
+      201: 'Created',
+      204: 'No Content',
+      400: 'Bad Request',
+      401: 'Unauthorized',
+      403: 'Forbidden',
+      404: 'Not Found',
+      409: 'Conflict',
+      422: 'Unprocessable Entity',
+      500: 'Internal Server Error',
+      503: 'Service Unavailable',
+    };
+    return messages[statusCode] || 'Response';
+  }
+
   // Static factory methods for common responses
   static success(data, message = 'Success', details = undefined) {
     return new ApiResponse(200, data, message, details);
   }
+
   static created(
     data,
     message = 'Resource created successfully',
@@ -26,12 +52,15 @@ class ApiResponse {
   ) {
     return new ApiResponse(201, data, message, details);
   }
+
   static noContent(message = 'No content', details = undefined) {
     return new ApiResponse(204, null, message, details);
   }
+
   static badRequest(data = null, message = 'Bad Request', details = undefined) {
     return new ApiResponse(400, data, message, details);
   }
+
   static unauthorized(
     data = null,
     message = 'Unauthorized',
@@ -39,9 +68,11 @@ class ApiResponse {
   ) {
     return new ApiResponse(401, data, message, details);
   }
+
   static forbidden(data = null, message = 'Forbidden', details = undefined) {
     return new ApiResponse(403, data, message, details);
   }
+
   static notFound(
     data = null,
     message = 'Resource not found',
@@ -49,9 +80,11 @@ class ApiResponse {
   ) {
     return new ApiResponse(404, data, message, details);
   }
+
   static conflict(data = null, message = 'Conflict', details = undefined) {
     return new ApiResponse(409, data, message, details);
   }
+
   static unprocessableEntity(
     data = null,
     message = 'Unprocessable Entity',
@@ -59,6 +92,7 @@ class ApiResponse {
   ) {
     return new ApiResponse(422, data, message, details);
   }
+
   static internalServerError(
     data = null,
     message = 'Internal Server Error',
@@ -66,6 +100,7 @@ class ApiResponse {
   ) {
     return new ApiResponse(500, data, message, details);
   }
+
   static serviceUnavailable(
     data = null,
     message = 'Service Unavailable',
@@ -73,11 +108,13 @@ class ApiResponse {
   ) {
     return new ApiResponse(503, data, message, details);
   }
+
   // Add metadata to response
   addMetadata(metadata) {
     this.metadata = { ...this.metadata, ...metadata };
     return this;
   }
+
   // Add pagination info
   addPagination(page, limit, total, totalPages) {
     this.pagination = {
@@ -90,11 +127,13 @@ class ApiResponse {
     };
     return this;
   }
+
   // Add headers
   addHeaders(headers) {
     this.headers = { ...this.headers, ...headers };
     return this;
   }
+
   // Set cache control
   setCacheControl(maxAge = 3600, isPublic = true) {
     const visibility = isPublic ? 'public' : 'private';
@@ -104,6 +143,7 @@ class ApiResponse {
     };
     return this;
   }
+
   // Convert to JSON
   toJSON() {
     const response = {
@@ -113,6 +153,7 @@ class ApiResponse {
       data: this.data,
       timestamp: this.timestamp,
     };
+
     if (this.details) {
       response.details = this.details;
     }
@@ -122,28 +163,38 @@ class ApiResponse {
     if (this.pagination) {
       response.pagination = this.pagination;
     }
+    if (this.headers) {
+      response.headers = this.headers;
+    }
+
     return response;
   }
+
   // Convert to string
   toString() {
     return `ApiResponse: ${this.statusCode} - ${this.message}`;
   }
+
   // Check if response is successful
   isSuccess() {
     return this.success;
   }
+
   // Check if response is an error
   isError() {
     return !this.success;
   }
+
   // Check if response is client error (4xx)
   isClientError() {
     return this.statusCode >= 400 && this.statusCode < 500;
   }
+
   // Check if response is server error (5xx)
   isServerError() {
     return this.statusCode >= 500 && this.statusCode < 600;
   }
+
   // Get response type
   getType() {
     if (this.statusCode < 200) return 'informational';
@@ -152,6 +203,7 @@ class ApiResponse {
     if (this.statusCode < 500) return 'client_error';
     return 'server_error';
   }
+
   // Clone response
   clone() {
     const cloned = new ApiResponse(
@@ -165,6 +217,7 @@ class ApiResponse {
     if (this.headers) cloned.headers = { ...this.headers };
     return cloned;
   }
+
   // Transform data
   transform(transformer) {
     if (typeof transformer === 'function') {
@@ -172,10 +225,12 @@ class ApiResponse {
     }
     return this;
   }
+
   // Add custom fields
   addField(key, value) {
     this[key] = value;
     return this;
   }
 }
+
 export { ApiResponse };

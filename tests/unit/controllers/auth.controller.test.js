@@ -20,7 +20,7 @@ import {
 
 // Import models and utilities
 import AuthUser from '../../../src/models/authUser.model.js';
-import { ApiError } from '../../../src/utils/ApiError.js';
+import { ApiError } from '../../../src/utils/index.js';
 import {
   createUserProfile,
   getUserById,

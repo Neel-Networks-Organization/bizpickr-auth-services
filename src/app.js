@@ -7,7 +7,6 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import compression from 'compression';
 
-import { safeLogger } from './config/logger.js';
 import {
   correlationIdMiddleware,
   enterpriseLoggingMiddleware,
@@ -17,13 +16,7 @@ import {
   enterpriseErrorHandler,
   enterpriseAuthMiddleware,
 } from './middlewares/enterprise.middleware.js';
-import {
-  checkDb,
-  checkRedis,
-  checkRabbitMQ,
-  checkGrpc,
-  checkMongoDB,
-} from './utils/healthChecks.js';
+
 const allowedOrigins = ['http://localhost:3000'];
 const app = express();
 const __filename = fileURLToPath(import.meta.url);
@@ -78,7 +71,6 @@ import userRoutes from './routes/user.routes.js';
 import sessionRoutes from './routes/session.route.js';
 import passwordRoutes from './routes/password.route.js';
 import jwkRoutes from './routes/jwk.route.js';
-import metricsRoutes from './routes/metrics.route.js';
 
 // Route Registration
 app.use('/api/v1/auth', authRoutes);
@@ -86,13 +78,6 @@ app.use('/api/v1/users', userRoutes);
 app.use('/api/v1/sessions', sessionRoutes);
 app.use('/api/v1/password', passwordRoutes);
 app.use('/api/v1/jwk', jwkRoutes);
-
-// ✅ Health Check Routes
-import healthRoutes from './routes/health.route.js';
-app.use('/health', healthRoutes);
-
-// ✅ Metrics Routes
-app.use('/metrics', metricsRoutes);
 
 // ✅ API Documentation
 import docsRoutes from './routes/docs.route.js';

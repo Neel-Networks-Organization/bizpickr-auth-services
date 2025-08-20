@@ -7,9 +7,7 @@
  * - Activity tracking
  * - User statistics
  */
-import { asyncHandler } from '../utils/asyncHandler.js';
-import { ApiError } from '../utils/ApiError.js';
-import { ApiResponse } from '../utils/ApiResponse.js';
+import { asyncHandler, ApiError, ApiResponse } from '../utils/index.js';
 import { safeLogger } from '../config/logger.js';
 import userService from '../services/user.service.js';
 import { verifyJWT } from '../middlewares/auth.middleware.js';

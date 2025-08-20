@@ -10,7 +10,6 @@
  * - OAuthService: OAuth integration
  * - EmailVerificationService: Email verification
  * - TwoFactorService: Two-factor authentication
- * - DeviceFingerprintService: Device fingerprinting
  * - EmailService: Email operations
  * - PermissionService: Permission management
  */
@@ -23,7 +22,6 @@ import jwkService from './jwk.service.js';
 import oauthService from './oauth.service.js';
 import emailVerificationService from './emailVerification.service.js';
 import twoFactorService from './twoFactor.service.js';
-import { deviceFingerprintService } from './deviceFingerprint.service.js';
 import emailService from './email.service.js';
 import permissionService from './permission.service.js';
 
@@ -37,7 +35,6 @@ const serviceRegistry = {
   oauth: oauthService,
   emailVerification: emailVerificationService,
   twoFactor: twoFactorService,
-  deviceFingerprint: deviceFingerprintService,
   email: emailService,
   permission: permissionService,
 };
@@ -51,7 +48,6 @@ export {
   oauthService,
   emailVerificationService,
   twoFactorService,
-  deviceFingerprintService,
   emailService,
   permissionService,
 };

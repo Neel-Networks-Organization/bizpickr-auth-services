@@ -4,11 +4,7 @@ import { safeLogger } from './logger.js';
 
 /**
  * RabbitMQ Configuration (Production-Ready, Industry Best Practice)
- *
- * - Centralized, explicit, and safe config structure
- * - All queue, exchange, and consumer options are defined here
- * - Per-queue overrides and global defaults
- * - Utility for safe consumer config access with logging
+ * Integrated with Event System
  */
 
 // =========================
@@ -32,17 +28,34 @@ export const MESSAGE_PRIORITIES = {
 };
 
 // =========================
-// Message Types
+// Event Types (Centralized)
 // =========================
-export const MESSAGE_TYPES = {
+export const EVENT_TYPES = {
+  // User Events
   USER_CREATED: 'user.created',
   USER_VERIFIED: 'user.verified',
+  USER_UPDATED: 'user.updated',
+  USER_DELETED: 'user.deleted',
+
+  // Authentication Events
   EMAIL_VERIFICATION: 'email.verification',
   PASSWORD_RESET: 'password.reset',
   LOGIN_ATTEMPT: 'login.attempt',
-  NOTIFICATION: 'notification',
+  LOGOUT: 'logout',
+
+  // Email Events
   WELCOME_EMAIL: 'welcome.email',
   ACCOUNT_ACTIVATION: 'account.activation',
+  NOTIFICATION: 'notification',
+
+  // Security Events
+  SECURITY_ALERT: 'security.alert',
+  SUSPICIOUS_ACTIVITY: 'suspicious.activity',
+
+  // System Events
+  SYSTEM_HEALTH: 'system.health',
+  SERVICE_STARTUP: 'service.startup',
+  SERVICE_SHUTDOWN: 'service.shutdown',
 };
 
 // =========================
@@ -86,7 +99,6 @@ export const rabbitMQConfig = {
         },
       },
     },
-
     events: {
       name: 'events_exchange',
       type: EXCHANGE_TYPES.TOPIC,
@@ -99,15 +111,15 @@ export const rabbitMQConfig = {
         },
       },
     },
-    audit: {
-      name: 'audit_exchange',
-      type: EXCHANGE_TYPES.DIRECT,
+    notifications: {
+      name: 'notifications_exchange',
+      type: EXCHANGE_TYPES.FANOUT,
       options: {
         durable: true,
         autoDelete: false,
         arguments: {
-          'x-message-ttl': 31536000000, // 1 year
-          'x-max-length': 100000,
+          'x-message-ttl': 3600000, // 1 hour
+          'x-max-length': 1000,
         },
       },
     },
@@ -124,148 +136,13 @@ export const rabbitMQConfig = {
   // Queue configurations
   queues: {
     userCreated: {
-      name: 'user_created_queue',
+      name: 'auth_user_created_queue',
       options: {
         durable: true,
         deadLetterExchange: 'auth_dlx',
         deadLetterRoutingKey: 'user.created.failed',
-        messageTtl: 86400000,
+        messageTtl: 86400000, // 24 hours
         maxLength: 1000,
-        maxPriority: MESSAGE_PRIORITIES.CRITICAL, // Changed from HIGH to CRITICAL
-        arguments: {
-          'x-queue-mode': 'lazy',
-          'x-max-priority': MESSAGE_PRIORITIES.CRITICAL, // Changed from HIGH to CRITICAL
-        },
-      },
-      bindings: [
-        {
-          exchange: 'auth_exchange',
-          routingKey: MESSAGE_TYPES.USER_CREATED,
-          arguments: {},
-        },
-      ],
-    },
-    userVerified: {
-      name: 'user_verified_queue',
-      options: {
-        durable: true,
-        deadLetterExchange: 'auth_dlx',
-        deadLetterRoutingKey: 'user.verified.failed',
-        messageTtl: 86400000,
-        maxLength: 1000,
-        maxPriority: MESSAGE_PRIORITIES.NORMAL,
-        arguments: {
-          'x-queue-mode': 'lazy',
-          'x-max-priority': MESSAGE_PRIORITIES.NORMAL,
-        },
-      },
-      bindings: [
-        {
-          exchange: 'auth_exchange',
-          routingKey: MESSAGE_TYPES.USER_VERIFIED,
-          arguments: {},
-        },
-      ],
-    },
-    emailVerification: {
-      name: 'email_verification_queue',
-      options: {
-        durable: true,
-        deadLetterExchange: 'auth_dlx',
-        deadLetterRoutingKey: 'email.verification.failed',
-        messageTtl: 3600000,
-        maxLength: 5000,
-        maxPriority: MESSAGE_PRIORITIES.HIGH,
-        arguments: {
-          'x-queue-mode': 'lazy',
-          'x-max-priority': MESSAGE_PRIORITIES.HIGH,
-          'x-message-ttl': 3600000,
-        },
-      },
-      bindings: [
-        {
-          exchange: 'auth_exchange',
-          routingKey: MESSAGE_TYPES.EMAIL_VERIFICATION,
-          arguments: {},
-        },
-      ],
-    },
-    passwordReset: {
-      name: 'password_reset_queue',
-      options: {
-        durable: true,
-        deadLetterExchange: 'auth_dlx',
-        deadLetterRoutingKey: 'password.reset.failed',
-        messageTtl: 1800000,
-        maxLength: 1000,
-        maxPriority: MESSAGE_PRIORITIES.HIGH,
-        arguments: {
-          'x-queue-mode': 'lazy',
-          'x-max-priority': MESSAGE_PRIORITIES.HIGH,
-          'x-message-ttl': 1800000,
-        },
-      },
-      bindings: [
-        {
-          exchange: 'auth_exchange',
-          routingKey: MESSAGE_TYPES.PASSWORD_RESET,
-          arguments: {},
-        },
-      ],
-    },
-    loginAttempt: {
-      name: 'login_attempt_queue',
-      options: {
-        durable: true,
-        deadLetterExchange: 'auth_dlx',
-        deadLetterRoutingKey: 'login.attempt.failed',
-        messageTtl: 86400000,
-        maxLength: 10000,
-        maxPriority: MESSAGE_PRIORITIES.NORMAL,
-        arguments: {
-          'x-queue-mode': 'lazy',
-          'x-max-priority': MESSAGE_PRIORITIES.NORMAL,
-        },
-      },
-      bindings: [
-        {
-          exchange: 'auth_exchange',
-          routingKey: MESSAGE_TYPES.LOGIN_ATTEMPT,
-          arguments: {},
-        },
-      ],
-    },
-    welcomeEmail: {
-      name: 'welcome_email_queue',
-      options: {
-        durable: true,
-        deadLetterExchange: 'auth_dlx',
-        deadLetterRoutingKey: 'welcome.email.failed',
-        messageTtl: 3600000, // 1 hour
-        maxLength: 1000,
-        maxPriority: MESSAGE_PRIORITIES.HIGH,
-        arguments: {
-          'x-queue-mode': 'lazy',
-          'x-max-priority': MESSAGE_PRIORITIES.HIGH,
-        },
-      },
-      bindings: [
-        {
-          exchange: 'auth_exchange',
-          routingKey: MESSAGE_TYPES.WELCOME_EMAIL,
-          arguments: {},
-        },
-      ],
-    },
-    securityEvent: {
-      name: 'security_event_queue',
-      options: {
-        durable: true,
-        deadLetterExchange: 'auth_dlx',
-        deadLetterRoutingKey: 'security.event.failed',
-        messageTtl: 604800000,
-        maxLength: 5000,
-        maxPriority: MESSAGE_PRIORITIES.CRITICAL,
         arguments: {
           'x-queue-mode': 'lazy',
           'x-max-priority': MESSAGE_PRIORITIES.CRITICAL,
@@ -274,52 +151,107 @@ export const rabbitMQConfig = {
       bindings: [
         {
           exchange: 'auth_exchange',
-          routingKey: MESSAGE_TYPES.SECURITY_EVENT,
-          arguments: {},
+          routingKey: EVENT_TYPES.USER_CREATED,
         },
       ],
     },
-    auditLog: {
-      name: 'audit_log_queue',
+    userVerified: {
+      name: 'auth_user_verified_queue',
       options: {
         durable: true,
         deadLetterExchange: 'auth_dlx',
-        deadLetterRoutingKey: 'audit.log.failed',
-        messageTtl: 31536000000,
-        maxLength: 50000,
-        maxPriority: MESSAGE_PRIORITIES.LOW,
+        deadLetterRoutingKey: 'user.verified.failed',
+        messageTtl: 86400000, // 24 hours
+        maxLength: 1000,
         arguments: {
           'x-queue-mode': 'lazy',
-          'x-max-priority': MESSAGE_PRIORITIES.LOW,
+          'x-max-priority': MESSAGE_PRIORITIES.HIGH,
         },
       },
       bindings: [
         {
-          exchange: 'audit_exchange',
-          routingKey: MESSAGE_TYPES.AUDIT_LOG,
-          arguments: {},
+          exchange: 'auth_exchange',
+          routingKey: EVENT_TYPES.USER_VERIFIED,
         },
       ],
     },
-    systemEvent: {
-      name: 'system_event_queue',
+    emailVerification: {
+      name: 'auth_email_verification_queue',
       options: {
         durable: true,
         deadLetterExchange: 'auth_dlx',
-        deadLetterRoutingKey: 'system.event.failed',
-        messageTtl: 604800000,
-        maxLength: 10000,
-        maxPriority: MESSAGE_PRIORITIES.NORMAL,
+        deadLetterRoutingKey: 'email.verification.failed',
+        messageTtl: 3600000, // 1 hour
+        maxLength: 1000,
         arguments: {
           'x-queue-mode': 'lazy',
-          'x-max-priority': MESSAGE_PRIORITIES.NORMAL,
+          'x-max-priority': MESSAGE_PRIORITIES.HIGH,
         },
       },
       bindings: [
         {
-          exchange: 'events_exchange',
-          routingKey: MESSAGE_TYPES.SYSTEM_EVENT,
-          arguments: {},
+          exchange: 'auth_exchange',
+          routingKey: EVENT_TYPES.EMAIL_VERIFICATION,
+        },
+      ],
+    },
+    passwordReset: {
+      name: 'auth_password_reset_queue',
+      options: {
+        durable: true,
+        deadLetterExchange: 'auth_dlx',
+        deadLetterRoutingKey: 'password.reset.failed',
+        messageTtl: 1800000, // 30 minutes
+        maxLength: 1000,
+        arguments: {
+          'x-queue-mode': 'lazy',
+          'x-max-priority': MESSAGE_PRIORITIES.HIGH,
+        },
+      },
+      bindings: [
+        {
+          exchange: 'auth_exchange',
+          routingKey: EVENT_TYPES.PASSWORD_RESET,
+        },
+      ],
+    },
+    welcomeEmail: {
+      name: 'auth_welcome_email_queue',
+      options: {
+        durable: true,
+        deadLetterExchange: 'auth_dlx',
+        deadLetterRoutingKey: 'welcome.email.failed',
+        messageTtl: 3600000, // 1 hour
+        maxLength: 1000,
+        arguments: {
+          'x-queue-mode': 'lazy',
+          'x-max-priority': MESSAGE_PRIORITIES.HIGH,
+        },
+      },
+      bindings: [
+        {
+          exchange: 'auth_exchange',
+          routingKey: EVENT_TYPES.WELCOME_EMAIL,
+        },
+      ],
+    },
+    securityEvent: {
+      name: 'auth_security_event_queue',
+      options: {
+        durable: true,
+        deadLetterExchange: 'auth_dlx',
+        deadLetterRoutingKey: 'security.event.failed',
+        messageTtl: 604800000, // 7 days
+        maxLength: 5000,
+        arguments: {
+          'x-queue-mode': 'lazy',
+          'x-max-priority': MESSAGE_PRIORITIES.CRITICAL,
+        },
+      },
+      bindings: [
+        {
+          exchange: 'auth_exchange',
+          routingKey: EVENT_TYPES.SECURITY_ALERT,
         },
       ],
     },
@@ -344,14 +276,12 @@ export const rabbitMQConfig = {
 
   // Consumer configuration
   consumer: {
-    // Global default for all consumers
     default: {
       prefetch: 10,
       priority: 0,
       retryAttempts: 3,
       retryDelay: 1000,
     },
-    // Per-queue overrides
     userCreated: {
       prefetch: 5,
       priority: 10,
@@ -364,10 +294,21 @@ export const rabbitMQConfig = {
       retryAttempts: 5,
       retryDelay: 5000,
     },
-    // ...add other consumers as needed
+    emailVerification: {
+      prefetch: 15,
+      priority: 12,
+      retryAttempts: 3,
+      retryDelay: 2000,
+    },
+    passwordReset: {
+      prefetch: 10,
+      priority: 12,
+      retryAttempts: 3,
+      retryDelay: 2000,
+    },
   },
 
-  // Publisher configuration (optional, add as needed)
+  // Publisher configuration
   publisher: {
     default: {
       persistent: true,
@@ -375,10 +316,21 @@ export const rabbitMQConfig = {
       immediate: false,
       priority: MESSAGE_PRIORITIES.NORMAL,
     },
-    // ...per-message-type overrides
+    userEvents: {
+      persistent: true,
+      mandatory: true,
+      immediate: false,
+      priority: MESSAGE_PRIORITIES.HIGH,
+    },
+    securityEvents: {
+      persistent: true,
+      mandatory: true,
+      immediate: true,
+      priority: MESSAGE_PRIORITIES.CRITICAL,
+    },
   },
 
-  // Retry mechanism configuration (optional, add as needed)
+  // Retry mechanism configuration
   retryMechanism: {
     maxRetries: 3,
     initialInterval: 1000,
@@ -390,13 +342,38 @@ export const rabbitMQConfig = {
 };
 
 // =========================
-// Utility: Safe Consumer Option Access
+// Event Routing Configuration
 // =========================
-/**
- * Get merged consumer options for a given queue.
- * Logs a warning if per-queue config is missing.
- * Always returns a valid config object.
- */
+export const eventRouting = {
+  routes: {
+    [EVENT_TYPES.USER_CREATED]: ['auth_user_created_queue'],
+    [EVENT_TYPES.USER_VERIFIED]: ['auth_user_verified_queue'],
+    [EVENT_TYPES.EMAIL_VERIFICATION]: ['auth_email_verification_queue'],
+    [EVENT_TYPES.PASSWORD_RESET]: ['auth_password_reset_queue'],
+    [EVENT_TYPES.WELCOME_EMAIL]: ['auth_welcome_email_queue'],
+    [EVENT_TYPES.SECURITY_ALERT]: ['auth_security_event_queue'],
+  },
+  priorities: {
+    [EVENT_TYPES.USER_CREATED]: MESSAGE_PRIORITIES.CRITICAL,
+    [EVENT_TYPES.USER_VERIFIED]: MESSAGE_PRIORITIES.HIGH,
+    [EVENT_TYPES.EMAIL_VERIFICATION]: MESSAGE_PRIORITIES.HIGH,
+    [EVENT_TYPES.PASSWORD_RESET]: MESSAGE_PRIORITIES.HIGH,
+    [EVENT_TYPES.WELCOME_EMAIL]: MESSAGE_PRIORITIES.HIGH,
+    [EVENT_TYPES.SECURITY_ALERT]: MESSAGE_PRIORITIES.CRITICAL,
+  },
+  ttls: {
+    [EVENT_TYPES.USER_CREATED]: 86400000,
+    [EVENT_TYPES.USER_VERIFIED]: 86400000,
+    [EVENT_TYPES.EMAIL_VERIFICATION]: 3600000,
+    [EVENT_TYPES.PASSWORD_RESET]: 1800000,
+    [EVENT_TYPES.WELCOME_EMAIL]: 3600000,
+    [EVENT_TYPES.SECURITY_ALERT]: 604800000,
+  },
+};
+
+// =========================
+// Utility Functions
+// =========================
 export function getConsumerOptions(queueName) {
   const hasOverride = Object.prototype.hasOwnProperty.call(
     rabbitMQConfig.consumer,
@@ -413,50 +390,24 @@ export function getConsumerOptions(queueName) {
   };
 }
 
-// =========================
-// Message Routing (optional, add as needed)
-// =========================
-export const messageRouting = {
-  routes: {
-    [MESSAGE_TYPES.USER_CREATED]: ['user_created_queue'],
-    [MESSAGE_TYPES.USER_UPDATED]: ['user_updated_queue'],
-    [MESSAGE_TYPES.USER_DELETED]: ['user_deleted_queue'],
-    [MESSAGE_TYPES.USER_VERIFIED]: ['user_verified_queue'],
-    [MESSAGE_TYPES.EMAIL_VERIFICATION]: ['email_verification_queue'],
-    [MESSAGE_TYPES.PASSWORD_RESET]: ['password_reset_queue'],
-    [MESSAGE_TYPES.LOGIN_ATTEMPT]: ['login_attempt_queue'],
-    [MESSAGE_TYPES.WELCOME_EMAIL]: ['welcome_email_queue'],
-    [MESSAGE_TYPES.ACCOUNT_ACTIVATION]: ['welcome_email_queue'],
-    [MESSAGE_TYPES.SECURITY_EVENT]: ['security_event_queue'],
-    [MESSAGE_TYPES.AUDIT_LOG]: ['audit_log_queue'],
-    [MESSAGE_TYPES.SYSTEM_EVENT]: ['system_event_queue'],
-  },
-  priorities: {
-    [MESSAGE_TYPES.USER_CREATED]: MESSAGE_PRIORITIES.CRITICAL, // Changed from HIGH to CRITICAL
-    [MESSAGE_TYPES.USER_UPDATED]: MESSAGE_PRIORITIES.HIGH,
-    [MESSAGE_TYPES.USER_DELETED]: MESSAGE_PRIORITIES.HIGH,
-    [MESSAGE_TYPES.USER_VERIFIED]: MESSAGE_PRIORITIES.NORMAL,
-    [MESSAGE_TYPES.EMAIL_VERIFICATION]: MESSAGE_PRIORITIES.HIGH,
-    [MESSAGE_TYPES.PASSWORD_RESET]: MESSAGE_PRIORITIES.HIGH,
-    [MESSAGE_TYPES.LOGIN_ATTEMPT]: MESSAGE_PRIORITIES.NORMAL,
-    [MESSAGE_TYPES.WELCOME_EMAIL]: MESSAGE_PRIORITIES.HIGH,
-    [MESSAGE_TYPES.ACCOUNT_ACTIVATION]: MESSAGE_PRIORITIES.HIGH,
-    [MESSAGE_TYPES.SECURITY_EVENT]: MESSAGE_PRIORITIES.CRITICAL,
-    [MESSAGE_TYPES.AUDIT_LOG]: MESSAGE_PRIORITIES.LOW,
-    [MESSAGE_TYPES.SYSTEM_EVENT]: MESSAGE_PRIORITIES.NORMAL,
-  },
-  ttls: {
-    [MESSAGE_TYPES.USER_CREATED]: 86400000,
-    [MESSAGE_TYPES.USER_UPDATED]: 86400000,
-    [MESSAGE_TYPES.USER_DELETED]: 86400000,
-    [MESSAGE_TYPES.USER_VERIFIED]: 86400000,
-    [MESSAGE_TYPES.EMAIL_VERIFICATION]: 3600000,
-    [MESSAGE_TYPES.PASSWORD_RESET]: 1800000,
-    [MESSAGE_TYPES.LOGIN_ATTEMPT]: 86400000,
-    [MESSAGE_TYPES.WELCOME_EMAIL]: 3600000,
-    [MESSAGE_TYPES.ACCOUNT_ACTIVATION]: 3600000,
-    [MESSAGE_TYPES.SECURITY_EVENT]: 604800000,
-    [MESSAGE_TYPES.AUDIT_LOG]: 31536000000,
-    [MESSAGE_TYPES.SYSTEM_EVENT]: 604800000,
-  },
-};
+export function getPublisherOptions(eventType) {
+  const baseOptions = rabbitMQConfig.publisher.default;
+
+  if (eventType.includes('security') || eventType.includes('alert')) {
+    return { ...baseOptions, ...rabbitMQConfig.publisher.securityEvents };
+  }
+
+  if (eventType.includes('user.')) {
+    return { ...baseOptions, ...rabbitMQConfig.publisher.userEvents };
+  }
+
+  return baseOptions;
+}
+
+export function getEventTTL(eventType) {
+  return eventRouting.ttls[eventType] || 86400000; // Default 24 hours
+}
+
+export function getEventPriority(eventType) {
+  return eventRouting.priorities[eventType] || MESSAGE_PRIORITIES.NORMAL;
+}

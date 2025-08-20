@@ -4,7 +4,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { env } from '../../config/env.js';
 import { safeLogger } from '../../config/logger.js';
-import { ApiError } from '../../utils/ApiError.js';
+import { ApiError } from '../../utils/index.js';
 import * as authService from '../services/authService.js';
 import { getCorrelationId } from '../../config/requestContext.js';
 import { updateGrpcMetrics } from '../index.js';

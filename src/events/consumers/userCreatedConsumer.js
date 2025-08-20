@@ -9,7 +9,7 @@
 import rabbitMQConnection from '../connection.js';
 import { safeLogger } from '../../config/logger.js';
 import { getCorrelationId } from '../../config/requestContext.js';
-import { ApiError } from '../../utils/ApiError.js';
+import { ApiError } from '../../utils/index.js';
 import { MESSAGE_PRIORITIES } from '../../config/rabbitMQ.js';
 
 // Consumer configuration

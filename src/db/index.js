@@ -5,30 +5,19 @@ import {
   validateDatabaseConfig,
 } from '../config/database.js';
 import { safeLogger } from '../config/logger.js';
-import { ApiError } from '../utils/ApiError.js';
+import { ApiError } from '../utils/index.js';
 
 /**
- * Industry-level Database Client
+ * Simple Database Client for authService
  *
+ * Purpose: MySQL connection for user authentication and sessions
  * Features:
- * - Enhanced error handling and logging
- * - Connection pooling optimization
- * - Performance monitoring
- * - Health checks and diagnostics
- * - Security configurations
- * - Graceful shutdown handling
+ * - Basic connection management
+ * - Simple error handling
+ * - Connection validation
+ * - Graceful shutdown
  */
-// Database metrics
-const dbMetrics = {
-  totalConnections: 0,
-  activeConnections: 0,
-  idleConnections: 0,
-  connectionErrors: 0,
-  queryCount: 0,
-  slowQueries: 0,
-  lastHealthCheck: null,
-  uptime: Date.now(),
-};
+
 // Create Sequelize instance
 const sequelize = new Sequelize(
   databaseConfig.mysql.database,
@@ -36,11 +25,12 @@ const sequelize = new Sequelize(
   databaseConfig.mysql.password,
   {
     ...getDatabaseConnectionOptions(),
-    logging: false, // Disable database logging in development
+    logging: false, // Disable database logging
   }
 );
+
 /**
- * Initialize database connection with enhanced error handling
+ * Initialize database connection
  * @returns {Promise<Sequelize>} Sequelize instance
  */
 export async function initializeDatabase() {
@@ -66,9 +56,13 @@ export async function initializeDatabase() {
         );
       }, dbTimeoutMs)
     );
+
     // Test connection with timeout
     await Promise.race([sequelize.authenticate(), dbTimeoutPromise]);
-    await sequelize.sync({ force: true });
+
+    // Sync database (create tables)
+    await sequelize.sync({ force: false }); // Don't force recreate tables
+
     safeLogger.info('Database connection established successfully', {
       dialect: mysql.dialect,
       database: mysql.database,
@@ -76,8 +70,7 @@ export async function initializeDatabase() {
 
     // Set up event listeners
     setupDatabaseEventListeners();
-    // Start health monitoring
-    startHealthMonitoring();
+
     return sequelize;
   } catch (error) {
     safeLogger.error('Database connection failed', {
@@ -92,217 +85,93 @@ export async function initializeDatabase() {
     ]);
   }
 }
+
 /**
- * Setup database event listeners for monitoring
+ * Setup database event listeners
  */
 function setupDatabaseEventListeners() {
-  // Use Sequelize hooks instead of connectionManager events
   sequelize.addHook('afterConnect', connection => {
-    dbMetrics.totalConnections++;
-    dbMetrics.activeConnections++;
     safeLogger.debug('Database connection established', {
       connectionId: connection.threadId || connection.id,
-      activeConnections: dbMetrics.activeConnections,
     });
   });
 
   sequelize.addHook('beforeDisconnect', connection => {
-    dbMetrics.activeConnections = Math.max(0, dbMetrics.activeConnections - 1);
     safeLogger.debug('Database connection closed', {
       connectionId: connection.threadId || connection.id,
-      activeConnections: dbMetrics.activeConnections,
     });
   });
 
-  // Query events (these work fine)
+  // Query events for basic monitoring
   sequelize.beforeQuery(options => {
-    dbMetrics.queryCount++;
     options.startTime = Date.now();
   });
 
   sequelize.afterQuery(options => {
     if (options.startTime) {
       const duration = Date.now() - options.startTime;
-      dbMetrics.totalQueryTime += duration;
-      dbMetrics.averageQueryTime =
-        dbMetrics.totalQueryTime / dbMetrics.queryCount;
-
-      if (duration > dbMetrics.slowestQuery) {
-        dbMetrics.slowestQuery = duration;
+      if (duration > 1000) {
+        // Log slow queries (>1s)
+        safeLogger.warn('Slow database query detected', {
+          duration: `${duration}ms`,
+          sql: options.sql,
+        });
       }
     }
   });
 }
+
 /**
- * Start health monitoring
+ * Get database instance
+ * @returns {Sequelize} Sequelize instance
  */
-function startHealthMonitoring() {
-  // Health check interval
-  setInterval(async () => {
-    try {
-      await sequelize.authenticate();
-      dbMetrics.lastHealthCheck = new Date().toISOString();
-      // Update pool metrics
-      const pool = sequelize.connectionManager.pool;
-      if (pool) {
-        dbMetrics.activeConnections = pool.using.length;
-        dbMetrics.idleConnections = pool.pending.length;
-      }
-      safeLogger.debug('Database health check passed', {
-        activeConnections: dbMetrics.activeConnections,
-        idleConnections: dbMetrics.idleConnections,
-        uptime: `${Math.round((Date.now() - dbMetrics.uptime) / 1000)}s`,
-      });
-    } catch (error) {
-      safeLogger.error('Database health check failed', {
-        error: error.message,
-        connectionErrors: dbMetrics.connectionErrors,
-      });
-    }
-  }, 30 * 1000); // Every 30 seconds
+export function getDatabase() {
+  return sequelize;
 }
+
 /**
- * Get database health status
- * @returns {Object} Health status
+ * Check if database is connected
+ * @returns {boolean} Connection status
  */
-export function getDatabaseHealth() {
-  const uptime = Date.now() - dbMetrics.uptime;
-  return {
-    status: sequelize.connectionManager.pool ? 'connected' : 'disconnected',
-    uptime: `${Math.round(uptime / 1000)}s`,
-    metrics: { ...dbMetrics },
-    pool: sequelize.connectionManager.pool
-      ? {
-          size: sequelize.connectionManager.pool.size,
-          available: sequelize.connectionManager.pool.available,
-          pending: sequelize.connectionManager.pool.pending.length,
-          using: sequelize.connectionManager.pool.using.length,
-        }
-      : null,
-    lastHealthCheck: dbMetrics.lastHealthCheck,
-  };
+export function isDatabaseConnected() {
+  try {
+    return sequelize.authenticate() !== undefined;
+  } catch {
+    return false;
+  }
 }
+
 /**
- * Close database connection gracefully
+ * Close database connection
  * @returns {Promise<void>}
  */
 export async function closeDatabase() {
   try {
     safeLogger.info('Closing database connection');
     await sequelize.close();
-    safeLogger.info('Database connection closed successfully', {
-      totalConnections: dbMetrics.totalConnections,
-      totalQueries: dbMetrics.queryCount,
-      slowQueries: dbMetrics.slowQueries,
-      connectionErrors: dbMetrics.connectionErrors,
-    });
+    safeLogger.info('Database connection closed successfully');
   } catch (error) {
     safeLogger.error('Error closing database connection', {
       error: error.message,
-      stack: error.stack,
     });
     throw error;
   }
 }
+
 /**
- * Execute database transaction with retry logic
- * @param {Function} callback - Transaction callback
- * @param {Object} options - Transaction options
- * @returns {Promise<any>} Transaction result
+ * Test database connection
+ * @returns {Promise<boolean>} Connection status
  */
-export async function executeTransaction(callback, options = {}) {
-  const maxRetries = options.maxRetries || databaseConfig.mysql.retry.max;
-  const backoffBase =
-    options.backoffBase || databaseConfig.mysql.retry.backoffBase;
-  const backoffExponent =
-    options.backoffExponent || databaseConfig.mysql.retry.backoffExponent;
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      return await sequelize.transaction(async transaction => {
-        return await callback(transaction);
-      }, options);
-    } catch (error) {
-      if (attempt === maxRetries) {
-        safeLogger.error('Transaction failed after all retries', {
-          error: error.message,
-          stack: error.stack,
-          attempts: attempt,
-        });
-        throw error;
-      }
-      // Check if error is retryable
-      if (isRetryableError(error)) {
-        const delay = backoffBase * Math.pow(backoffExponent, attempt - 1);
-        safeLogger.warn('Transaction failed, retrying', {
-          error: error.message,
-          attempt,
-          maxRetries,
-          delay: `${delay}ms`,
-        });
-        await new Promise(resolve => setTimeout(resolve, delay));
-        continue;
-      }
-      // Non-retryable error
-      throw error;
-    }
+export async function testDatabaseConnection() {
+  try {
+    await sequelize.authenticate();
+    return true;
+  } catch (error) {
+    safeLogger.error('Database connection test failed', {
+      error: error.message,
+    });
+    return false;
   }
 }
-/**
- * Check if error is retryable
- * @param {Error} error - Error to check
- * @returns {boolean} Whether error is retryable
- */
-function isRetryableError(error) {
-  const retryableErrors = [
-    'ECONNRESET',
-    'ECONNREFUSED',
-    'ETIMEDOUT',
-    'ENOTFOUND',
-    'PROTOCOL_CONNECTION_LOST',
-    'ER_ACCESS_DENIED_ERROR',
-    'ER_BAD_DB_ERROR',
-    'ER_CON_COUNT_ERROR',
-    'ER_HOST_IS_BLOCKED',
-    'ER_HOST_NOT_PRIVILEGED',
-    'ER_ILLEGAL_GRANT_FOR_TABLE',
-    'ER_NO_SUCH_TABLE',
-    'ER_TABLE_EXISTS_ERROR',
-    'ER_UNKNOWN_STORAGE_ENGINE',
-    'ER_WRONG_DB_NAME',
-  ];
-  return retryableErrors.some(
-    retryableError =>
-      error.message.includes(retryableError) || error.code === retryableError
-  );
-}
-/**
- * Get database metrics
- * @returns {Object} Database metrics
- */
-export function getDatabaseMetrics() {
-  const { mysql } = databaseConfig;
-  return {
-    ...dbMetrics,
-    currentTime: new Date().toISOString(),
-    config: {
-      host: mysql.host,
-      port: mysql.port,
-      database: mysql.database,
-      poolSize: `${mysql.pool.min}-${mysql.pool.max}`,
-    },
-  };
-}
-// Graceful shutdown handling
-process.on('SIGTERM', async () => {
-  safeLogger.info('Received SIGTERM, closing database connection');
-  await closeDatabase();
-  process.exit(0);
-});
-process.on('SIGINT', async () => {
-  safeLogger.info('Received SIGINT, closing database connection');
-  await closeDatabase();
-  process.exit(0);
-});
-// Export the configured sequelize instance
+
 export default sequelize;
-export { sequelize };

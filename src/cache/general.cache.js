@@ -568,29 +568,4 @@ export const generalCache = {
     cacheStats.partitions.clear();
     safeLogger.info('Cache statistics reset');
   },
-  /**
-   * Health check for cache service
-   * @returns {Promise<Object>} Health status
-   */
-  async healthCheck() {
-    try {
-      const startTime = Date.now();
-      await safeRedisOperation(async () => {
-        const redis = getRedisClient();
-        await redis.ping();
-      }, 'healthCheck');
-      const responseTime = Date.now() - startTime;
-      return {
-        status: 'healthy',
-        responseTime: `${responseTime}ms`,
-        stats: this.getStats(),
-      };
-    } catch (error) {
-      return {
-        status: 'unhealthy',
-        error: error.message,
-        stats: this.getStats(),
-      };
-    }
-  },
 };

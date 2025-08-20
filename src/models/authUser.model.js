@@ -29,7 +29,7 @@ class AuthUser extends Model {
    */
   static async validatePasswordStrength(password) {
     try {
-      const { validatePassword } = await import('../utils/validationUtils.js');
+      const { validatePassword } = await import('../utils/index.js');
       return await validatePassword(password);
     } catch (error) {
       safeLogger.error('Password validation error', {
@@ -47,7 +47,7 @@ class AuthUser extends Model {
    */
   static async validateEmail(email) {
     try {
-      const { validateEmail } = await import('../utils/validationUtils.js');
+      const { validateEmail } = await import('../utils/index.js');
       return await validateEmail(email);
     } catch (error) {
       safeLogger.error('Email validation error', {

@@ -219,45 +219,7 @@ The AuthService follows a **Service Layer Pattern** with clear separation of con
 
 ## 📊 Monitoring & Performance Services
 
-### 11. **MetricsService** (`metrics.service.js`)
-
-**Purpose**: Performance monitoring and metrics
-**Responsibilities**:
-
-- Performance metrics collection
-- Business metrics tracking
-- Health monitoring
-- Alert generation
-
-**Key Methods**:
-
-```javascript
--recordMetric(name, value, tags) -
-  getMetrics(options) -
-  initializeMetrics() -
-  generateHealthReport();
-```
-
-### 12. **CacheWarmingService** (`cacheWarming.service.js`)
-
-**Purpose**: Cache management and optimization
-**Responsibilities**:
-
-- Cache warming strategies
-- Cache invalidation
-- Performance optimization
-- Cache hit rate monitoring
-
-**Key Methods**:
-
-```javascript
--warmUserCache(userId) -
-  warmSessionCache(sessionId) -
-  invalidateUserCache(userId) -
-  getCacheStats();
-```
-
-### 13. **ErrorClassificationService** (`errorClassification.service.js`)
+### 11. **ErrorClassificationService** (`errorClassification.service.js`)
 
 **Purpose**: Error handling and classification
 **Responsibilities**:
@@ -287,13 +249,8 @@ graph TD
     A --> F[EmailVerificationService]
     A --> G[TwoFactorService]
 
-    B --> H[DeviceFingerprintService]
-    C --> I[MetricsService]
     E --> J[EmailService]
     F --> J
-
-    K[CacheWarmingService] --> B
-    K --> C
 
     L[ErrorClassificationService] --> A
     L --> B

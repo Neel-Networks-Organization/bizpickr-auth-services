@@ -46,82 +46,6 @@ export const apiSpec = {
     },
   ],
   paths: {
-    // ✅ Health Check
-    '/health': {
-      get: {
-        summary: 'Health Check',
-        description: 'Check the health status of the authentication service',
-        tags: ['Health'],
-        responses: {
-          200: {
-            description: 'Service is healthy',
-            content: {
-              'application/json': {
-                schema: {
-                  type: 'object',
-                  properties: {
-                    status: { type: 'string', example: 'healthy' },
-                    timestamp: { type: 'string', format: 'date-time' },
-                    uptime: { type: 'number', example: 3600 },
-                    version: { type: 'string', example: '1.0.0' },
-                    environment: { type: 'string', example: 'production' },
-                    checks: {
-                      type: 'object',
-                      properties: {
-                        database: { type: 'object' },
-                        redis: { type: 'object' },
-                        system: { type: 'object' },
-                      },
-                    },
-                  },
-                },
-              },
-            },
-          },
-          503: {
-            description: 'Service is unhealthy',
-            content: {
-              'application/json': {
-                schema: {
-                  $ref: '#/components/schemas/ErrorResponse',
-                },
-              },
-            },
-          },
-        },
-      },
-    },
-    // ✅ Metrics
-    '/metrics': {
-      get: {
-        summary: 'Service Metrics',
-        description: 'Get performance and operational metrics',
-        tags: ['Monitoring'],
-        security: [
-          {
-            BearerAuth: [],
-          },
-        ],
-        responses: {
-          200: {
-            description: 'Metrics retrieved successfully',
-            content: {
-              'application/json': {
-                schema: {
-                  type: 'object',
-                  properties: {
-                    performance: { type: 'object' },
-                    security: { type: 'object' },
-                    validation: { type: 'object' },
-                    auth: { type: 'object' },
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-    },
     // ✅ Authentication Routes
     '/api/v1/auth/signup': {
       post: {
@@ -637,14 +561,6 @@ export const apiSpec = {
     },
   },
   tags: [
-    {
-      name: 'Health',
-      description: 'Health check and monitoring endpoints',
-    },
-    {
-      name: 'Monitoring',
-      description: 'Metrics and performance monitoring',
-    },
     {
       name: 'Authentication',
       description: 'User authentication and authorization',

@@ -349,7 +349,6 @@ class PasswordReset extends Model {
    */
   static async validateIpAddress(ipAddress) {
     try {
-      const { validateIpAddress } = await import('../utils/validationUtils.js');
       return await validateIpAddress(ipAddress);
     } catch (error) {
       safeLogger.error('IP address validation error', {

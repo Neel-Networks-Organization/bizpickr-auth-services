@@ -12,10 +12,8 @@ import { initializeRabbitMQ, shutdownRabbitMQ } from './events/index.js';
 // Key rotation removed for simplicity
 import { initializeCache, shutdownCache } from './cache/auth.cache.js';
 // Performance monitoring simplified
-import { initializeServices } from './services/initializeServices.js';
 import { connectMongo } from './db/mongoose.js';
 
-let isHealthy = false;
 let startupComplete = false;
 const gracefulShutdownConfig = {
   timeout: 30000, // 30 seconds
@@ -42,7 +40,6 @@ async function initializeCoreServices() {
       name: 'Cache Initialization',
       fn: async () => {
         await initializeCache();
-        await initializeServices();
       },
     },
     {
@@ -96,7 +93,6 @@ async function startServer() {
     console.log('🔍 DEBUG: Starting HTTP server on port', env.server.port);
     const server = app.listen(env.server.port, () => {
       startupComplete = true;
-      isHealthy = true;
       safeLogger.info('⚙️ Server is running successfully', {
         port: env.server.port,
         uptime: process.uptime(),
@@ -124,7 +120,7 @@ async function startServer() {
         signal,
         uptime: process.uptime(),
       });
-      isHealthy = false;
+
       startupComplete = false;
       // ✅ Set shutdown timeout
       const shutdownTimer = setTimeout(() => {
@@ -218,38 +214,6 @@ async function startServer() {
     gracefulShutdownConfig.signals.forEach(signal => {
       process.on(signal, () => gracefulShutdown(signal));
     });
-
-    // ✅ Health Monitoring
-    setInterval(() => {
-      const memUsage = process.memoryUsage();
-      const cpuUsage = process.cpuUsage();
-      // ✅ Memory threshold monitoring
-      if (memUsage.heapUsed > 800 * 1024 * 1024) {
-        // 800MB
-        safeLogger.warn('High memory usage detected', {
-          heapUsed: memUsage.heapUsed,
-          heapTotal: memUsage.heapTotal,
-          external: memUsage.external,
-          rss: memUsage.rss,
-        });
-      }
-      // ✅ CPU usage monitoring
-      if (cpuUsage.user > 1000000) {
-        // 1 second of CPU time
-        safeLogger.warn('High CPU usage detected', {
-          user: cpuUsage.user,
-          system: cpuUsage.system,
-        });
-      }
-      // ✅ Log periodic health status
-      safeLogger.debug('Health check', {
-        uptime: process.uptime(),
-        memory: memUsage,
-        cpu: cpuUsage,
-        isHealthy,
-        startupComplete,
-      });
-    }, 300000); // Every 5 minutes
 
     // ✅ Process Monitoring
     process.on('warning', warning => {

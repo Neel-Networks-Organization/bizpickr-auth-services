@@ -2,7 +2,7 @@ import rabbitMQConnection from './connection.js';
 import { safeLogger } from '../config/logger.js';
 import { startUserVerifiedConsumer } from './consumers/userVerifiedConsumer.js';
 import { startUserCreatedConsumer } from './consumers/userCreatedConsumer.js';
-import { ApiError } from '../utils/ApiError.js';
+import { ApiError } from '../utils/index.js';
 import { getCorrelationId } from '../config/requestContext.js';
 /**
  * Industry-level Event System Manager

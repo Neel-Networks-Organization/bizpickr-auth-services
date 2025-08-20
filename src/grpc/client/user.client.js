@@ -5,7 +5,7 @@ import { fileURLToPath } from 'url';
 import CircuitBreaker from 'opossum';
 import { env } from '../../config/env.js';
 import { safeLogger } from '../../config/logger.js';
-import { ApiError } from '../../utils/ApiError.js';
+import { ApiError } from '../../utils/index.js';
 import { getCorrelationId } from '../../config/requestContext.js';
 import { updateGrpcMetrics } from '../index.js';
 const __filename = fileURLToPath(import.meta.url);
