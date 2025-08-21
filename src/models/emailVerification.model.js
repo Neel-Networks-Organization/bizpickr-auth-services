@@ -199,7 +199,7 @@ class EmailVerification extends Model {
           status: 'verified',
           verifiedAt: new Date(),
         },
-        options
+        options,
       );
 
       safeLogger.info('Email verification marked as verified', {
@@ -230,7 +230,7 @@ class EmailVerification extends Model {
   static async revokeVerification(
     verificationId,
     reason = 'manual_revocation',
-    options = {}
+    options = {},
   ) {
     const correlationId = getCorrelationId();
     try {
@@ -243,7 +243,7 @@ class EmailVerification extends Model {
         {
           status: 'revoked',
         },
-        options
+        options,
       );
 
       safeLogger.info('Email verification revoked', {
@@ -284,7 +284,7 @@ class EmailVerification extends Model {
               [Op.lt]: new Date(),
             },
           },
-        }
+        },
       );
       const cleanedCount = result[0];
 
@@ -332,16 +332,16 @@ class EmailVerification extends Model {
   }
 
   /**
-   * Validate token format using centralized validators
+   * Validate verification token using centralized validators
    * @param {string} token - Token to validate
    * @returns {Object} Validation result
    */
   static async validateToken(token) {
     try {
-      const { validateEmailVerificationToken } = await import(
-        '../utils/validationUtils.js'
+      const { validateEmailVerification } = await import(
+        '../validators/authValidators.js'
       );
-      return await validateEmailVerificationToken(token);
+      return await validateEmailVerification({ token });
     } catch (error) {
       safeLogger.error('Token validation error', {
         error: error.message,
@@ -358,8 +358,12 @@ class EmailVerification extends Model {
    */
   static async validateEmail(email) {
     try {
-      const { validateEmail } = await import('../utils/index.js');
-      return await validateEmail(email);
+      // Basic email validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return { isValid: false, errors: ['Invalid email format'] };
+      }
+      return { isValid: true, errors: [] };
     } catch (error) {
       safeLogger.error('Email validation error', {
         error: error.message,
@@ -511,7 +515,7 @@ EmailVerification.init(
       type: DataTypes.STRING(255),
       allowNull: true,
       field: 'email_id',
-      comment: "Email provider's message ID",
+      comment: 'Email provider\'s message ID',
     },
   },
   {
@@ -557,21 +561,21 @@ EmailVerification.init(
         try {
           // Validate token format
           const tokenValidation = await EmailVerification.validateToken(
-            verification.token
+            verification.token,
           );
           if (!tokenValidation.isValid) {
             throw new Error(
-              `Token validation failed: ${tokenValidation.errors.join(', ')}`
+              `Token validation failed: ${tokenValidation.errors.join(', ')}`,
             );
           }
 
           // Validate email format
           const emailValidation = await EmailVerification.validateEmail(
-            verification.email
+            verification.email,
           );
           if (!emailValidation.isValid) {
             throw new Error(
-              `Email validation failed: ${emailValidation.errors.join(', ')}`
+              `Email validation failed: ${emailValidation.errors.join(', ')}`,
             );
           }
 
@@ -596,11 +600,11 @@ EmailVerification.init(
           // Validate email if being updated
           if (verification.changed('email')) {
             const emailValidation = EmailVerification.validateEmail(
-              verification.email
+              verification.email,
             );
             if (!emailValidation.isValid) {
               throw new Error(
-                `Email validation failed: ${emailValidation.errors.join(', ')}`
+                `Email validation failed: ${emailValidation.errors.join(', ')}`,
               );
             }
           }
@@ -648,19 +652,19 @@ EmailVerification.init(
         });
       },
     },
-  }
+  },
 );
 
 // Instance methods
-EmailVerification.prototype.isExpired = function () {
+EmailVerification.prototype.isExpired = function() {
   return new Date() > this.expiresAt;
 };
 
-EmailVerification.prototype.isMaxAttemptsReached = function () {
+EmailVerification.prototype.isMaxAttemptsReached = function() {
   return this.attempts >= this.maxAttempts;
 };
 
-EmailVerification.prototype.incrementAttempts = async function () {
+EmailVerification.prototype.incrementAttempts = async function() {
   try {
     this.attempts += 1;
     await this.save();
@@ -681,9 +685,9 @@ EmailVerification.prototype.incrementAttempts = async function () {
   }
 };
 
-EmailVerification.prototype.markAsSent = async function (
+EmailVerification.prototype.markAsSent = async function(
   emailProvider,
-  emailId
+  emailId,
 ) {
   try {
     this.sentAt = new Date();
@@ -707,7 +711,7 @@ EmailVerification.prototype.markAsSent = async function (
   }
 };
 
-EmailVerification.prototype.toSafeJSON = function () {
+EmailVerification.prototype.toSafeJSON = function() {
   const safeData = this.toJSON();
   // Remove sensitive fields
   delete safeData.token;

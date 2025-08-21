@@ -1,28 +1,31 @@
-/**
- * Auth Service - Core Authentication Layer
- *
- * Handles core authentication and authorization business logic:
- * - User registration and login
- * - JWT token management
- * - Core authentication flows
- * - Service orchestration
- */
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
+import jwt from 'jsonwebtoken';
+import {
+  AuthUser,
+  AuditLog,
+  AuthUser as User,
+  EmailVerification,
+  PasswordReset,
+} from '../models/index.model.js';
 import { safeLogger } from '../config/logger.js';
+import { ApiError } from '../utils/index.js';
+import {
+  emitUserRegistered,
+  emitUserLoggedIn,
+  emitUserLoggedOut,
+  emitEmailVerified,
+  emitEmailVerification,
+  emitPasswordResetInitiated,
+  emitAccountActivated,
+} from '../events/emitters/index.js';
+import { logAuditEvent } from '../middlewares/audit.middleware.js';
 import { env } from '../config/env.js';
-import { publishEvent } from '../events/index.js';
-import { AuthUser as User, AuditLog } from '../models/index.model.js';
-import { authCache } from '../cache/auth.cache.js';
-import userService from './user.service.js';
+
 import sessionService from './session.service.js';
 import passwordService from './password.service.js';
-import { logAuditEvent } from '../middlewares/audit.middleware.js';
 import oauthService from './oauth.service.js';
-import emailVerificationService from './emailVerification.service.js';
 import twoFactorService from './twoFactor.service.js';
-import permissionService from './permission.service.js';
+import authCache from '../cache/auth.cache.js';
 
 class AuthService {
   constructor() {
@@ -41,10 +44,10 @@ class AuthService {
       const { email, password, type, role } = userData;
       // Validate input - AUTHENTICATION ONLY
       if (!email || !password) {
-        throw new Error('Email and password are required');
+        throw new ApiError(' Email and password are required');
       }
       // Check if user already exists
-      const existingUser = await User.findOne({ where: { email } });
+      const existingUser = await AuthUser.findOne({ where: { email } });
       if (existingUser) {
         throw new Error('User with this email already exists');
       }
@@ -60,7 +63,7 @@ class AuthService {
       const userRole = role || 'customer';
 
       // Create user (only model-valid fields)
-      const user = await User.create({
+      const user = await AuthUser.create({
         email,
         password, // Raw password - will be hashed by model hook
         type: userType,
@@ -97,34 +100,15 @@ class AuthService {
       });
 
       // Publish welcome email event
-      await publishEvent('welcome.email', {
-        userId: user.id,
-        email: user.email,
-        type: user.type,
-        role: user.role,
-        template: 'welcome',
-        data: {
-          userName: user.email.split('@')[0], // Use email prefix as username
-          email: user.email,
-          accountType: user.type,
-          activationLink: `${env.frontendUrl}/verify-email?token=${user.id}`,
-        },
-        timestamp: new Date(),
+      await emitUserRegistered(user, {
+        emailType: 'welcome',
+        template: 'welcome-email',
       });
 
       // Publish email verification event
-      // await publishEvent('email.verification', {
-      //   userId: user.id,
-      //   email: user.email,
-      //   fullName: user.fullName,
-      //   verificationToken: user.id, // Using user ID as token for simplicity
-      //   template: 'email_verification',
-      //   data: {
-      //     userName: user.fullName,
-      //     email: user.email,
-      //     verificationLink: `${env.frontendUrl}/verify-email?token=${user.id}`,
-      //   },
-      //   timestamp: new Date(),
+      // await emitEmailVerification(user, {
+      //   emailType: 'verification',
+      //   template: 'email-verification',
       // });
 
       safeLogger.info('User registered successfully', {
@@ -161,18 +145,18 @@ class AuthService {
 
       // Validate input
       if (!email || !password) {
-        throw new Error('Email and password are required');
+        throw new ApiError('Email and password are required');
       }
 
       // Find user
-      const user = await User.findOne({ where: { email } });
+      const user = await AuthUser.findOne({ where: { email } });
       if (!user) {
-        throw new Error('Invalid email or password');
+        throw new ApiError('Invalid email or password');
       }
 
       // Check user status - Allow pending users to login
       if (user.status === 'suspended' || user.status === 'inactive') {
-        throw new Error('Account is not active');
+        throw new ApiError('Account is not active');
       }
 
       // Verify password
@@ -181,7 +165,7 @@ class AuthService {
         user.password
       );
       if (!isPasswordValid) {
-        throw new Error('Invalid email or password');
+        throw new ApiError('Invalid email or password');
       }
 
       // Generate tokens
@@ -220,23 +204,18 @@ class AuthService {
 
       // If first login, create user profile and related data
       if (isFirstLogin) {
-        await publishEvent('user.created', {
-          userId: user.id,
-          email: user.email,
-          type: user.type,
-          role: user.role,
-          ipAddress,
-          userAgent,
-          timestamp: new Date(),
+        await emitUserRegistered(user, {
+          emailType: 'welcome',
+          template: 'welcome-email',
         });
       }
 
       // Publish login event
-      await publishEvent('user.logged_in', {
+      await emitUserLoggedIn({
         userId: user.id,
         email: user.email,
-        sessionId,
-        timestamp: new Date(),
+        ipAddress: loginData.ipAddress,
+        userAgent: loginData.userAgent,
       });
 
       // Create audit log
@@ -295,7 +274,7 @@ class AuthService {
       const refreshData =
         await sessionService.getRefreshTokenData(refreshToken);
       if (!refreshData) {
-        throw new Error('Invalid refresh token');
+        throw new ApiError('Invalid refresh token');
       }
 
       const { userId, sessionId } = refreshData;
@@ -303,13 +282,13 @@ class AuthService {
       // Validate session
       const sessionData = await sessionService.validateSession(sessionId);
       if (!sessionData) {
-        throw new Error('Session expired');
+        throw new ApiError('Session expired');
       }
 
       // Get user
-      const user = await User.findByPk(userId);
+      const user = await AuthUser.findByPk(userId);
       if (!user || !['active', 'pending'].includes(user.status)) {
-        throw new Error('User not found or inactive');
+        throw new ApiError('User not found or inactive');
       }
 
       // Generate new access token
@@ -347,10 +326,10 @@ class AuthService {
       await authCache.removeUserSession(userId);
 
       // Publish logout event
-      await publishEvent('user.logged_out', {
-        userId,
-        sessionId,
-        timestamp: new Date(),
+      await emitUserLoggedOut({
+        userId: userId,
+        email: user?.email,
+        sessionId: sessionId,
       });
 
       // Create audit log
@@ -388,9 +367,9 @@ class AuthService {
       const decoded = jwt.verify(token, env.jwtSecret);
 
       // Check if user still exists and has valid status
-      const user = await User.findByPk(decoded.userId);
+      const user = await AuthUser.findByPk(decoded.userId);
       if (!user || !['active', 'pending'].includes(user.status)) {
-        throw new Error('User not found or inactive');
+        throw new ApiError('User not found or inactive');
       }
 
       return {
@@ -402,10 +381,10 @@ class AuthService {
       };
     } catch (error) {
       if (error.name === 'TokenExpiredError') {
-        throw new Error('Token expired');
+        throw new ApiError('Token expired');
       }
       if (error.name === 'JsonWebTokenError') {
-        throw new Error('Invalid token');
+        throw new ApiError('Invalid token');
       }
       throw error;
     }
@@ -452,47 +431,6 @@ class AuthService {
       currentPassword,
       newPassword
     );
-  }
-
-  /**
-   * Get user by ID (delegate to UserService)
-   * @param {number} userId - User ID
-   * @returns {Promise<Object>} User object
-   */
-  async getUserById(userId) {
-    // Get user from cache first, then database
-    const cachedUser = await authCache.getUserProfile(userId);
-    if (cachedUser) {
-      return cachedUser;
-    }
-
-    const user = await User.findByPk(userId);
-    if (!user) {
-      throw new Error('User not found');
-    }
-
-    // Cache user profile
-    await authCache.storeUserProfile(userId, {
-      id: user.id,
-      email: user.email,
-      type: user.type,
-      role: user.role,
-      status: user.status,
-      emailVerified: user.emailVerified,
-      createdAt: user.createdAt,
-    });
-
-    return user;
-  }
-
-  /**
-   * Update user profile (delegate to UserService)
-   * @param {number} userId - User ID
-   * @param {Object} updateData - Update data
-   * @returns {Promise<Object>} Updated user object
-   */
-  async updateUserProfile(userId, updateData) {
-    return await userService.updateUserProfile(userId, updateData);
   }
 
   /**
@@ -559,7 +497,7 @@ class AuthService {
    */
   async verifyEmail(token) {
     try {
-      return await emailVerificationService.verifyEmailToken(token);
+      return await EmailVerification.verifyEmailToken(token);
     } catch (error) {
       safeLogger.error('Email verification failed', { error: error.message });
       throw error;
@@ -574,7 +512,7 @@ class AuthService {
    */
   async resendVerificationEmail(userId, deviceInfo) {
     try {
-      return await emailVerificationService.resendVerificationEmail(
+      return await EmailVerification.resendVerificationEmail(
         userId,
         deviceInfo
       );
@@ -635,27 +573,19 @@ class AuthService {
    */
   async sendPasswordResetEmail(email) {
     try {
-      const user = await User.findOne({ where: { email } });
+      const user = await AuthUser.findOne({ where: { email } });
       if (!user) {
-        throw new Error('User not found');
+        throw new ApiError('User not found');
       }
 
       // Generate reset token
       const resetToken = await passwordService.generateResetToken(user.id);
 
       // Publish password reset email event
-      await publishEvent('password.reset', {
+      await emitPasswordResetInitiated({
         userId: user.id,
         email: user.email,
-        resetToken,
-        template: 'password_reset',
-        data: {
-          userName: user.email.split('@')[0], // Use email prefix as username
-          email: user.email,
-          resetLink: `${env.frontendUrl}/reset-password?token=${resetToken}`,
-          expiryTime: '30 minutes',
-        },
-        timestamp: new Date(),
+        resetToken: resetToken,
       });
 
       safeLogger.info('Password reset email sent', {
@@ -684,13 +614,13 @@ class AuthService {
    */
   async verifyEmailAndActivate(token) {
     try {
-      const user = await User.findByPk(token);
+      const user = await AuthUser.findByPk(token);
       if (!user) {
-        throw new Error('Invalid verification token');
+        throw new ApiError('Invalid verification token');
       }
 
       if (user.emailVerified) {
-        throw new Error('Email already verified');
+        throw new ApiError('Email already verified');
       }
 
       // Update user to verified
@@ -700,28 +630,16 @@ class AuthService {
       });
 
       // Publish account activation event
-      await publishEvent('account.activation', {
-        userId: user.id,
-        email: user.email,
-        type: user.type,
-        role: user.role,
-        template: 'account_activated',
-        data: {
-          userName: user.email.split('@')[0], // Use email prefix as username
-          email: user.email,
-          accountType: user.type,
-          loginLink: `${env.frontendUrl}/login`,
-        },
-        timestamp: new Date(),
+      await emitAccountActivated(user, {
+        emailType: 'activation',
+        template: 'account-activated',
       });
 
       // Publish user verified event
-      await publishEvent('user.verified', {
+      await emitEmailVerified({
         userId: user.id,
         email: user.email,
-        type: user.type,
-        role: user.role,
-        timestamp: new Date(),
+        method: 'email_verification',
       });
 
       safeLogger.info('Email verified and account activated', {

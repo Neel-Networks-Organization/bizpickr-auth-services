@@ -50,7 +50,7 @@ class RabbitMQConnection {
         // Fallback to detailed configuration
         this.connection = await amqplib.connect(
           rabbitMQConfig.connection.url,
-          rabbitMQConfig.connection
+          rabbitMQConfig.connection,
         );
       }
 
@@ -82,6 +82,13 @@ class RabbitMQConnection {
         setTimeout(() => this.init(), this.reconnectInterval);
       }
     }
+  }
+
+  /**
+   * Connect method (alias for init for backward compatibility)
+   */
+  async connect() {
+    return this.init();
   }
 
   /**
@@ -123,9 +130,10 @@ class RabbitMQConnection {
     try {
       const channel = await this.getChannel();
 
-      // Setup main exchange
-      await channel.assertExchange('auth.events', 'topic', {
+      // Setup main exchange - Use correct name from RabbitMQ config
+      await channel.assertExchange('events_exchange', 'topic', {
         durable: true,
+        autoDelete: false,
       });
 
       safeLogger.info('Default exchanges setup completed');
@@ -144,10 +152,11 @@ class RabbitMQConnection {
       // Setup user events queue
       await channel.assertQueue('user.events', {
         durable: true,
+        autoDelete: false,
       });
 
-      // Bind queue to exchange
-      await channel.bindQueue('user.events', 'auth.events', 'user.*');
+      // Bind queue to exchange - Use correct exchange name
+      await channel.bindQueue('user.events', 'events_exchange', 'user.*');
 
       safeLogger.info('Default queues setup completed');
     } catch (error) {
@@ -240,7 +249,7 @@ class RabbitMQConnection {
             }
           }
         },
-        options
+        options,
       );
 
       safeLogger.info('Started consuming messages', { queue });
@@ -278,6 +287,68 @@ class RabbitMQConnection {
       });
     }
   }
+
+  /**
+   * Check if connection is healthy
+   * @returns {boolean} Health status
+   */
+  isHealthy() {
+    return (
+      this.connection &&
+      this.connection.connection &&
+      this.connection.connection.writable
+    );
+  }
+
+  /**
+   * Check if connection is established
+   * @returns {boolean} Connection status
+   */
+  isConnected() {
+    return !!this.connection;
+  }
+
+  /**
+   * Get connection information
+   * @returns {Object} Connection info
+   */
+  getConnectionInfo() {
+    if (!this.connection) {
+      return { status: 'disconnected' };
+    }
+
+    try {
+      return {
+        status: 'connected',
+        host: this.connection.connection?.hostname || 'unknown',
+        port: this.connection.connection?.port || 'unknown',
+        vhost: this.connection.connection?.vhost || 'unknown',
+        channels: this.channels.size,
+        reconnectAttempts: this.reconnectAttempts,
+      };
+    } catch (error) {
+      return {
+        status: 'connected',
+        error: error.message,
+      };
+    }
+  }
+
+  /**
+   * Setup exchanges and queues
+   */
+  async setupExchangesAndQueues() {
+    try {
+      await this._setupDefaultExchanges();
+      await this._setupDefaultQueues();
+      safeLogger.info('Exchanges and queues setup completed');
+    } catch (error) {
+      safeLogger.error('Failed to setup exchanges and queues', {
+        error: error.message,
+      });
+      throw error;
+    }
+  }
 }
 
 // ✅ Create singleton instance
@@ -287,13 +358,19 @@ const rabbitMQConnection = new RabbitMQConnection();
 export default rabbitMQConnection;
 
 // ✅ Export individual methods
-export const { init, getChannel, publishMessage, consumeMessages, close } =
-  rabbitMQConnection;
+export const {
+  init,
+  connect,
+  getChannel,
+  publishMessage,
+  consumeMessages,
+  close,
+} = rabbitMQConnection;
 
 export const publish = (exchange, routingKey, message, options) =>
   rabbitMQConnection.publishMessage(exchange, routingKey, message, options);
 export const createChannel = name => rabbitMQConnection.getChannel(name);
-export const cancelConsumer = async (channelName, consumerTag) => {
+export const cancelConsumer = async(channelName, consumerTag) => {
   const channel = await rabbitMQConnection.getChannel(channelName);
   return channel.cancel(consumerTag);
 };

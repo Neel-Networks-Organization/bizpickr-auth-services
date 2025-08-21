@@ -114,7 +114,7 @@ class TwoFactorService {
       // Generate backup codes
       const backupCodes = this.generateBackupCodes();
       const hashedBackupCodes = await Promise.all(
-        backupCodes.map(code => bcrypt.hash(code, 12))
+        backupCodes.map(code => bcrypt.hash(code, 12)),
       );
 
       // Generate QR code
@@ -234,12 +234,12 @@ class TwoFactorService {
       if (user.twoFactorBackupCodes && user.twoFactorBackupCodes.length > 0) {
         const backupResult = await this.verifyBackupCode(
           user.twoFactorBackupCodes,
-          code
+          code,
         );
         if (backupResult.isValid) {
           // Remove used backup code
           const updatedBackupCodes = user.twoFactorBackupCodes.filter(
-            (_, index) => index !== backupResult.index
+            (_, index) => index !== backupResult.index,
           );
           await user.update({ twoFactorBackupCodes: updatedBackupCodes });
 
@@ -383,7 +383,7 @@ class TwoFactorService {
           expiresIn: env.JWT_EXPIRES_IN,
           issuer: 'auth-service',
           audience: 'api-gateway',
-        }
+        },
       );
 
       // Log audit event

@@ -30,13 +30,13 @@ export async function initRedis() {
   return new Promise((resolve, reject) => {
     let timeout = setTimeout(() => {
       safeLogger.error(
-        'Redis connection timeout (10s): Unable to connect to Redis server'
+        'Redis connection timeout (10s): Unable to connect to Redis server',
       );
       reject(
         new ApiError(504, 'Redis connection timeout', [
           'Redis did not become ready within 10 seconds',
           'Please check Redis server status and network connectivity',
-        ])
+        ]),
       );
     }, 10000); // 10 seconds
 
@@ -71,7 +71,7 @@ export async function initRedis() {
         err => {
           safeLogger.error('Redis connection failed', { error: err.message });
           reject(err);
-        }
+        },
       );
     } catch (error) {
       clearTimeout(timeout);
@@ -150,7 +150,7 @@ export async function closeRedis() {
  */
 export const redisOperations = {
   // Set key-value with TTL
-  set: async (key, value, ttl = null) => {
+  set: async(key, value, ttl = null) => {
     if (!isRedisConnected()) {
       throw new Error('Redis not connected');
     }
@@ -186,7 +186,7 @@ export const redisOperations = {
   },
 
   // Set TTL for key
-  expire: async (key, ttl) => {
+  expire: async(key, ttl) => {
     if (!isRedisConnected()) {
       throw new Error('Redis not connected');
     }

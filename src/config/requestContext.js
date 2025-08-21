@@ -1,6 +1,5 @@
 import { AsyncLocalStorage } from 'async_hooks';
 import { v4 as uuidv4 } from 'uuid';
-import { safeLogger } from './logger.js';
 
 /**
  * Request Context Management - Industry Standard
@@ -50,7 +49,7 @@ const createRequestContext = (req = null) => ({
 const getRequestContext = () => {
   const context = asyncLocalStorage.getStore();
   if (!context) {
-    safeLogger.warn('No request context found, creating default context');
+    // Don't log warning for static file requests
     return createRequestContext();
   }
   return context;
@@ -121,6 +120,15 @@ const clearContext = () => {
 
 // ✅ Middleware to set up request context
 export const correlationIdMiddleware = (req, res, next) => {
+  // Skip context for documentation and health checks only
+  if (
+    req.path.startsWith('/api-docs') ||
+    req.path === '/health' ||
+    req.path === '/favicon.ico'
+  ) {
+    return next();
+  }
+
   const context = createRequestContext(req);
 
   // ✅ Set industry-standard tracing headers in response

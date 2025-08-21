@@ -18,7 +18,7 @@ import { safeLogger } from '../config/logger.js';
  * @returns {Function} Express middleware function
  */
 const asyncHandler = requestHandler => {
-  return async (req, res, next) => {
+  return async(req, res, next) => {
     const requestId =
       req.correlationId ||
       `req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -70,7 +70,7 @@ const asyncHandler = requestHandler => {
           500,
           'Internal Server Error',
           [error.message],
-          process.env.NODE_ENV === 'development' ? error.stack : ''
+          process.env.NODE_ENV === 'development' ? error.stack : '',
         );
         next(apiError);
       }
@@ -78,54 +78,5 @@ const asyncHandler = requestHandler => {
   };
 };
 
-/**
- * Wrapper for async middleware functions
- * @param {Function} middleware - Async middleware function
- * @returns {Function} Express middleware function
- */
-const asyncMiddleware = middleware => {
-  return async (req, res, next) => {
-    try {
-      await middleware(req, res, next);
-    } catch (error) {
-      safeLogger.error('Middleware error', {
-        error: error.message,
-        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
-        url: req.originalUrl || req.url,
-      });
-      next(error);
-    }
-  };
-};
-
-/**
- * Wrapper for async error handlers
- * @param {Function} errorHandler - Async error handler function
- * @returns {Function} Express error handler function
- */
-const asyncErrorHandler = errorHandler => {
-  return async (error, req, res, next) => {
-    try {
-      await errorHandler(error, req, res, next);
-    } catch (handlerError) {
-      safeLogger.error('Error handler failed', {
-        originalError: error.message,
-        handlerError: handlerError.message,
-        stack:
-          process.env.NODE_ENV === 'development'
-            ? handlerError.stack
-            : undefined,
-      });
-
-      // Fallback to default error response
-      res.status(500).json({
-        success: false,
-        message: 'Internal Server Error',
-        error: 'Error handler failed',
-      });
-    }
-  };
-};
-
-export { asyncHandler, asyncMiddleware, asyncErrorHandler };
+export { asyncHandler };
 export default asyncHandler;

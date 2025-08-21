@@ -16,7 +16,7 @@ import sessionService from '../services/session.service.js';
  * GET /api/v1/sessions
  */
 export const getUserSessions = asyncHandler(
-  async (req, res, next) => {
+  async(req, res) => {
     const userId = req.user?.id;
 
     if (!userId) {
@@ -38,8 +38,8 @@ export const getUserSessions = asyncHandler(
       .json(
         ApiResponse.success(
           { sessions },
-          'User sessions retrieved successfully'
-        )
+          'User sessions retrieved successfully',
+        ),
       );
   },
   {
@@ -47,7 +47,7 @@ export const getUserSessions = asyncHandler(
     enableLogging: true,
     timeout: 10000,
     retryAttempts: 1,
-  }
+  },
 );
 
 /**
@@ -55,7 +55,7 @@ export const getUserSessions = asyncHandler(
  * DELETE /api/v1/sessions/:sessionId
  */
 export const revokeSession = asyncHandler(
-  async (req, res, next) => {
+  async(req, res) => {
     const userId = req.user?.id;
     const { sessionId } = req.params;
 
@@ -81,7 +81,7 @@ export const revokeSession = asyncHandler(
     return res
       .status(200)
       .json(
-        ApiResponse.success({}, 'Session revoked successfully', { sessionId })
+        ApiResponse.success({}, 'Session revoked successfully', { sessionId }),
       );
   },
   {
@@ -89,7 +89,7 @@ export const revokeSession = asyncHandler(
     enableLogging: true,
     timeout: 10000,
     retryAttempts: 1,
-  }
+  },
 );
 
 /**
@@ -97,7 +97,7 @@ export const revokeSession = asyncHandler(
  * DELETE /api/v1/sessions
  */
 export const revokeAllSessions = asyncHandler(
-  async (req, res, next) => {
+  async(req, res) => {
     const userId = req.user?.id;
 
     if (!userId) {
@@ -118,8 +118,8 @@ export const revokeAllSessions = asyncHandler(
         'All sessions revoked successfully. Please login again.',
         {
           requiresReLogin: true,
-        }
-      )
+        },
+      ),
     );
   },
   {
@@ -127,7 +127,7 @@ export const revokeAllSessions = asyncHandler(
     enableLogging: true,
     timeout: 10000,
     retryAttempts: 1,
-  }
+  },
 );
 
 /**
@@ -135,7 +135,7 @@ export const revokeAllSessions = asyncHandler(
  * GET /api/v1/sessions/stats
  */
 export const getSessionStats = asyncHandler(
-  async (req, res, next) => {
+  async(req, res) => {
     const userId = req.user?.id;
 
     if (!userId) {
@@ -155,7 +155,7 @@ export const getSessionStats = asyncHandler(
     return res
       .status(200)
       .json(
-        ApiResponse.success(stats, 'Session statistics retrieved successfully')
+        ApiResponse.success(stats, 'Session statistics retrieved successfully'),
       );
   },
   {
@@ -163,7 +163,7 @@ export const getSessionStats = asyncHandler(
     enableLogging: true,
     timeout: 10000,
     retryAttempts: 1,
-  }
+  },
 );
 
 /**
@@ -171,7 +171,7 @@ export const getSessionStats = asyncHandler(
  * POST /api/v1/sessions/validate
  */
 export const validateSession = asyncHandler(
-  async (req, res, next) => {
+  async(req, res) => {
     const { sessionId } = req.body;
 
     if (!sessionId) {
@@ -202,7 +202,7 @@ export const validateSession = asyncHandler(
     enableLogging: true,
     timeout: 5000,
     retryAttempts: 1,
-  }
+  },
 );
 
 /**
@@ -210,7 +210,7 @@ export const validateSession = asyncHandler(
  * POST /api/v1/sessions/cleanup
  */
 export const cleanExpiredSessions = asyncHandler(
-  async (req, res, next) => {
+  async(req, res) => {
     const userId = req.user?.id;
     const userRole = req.user?.role;
 
@@ -238,8 +238,8 @@ export const cleanExpiredSessions = asyncHandler(
       .json(
         ApiResponse.success(
           { cleanedCount },
-          'Expired sessions cleaned successfully'
-        )
+          'Expired sessions cleaned successfully',
+        ),
       );
   },
   {
@@ -247,5 +247,5 @@ export const cleanExpiredSessions = asyncHandler(
     enableLogging: true,
     timeout: 30000,
     retryAttempts: 1,
-  }
+  },
 );

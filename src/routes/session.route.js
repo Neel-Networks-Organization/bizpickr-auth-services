@@ -20,6 +20,7 @@ import {
   verifyJWT,
   requireRole,
   auditLog,
+  rateLimiter,
 } from '../middlewares/auth.middleware.js';
 import { asyncHandler } from '../utils/index.js';
 
@@ -32,7 +33,7 @@ router
   .delete(
     verifyJWT,
     auditLog('revoke_all_sessions'),
-    asyncHandler(revokeAllSessions)
+    asyncHandler(revokeAllSessions),
   );
 
 router
@@ -42,8 +43,14 @@ router
 // Session Analytics
 router.route('/stats').get(verifyJWT, asyncHandler(getSessionStats));
 
-// Session Validation
-router.route('/validate').post(asyncHandler(validateSession));
+// Session Validation with rate limiting
+router
+  .route('/validate')
+  .post(
+    rateLimiter('session_validate', { windowMs: 60 * 1000, max: 30 }),
+    auditLog('session_validation'),
+    asyncHandler(validateSession),
+  );
 
 // Session Cleanup (Admin only)
 router
@@ -52,7 +59,7 @@ router
     verifyJWT,
     requireRole('admin'),
     auditLog('session_cleanup'),
-    asyncHandler(cleanExpiredSessions)
+    asyncHandler(cleanExpiredSessions),
   );
 
 export default router;

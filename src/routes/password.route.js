@@ -19,15 +19,15 @@ import {
 import {
   verifyJWT,
   requireRole,
-  validateRequest,
   rateLimiter,
   auditLog,
 } from '../middlewares/auth.middleware.js';
+import { validateRequest } from '../middlewares/validation.middleware.js';
+import { asyncHandler } from '../utils/index.js';
 import {
   validatePasswordChange,
   validatePasswordReset,
-} from '../validators/authValidators.js';
-import { asyncHandler } from '../utils/index.js';
+} from '../validators/basicValidators.js';
 
 const router = Router();
 
@@ -38,7 +38,7 @@ router
     verifyJWT,
     validateRequest(validatePasswordChange),
     auditLog('password_change'),
-    asyncHandler(changePassword)
+    asyncHandler(changePassword),
   );
 
 // Password Reset
@@ -47,7 +47,7 @@ router
   .post(
     rateLimiter('forgot-password', { windowMs: 15 * 60 * 1000, max: 3 }),
     auditLog('forgot_password'),
-    asyncHandler(forgotPassword)
+    asyncHandler(forgotPassword),
   );
 
 router
@@ -56,11 +56,17 @@ router
     rateLimiter('reset-password', { windowMs: 15 * 60 * 1000, max: 3 }),
     validateRequest(validatePasswordReset),
     auditLog('password_reset'),
-    asyncHandler(resetPassword)
+    asyncHandler(resetPassword),
   );
 
-// Password Validation
-router.route('/validate').post(asyncHandler(validatePassword));
+// Password Validation with rate limiting
+router
+  .route('/validate')
+  .post(
+    rateLimiter('password_validate', { windowMs: 60 * 1000, max: 20 }),
+    auditLog('password_validation'),
+    asyncHandler(validatePassword),
+  );
 
 // Password Statistics
 router.route('/stats').get(verifyJWT, asyncHandler(getPasswordStats));
@@ -72,7 +78,7 @@ router
     verifyJWT,
     requireRole('admin'),
     auditLog('password_cleanup'),
-    asyncHandler(cleanExpiredTokens)
+    asyncHandler(cleanExpiredTokens),
   );
 
 export default router;

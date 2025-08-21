@@ -89,7 +89,7 @@ const userActivitySchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 // userActivitySchema.index({ userId: 1, action: 1, createdAt: -1 });
@@ -100,14 +100,14 @@ const userActivitySchema = new mongoose.Schema(
 // userActivitySchema.index({ ipAddress: 1 });
 
 // Static method to log activity
-userActivitySchema.statics.logActivity = async function (activityData) {
+userActivitySchema.statics.logActivity = async function(activityData) {
   // Calculate risk score before saving
   activityData.riskScore = calculateRiskScore(activityData);
   return this.create(activityData);
 };
 
 // Instance method to update risk score
-userActivitySchema.methods.updateRiskScore = async function () {
+userActivitySchema.methods.updateRiskScore = async function() {
   this.riskScore = calculateRiskScore(this);
   return this.save();
 };
@@ -116,35 +116,35 @@ userActivitySchema.methods.updateRiskScore = async function () {
 function calculateRiskScore(activity) {
   let score = 0;
   switch (activity.severity) {
-    case 'critical':
-      score += 40;
-      break;
-    case 'high':
-      score += 25;
-      break;
-    case 'medium':
-      score += 15;
-      break;
-    case 'low':
-      score += 5;
-      break;
+  case 'critical':
+    score += 40;
+    break;
+  case 'high':
+    score += 25;
+    break;
+  case 'medium':
+    score += 15;
+    break;
+  case 'low':
+    score += 5;
+    break;
   }
   switch (activity.category) {
-    case 'security':
-      score += 20;
-      break;
-    case 'authentication':
-      score += 15;
-      break;
-    case 'authorization':
-      score += 10;
-      break;
-    case 'data_access':
-      score += 8;
-      break;
-    case 'system':
-      score += 5;
-      break;
+  case 'security':
+    score += 20;
+    break;
+  case 'authentication':
+    score += 15;
+    break;
+  case 'authorization':
+    score += 10;
+    break;
+  case 'data_access':
+    score += 8;
+    break;
+  case 'system':
+    score += 5;
+    break;
   }
   if (activity.status === 'failure') score += 10;
   const highRiskActions = [

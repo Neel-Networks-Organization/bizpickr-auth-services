@@ -41,7 +41,7 @@ class PasswordService {
       // Verify current password
       const isCurrentPasswordValid = await bcrypt.compare(
         currentPassword,
-        user.password
+        user.password,
       );
       if (!isCurrentPasswordValid) {
         throw new Error('Current password is incorrect');
@@ -268,7 +268,7 @@ class PasswordService {
 
     if (commonPasswords.includes(password.toLowerCase())) {
       throw new Error(
-        'Password is too common, please choose a stronger password'
+        'Password is too common, please choose a stronger password',
       );
     }
   }

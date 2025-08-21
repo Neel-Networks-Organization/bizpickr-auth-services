@@ -9,8 +9,12 @@ import {
 } from './grpc/index.js';
 import { safeLogger } from './config/logger.js';
 import { initializeRabbitMQ, shutdownRabbitMQ } from './events/index.js';
-// Key rotation removed for simplicity
+// Cache initialization
 import { initializeCache, shutdownCache } from './cache/auth.cache.js';
+import {
+  initializeGeneralCache,
+  shutdownGeneralCache,
+} from './cache/general.cache.js';
 // Performance monitoring simplified
 import { connectMongo } from './db/mongoose.js';
 
@@ -26,38 +30,39 @@ async function initializeCoreServices() {
   const startupSteps = [
     {
       name: 'Database Connection',
-      fn: async () => {
+      fn: async() => {
         await initializeDatabase();
       },
     },
     {
       name: 'Redis Connection',
-      fn: async () => {
+      fn: async() => {
         await initRedis();
       },
     },
     {
       name: 'Cache Initialization',
-      fn: async () => {
+      fn: async() => {
         await initializeCache();
+        await initializeGeneralCache();
       },
     },
     {
       name: 'gRPC Services',
-      fn: async () => {
+      fn: async() => {
         await initializeGrpcServices();
         registerServices();
       },
     },
     {
       name: 'RabbitMQ Connection',
-      fn: async () => {
+      fn: async() => {
         await initializeRabbitMQ();
       },
     },
     {
       name: 'MongoDB Connection',
-      fn: async () => {
+      fn: async() => {
         await connectMongo();
       },
     },
@@ -90,7 +95,6 @@ async function startServer() {
     });
     await initializeCoreServices();
 
-    console.log('🔍 DEBUG: Starting HTTP server on port', env.server.port);
     const server = app.listen(env.server.port, () => {
       startupComplete = true;
       safeLogger.info('⚙️ Server is running successfully', {
@@ -99,14 +103,10 @@ async function startServer() {
         environment: env.NODE_ENV,
         version: process.env.npm_package_version || '1.0.0',
       });
-      console.log('✅ DEBUG: HTTP server callback executed successfully');
     });
-
-    console.log('🔍 DEBUG: HTTP server created, setting up event handlers');
 
     // ✅ Server Event Handlers
     server.on('error', error => {
-      console.log('❌ DEBUG: Server error event triggered:', error.message);
       safeLogger.error('Server error', {
         error: error.message,
         code: error.code,
@@ -142,14 +142,14 @@ async function startServer() {
           },
           {
             name: 'Shutdown gRPC Services',
-            fn: async () => {
+            fn: async() => {
               await shutdownGrpcServices();
               safeLogger.info('✅ gRPC services shutdown complete');
             },
           },
           {
             name: 'Shutdown RabbitMQ',
-            fn: async () => {
+            fn: async() => {
               await shutdownRabbitMQ();
               safeLogger.info('✅ RabbitMQ shutdown complete');
             },
@@ -157,21 +157,22 @@ async function startServer() {
 
           {
             name: 'Shutdown Cache',
-            fn: async () => {
+            fn: async() => {
               await shutdownCache();
+              await shutdownGeneralCache();
               safeLogger.info('✅ Cache shutdown complete');
             },
           },
           {
             name: 'Close Database Connections',
-            fn: async () => {
+            fn: async() => {
               await sequelize.close();
               safeLogger.info('✅ Database connections closed');
             },
           },
           {
             name: 'Close MongoDB Connection',
-            fn: async () => {
+            fn: async() => {
               const { default: mongoose } = await import('./db/mongoose.js');
               await mongoose.connection.close();
               safeLogger.info('✅ MongoDB connection closed');
@@ -185,7 +186,7 @@ async function startServer() {
             await step.fn();
             const stepDuration = performance.now() - stepStartTime;
             safeLogger.info(
-              `✅ ${step.name} completed in ${stepDuration.toFixed(2)}ms`
+              `✅ ${step.name} completed in ${stepDuration.toFixed(2)}ms`,
             );
           } catch (error) {
             safeLogger.error(`❌ Error during ${step.name} shutdown`, {

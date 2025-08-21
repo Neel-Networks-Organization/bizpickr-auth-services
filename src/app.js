@@ -3,8 +3,6 @@ import cors from 'cors';
 import helmet from 'helmet';
 
 import cookieParser from 'cookie-parser';
-import path from 'path';
-import { fileURLToPath } from 'url';
 import compression from 'compression';
 
 import {
@@ -14,13 +12,20 @@ import {
   enterpriseSecurityMiddleware,
   enterpriseValidationMiddleware,
   enterpriseErrorHandler,
-  enterpriseAuthMiddleware,
 } from './middlewares/enterprise.middleware.js';
+
+// 🛡️ Security & Rate Limiting Middlewares
+import {
+  securityHeaders,
+  corsMiddleware,
+  requestSizeLimit,
+  sanitizeInput,
+} from './middlewares/security.middleware.js';
+
+import { ipRateLimit } from './middlewares/rateLimiter.middleware.js';
 
 const allowedOrigins = ['http://localhost:3000'];
 const app = express();
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 // ✅ Basic Security with Helmet
 app.use(helmet());
@@ -50,31 +55,22 @@ app.use(enterpriseRateLimit(100, 15 * 60 * 1000));
 app.use(enterpriseSecurityMiddleware);
 app.use(enterpriseValidationMiddleware);
 
-// ✅ Static Files with Security
-app.use(
-  '/public',
-  express.static(path.join(__dirname, '..', 'public'), {
-    maxAge: '1d',
-    etag: true,
-    lastModified: true,
-    setHeaders: (res, path) => {
-      if (path.endsWith('.js')) {
-        res.setHeader('Content-Type', 'application/javascript');
-      }
-      res.setHeader('X-Content-Type-Options', 'nosniff');
-    },
-  })
-);
+// 🛡️ ENHANCED SECURITY MIDDLEWARES
+app.use(securityHeaders()); // Security headers (CSP, XSS protection)
+app.use(corsMiddleware()); // Enhanced CORS protection
+app.use(requestSizeLimit('10mb')); // Request size limits (DoS protection)
+app.use(sanitizeInput); // Input sanitization (XSS protection)
+
+// 🚫 RATE LIMITING MIDDLEWARES
+app.use(ipRateLimit); // Global IP rate limiting
 // ✅ API Routes
 import authRoutes from './routes/auth.route.js';
-import userRoutes from './routes/user.routes.js';
 import sessionRoutes from './routes/session.route.js';
 import passwordRoutes from './routes/password.route.js';
 import jwkRoutes from './routes/jwk.route.js';
 
 // Route Registration
 app.use('/api/v1/auth', authRoutes);
-app.use('/api/v1/users', userRoutes);
 app.use('/api/v1/sessions', sessionRoutes);
 app.use('/api/v1/password', passwordRoutes);
 app.use('/api/v1/jwk', jwkRoutes);

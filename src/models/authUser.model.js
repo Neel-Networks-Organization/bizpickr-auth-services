@@ -23,37 +23,68 @@ import { getCorrelationId } from '../config/requestContext.js';
  */
 class AuthUser extends Model {
   /**
-   * Validate password strength using centralized validators
+   * Validate password strength
    * @param {string} password - Password to validate
    * @returns {Object} Validation result
    */
   static async validatePasswordStrength(password) {
     try {
-      const { validatePassword } = await import('../utils/index.js');
-      return await validatePassword(password);
+      // Basic password validation
+      if (!password || password.length < 8) {
+        return {
+          isValid: false,
+          errors: ['Password must be at least 8 characters long'],
+        };
+      }
+      if (password.length > 128) {
+        return {
+          isValid: false,
+          errors: ['Password must not exceed 128 characters'],
+        };
+      }
+      if (!/[A-Z]/.test(password)) {
+        return {
+          isValid: false,
+          errors: ['Password must contain at least one uppercase letter'],
+        };
+      }
+      if (!/[a-z]/.test(password)) {
+        return {
+          isValid: false,
+          errors: ['Password must contain at least one lowercase letter'],
+        };
+      }
+      if (!/\d/.test(password)) {
+        return {
+          isValid: false,
+          errors: ['Password must contain at least one number'],
+        };
+      }
+      return { isValid: true, errors: [] };
     } catch (error) {
-      safeLogger.error('Password validation error', {
-        error: error.message,
-        correlationId: getCorrelationId(),
-      });
       return { isValid: false, errors: [error.message] };
     }
   }
 
   /**
-   * Validate email format using centralized validators
+   * Validate email format
    * @param {string} email - Email to validate
    * @returns {Object} Validation result
    */
   static async validateEmail(email) {
     try {
-      const { validateEmail } = await import('../utils/index.js');
-      return await validateEmail(email);
+      if (!email) {
+        return { isValid: false, errors: ['Email is required'] };
+      }
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return { isValid: false, errors: ['Invalid email format'] };
+      }
+      if (email.length > 254) {
+        return { isValid: false, errors: ['Email too long'] };
+      }
+      return { isValid: true, errors: [] };
     } catch (error) {
-      safeLogger.error('Email validation error', {
-        error: error.message,
-        correlationId: getCorrelationId(),
-      });
       return { isValid: false, errors: [error.message] };
     }
   }
@@ -158,17 +189,17 @@ class AuthUser extends Model {
       const emailValidation = await this.validateEmail(userData.email);
       if (!emailValidation.isValid) {
         throw new Error(
-          `Email validation failed: ${emailValidation.errors.join(', ')}`
+          `Email validation failed: ${emailValidation.errors.join(', ')}`,
         );
       }
       // Validate password if provided
       if (userData.password) {
         const passwordValidation = await this.validatePasswordStrength(
-          userData.password
+          userData.password,
         );
         if (!passwordValidation.isValid) {
           throw new Error(
-            `Password validation failed: ${passwordValidation.errors.join(', ')}`
+            `Password validation failed: ${passwordValidation.errors.join(', ')}`,
           );
         }
       }
@@ -213,18 +244,18 @@ class AuthUser extends Model {
         const emailValidation = await this.validateEmail(updateData.email);
         if (!emailValidation.isValid) {
           throw new Error(
-            `Email validation failed: ${emailValidation.errors.join(', ')}`
+            `Email validation failed: ${emailValidation.errors.join(', ')}`,
           );
         }
       }
       // Validate password if being updated
       if (updateData.password) {
         const passwordValidation = await this.validatePasswordStrength(
-          updateData.password
+          updateData.password,
         );
         if (!passwordValidation.isValid) {
           throw new Error(
-            `Password validation failed: ${passwordValidation.errors.join(', ')}`
+            `Password validation failed: ${passwordValidation.errors.join(', ')}`,
           );
         }
       }
@@ -451,7 +482,7 @@ AuthUser.init(
           msg: 'Email cannot be empty',
         },
       },
-      comment: "User's email address (unique)",
+      comment: 'User\'s email address (unique)',
     },
     password: {
       type: DataTypes.STRING(255),
@@ -497,7 +528,7 @@ AuthUser.init(
         'requirement_coordinator',
         'hr_admin',
         'admin',
-        'super_admin'
+        'super_admin',
       ),
       allowNull: false,
       defaultValue: 'customer',
@@ -737,6 +768,6 @@ AuthUser.init(
         });
       },
     },
-  }
+  },
 );
 export default AuthUser;

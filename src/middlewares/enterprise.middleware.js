@@ -38,7 +38,7 @@ export const enterpriseLoggingMiddleware = (req, res, next) => {
 
   // Override res.end to log response
   const originalEnd = res.end;
-  res.end = function (...args) {
+  res.end = function(...args) {
     const duration = Date.now() - startTime;
 
     safeLogger.info('Request completed', {
@@ -59,7 +59,7 @@ export const enterpriseLoggingMiddleware = (req, res, next) => {
 // ✅ Enterprise Rate Limiting
 export const enterpriseRateLimit = (
   maxRequests = 100,
-  windowMs = 15 * 60 * 1000
+  windowMs = 15 * 60 * 1000,
 ) => {
   const requests = new Map();
 
@@ -72,7 +72,7 @@ export const enterpriseRateLimit = (
     if (requests.has(ip)) {
       requests.set(
         ip,
-        requests.get(ip).filter(time => time > windowStart)
+        requests.get(ip).filter(time => time > windowStart),
       );
     }
 
@@ -109,7 +109,7 @@ export const enterpriseSecurityMiddleware = (req, res, next) => {
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   res.setHeader(
     'Permissions-Policy',
-    'geolocation=(), microphone=(), camera=()'
+    'geolocation=(), microphone=(), camera=()',
   );
 
   next();
@@ -219,46 +219,4 @@ export const enterpriseErrorHandler = (error, req, res, next) => {
   }
 
   res.status(500).json(errorResponse);
-};
-
-// ✅ Enterprise Auth Middleware
-export const enterpriseAuthMiddleware = (req, res, next) => {
-  const correlationId = req.correlationId;
-
-  try {
-    const token = req.headers.authorization?.replace('Bearer ', '');
-
-    if (!token) {
-      safeLogger.warn('No token provided', { correlationId, path: req.path });
-      return res.status(401).json({
-        error: 'Unauthorized',
-        message: 'No token provided',
-        correlationId,
-      });
-    }
-
-    // Basic token validation (you can enhance this)
-    if (token.length < 10) {
-      safeLogger.warn('Invalid token format', {
-        correlationId,
-        path: req.path,
-      });
-      return res.status(401).json({
-        error: 'Unauthorized',
-        message: 'Invalid token format',
-        correlationId,
-      });
-    }
-
-    // Add user info to request (simplified)
-    req.user = { id: 'user-id', token };
-    next();
-  } catch (error) {
-    safeLogger.error('Auth error', { correlationId, error: error.message });
-    return res.status(401).json({
-      error: 'Unauthorized',
-      message: 'Invalid token',
-      correlationId,
-    });
-  }
 };

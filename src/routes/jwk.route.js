@@ -6,42 +6,29 @@ import {
   getJWKStats,
   validateAndRotateKeys,
 } from '../controllers/jwk.controller.js';
-import {
-  rateLimiter,
-  cacheMiddleware,
-  securityHeaders,
-  validateRequest,
-  auditLog,
-} from '../middlewares/auth.middleware.js';
+import { rateLimiter, auditLog } from '../middlewares/auth.middleware.js';
+import { validateRequest } from '../middlewares/validation.middleware.js';
 import { validateJWKRequest } from '../validators/jwkValidators.js';
 import { asyncHandler } from '../utils/index.js';
 
 const router = Router();
 
 // JWK Set Management
-router.route('/.well-known/jwks.json').get(
-  rateLimiter('jwks', { windowMs: 60 * 1000, max: 100 }),
-  cacheMiddleware('jwks', 300),
-  securityHeaders({
-    'Cache-Control': 'public, max-age=300, s-maxage=300',
-    'Content-Type': 'application/json',
-    'X-Content-Type-Options': 'nosniff',
-  }),
-  auditLog('jwks_request'),
-  asyncHandler(getJWKs)
-);
+router
+  .route('/.well-known/jwks.json')
+  .get(
+    rateLimiter('jwks', { windowMs: 60 * 1000, max: 100 }),
+    auditLog('jwks_request'),
+    asyncHandler(getJWKs),
+  );
 
-router.route('/keys/:kid').get(
-  rateLimiter('jwk-specific', { windowMs: 60 * 1000, max: 50 }),
-  cacheMiddleware('jwk-specific', 600),
-  securityHeaders({
-    'Cache-Control': 'public, max-age=600, s-maxage=600',
-    'Content-Type': 'application/json',
-    'X-Content-Type-Options': 'nosniff',
-  }),
-  auditLog('jwk_specific_request'),
-  asyncHandler(getJWKByKid)
-);
+router
+  .route('/keys/:kid')
+  .get(
+    rateLimiter('jwk-specific', { windowMs: 60 * 1000, max: 50 }),
+    auditLog('jwk_specific_request'),
+    asyncHandler(getJWKByKid),
+  );
 
 // JWK Operations
 router
@@ -50,7 +37,7 @@ router
     rateLimiter('jwk-refresh', { windowMs: 60 * 60 * 1000, max: 10 }),
     validateRequest(validateJWKRequest),
     auditLog('jwks_refresh'),
-    asyncHandler(rotateJWKs)
+    asyncHandler(rotateJWKs),
   );
 
 router
@@ -59,7 +46,7 @@ router
     rateLimiter('jwk-validate', { windowMs: 60 * 1000, max: 30 }),
     validateRequest(validateJWKRequest),
     auditLog('jwk_validation'),
-    asyncHandler(validateAndRotateKeys)
+    asyncHandler(validateAndRotateKeys),
   );
 
 // JWK Statistics
@@ -68,7 +55,7 @@ router
   .get(
     rateLimiter('jwk-stats', { windowMs: 60 * 1000, max: 20 }),
     auditLog('jwk_stats'),
-    asyncHandler(getJWKStats)
+    asyncHandler(getJWKStats),
   );
 
 export default router;

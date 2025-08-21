@@ -47,7 +47,7 @@ class SessionService {
             expiresAt: session.expiresAt,
             isActive: new Date() < session.expiresAt && isActiveInCache,
           };
-        })
+        }),
       );
 
       safeLogger.info('User sessions retrieved', {
@@ -90,12 +90,12 @@ class SessionService {
         sessionExists: !!existingSession,
         sessionDetails: existingSession
           ? {
-              id: existingSession.id,
-              sessionToken: existingSession.sessionToken,
-              userId: existingSession.userId,
-              isActive: existingSession.isActive,
-              expiresAt: existingSession.expiresAt,
-            }
+            id: existingSession.id,
+            sessionToken: existingSession.sessionToken,
+            userId: existingSession.userId,
+            isActive: existingSession.isActive,
+            expiresAt: existingSession.expiresAt,
+          }
           : null,
       });
 
@@ -308,7 +308,7 @@ class SessionService {
       await getRedisClient().setex(
         `refresh:${refreshToken}`,
         this.refreshTokenTTL,
-        JSON.stringify(tokenData)
+        JSON.stringify(tokenData),
       );
 
       safeLogger.debug('Refresh token stored', {

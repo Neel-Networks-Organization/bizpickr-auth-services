@@ -18,14 +18,15 @@ import { ApiError } from '../utils/index.js';
  * - Graceful shutdown
  */
 
-// Create Sequelize instance
+// Create Sequelize instance with proper timeout settings
 const sequelize = new Sequelize(
   databaseConfig.mysql.database,
   databaseConfig.mysql.username,
   databaseConfig.mysql.password,
   {
     ...getDatabaseConnectionOptions(),
-    logging: false, // Disable database logging
+    logging: process.env.NODE_ENV === 'development' ? console.log : false,
+    // Remove conflicting timeout settings - use config defaults
   }
 );
 
@@ -38,34 +39,21 @@ export async function initializeDatabase() {
     // Validate database configuration
     validateDatabaseConfig();
 
-    const connectionOptions = getDatabaseConnectionOptions();
     const { mysql } = databaseConfig;
 
-    // Timeout logic for DB connection
-    const dbTimeoutMs = 10000;
-    const dbTimeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => {
-        safeLogger.error(
-          'Database connection timeout (10s): Unable to connect to DB'
-        );
-        reject(
-          new ApiError(504, 'Database connection timeout', [
-            'Database did not become ready within 10 seconds',
-            'Please check DB server status and network connectivity',
-          ])
-        );
-      }, dbTimeoutMs)
-    );
+    safeLogger.info('Testing database connection...');
 
-    // Test connection with timeout
-    await Promise.race([sequelize.authenticate(), dbTimeoutPromise]);
+    // Test connection with proper error handling
+    await sequelize.authenticate();
 
-    // Sync database (create tables)
-    await sequelize.sync({ force: false }); // Don't force recreate tables
+    // Sync database (create tables if they don't exist)
+    await sequelize.sync({ force: false });
 
     safeLogger.info('Database connection established successfully', {
       dialect: mysql.dialect,
       database: mysql.database,
+      host: mysql.host,
+      port: mysql.port,
     });
 
     // Set up event listeners
@@ -75,10 +63,11 @@ export async function initializeDatabase() {
   } catch (error) {
     safeLogger.error('Database connection failed', {
       error: error.message,
-      stack: error.stack,
       host: databaseConfig.mysql.host,
       database: databaseConfig.mysql.database,
+      port: databaseConfig.mysql.port,
     });
+
     throw new ApiError(503, 'Database connection failed', [
       'Unable to connect to the database',
       'Please check database configuration and network connectivity',
@@ -135,7 +124,7 @@ export function getDatabase() {
  */
 export function isDatabaseConnected() {
   try {
-    return sequelize.authenticate() !== undefined;
+    return sequelize.connectionManager.hasValidConnections();
   } catch {
     return false;
   }
@@ -171,6 +160,34 @@ export async function testDatabaseConnection() {
       error: error.message,
     });
     return false;
+  }
+}
+
+/**
+ * Health check for database
+ * @returns {Promise<Object>} Health status
+ */
+export async function getDatabaseHealth() {
+  try {
+    const isConnected = await testDatabaseConnection();
+    const poolStatus = sequelize.connectionManager.pool;
+
+    return {
+      status: isConnected ? 'healthy' : 'unhealthy',
+      connected: isConnected,
+      pool: {
+        total: poolStatus.size,
+        idle: poolStatus.idle,
+        using: poolStatus.using,
+      },
+      timestamp: new Date().toISOString(),
+    };
+  } catch (error) {
+    return {
+      status: 'error',
+      error: error.message,
+      timestamp: new Date().toISOString(),
+    };
   }
 }
 

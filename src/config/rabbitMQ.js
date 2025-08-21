@@ -1,5 +1,4 @@
 // src/config/rabbitMQ.js
-import { env } from './env.js';
 import { safeLogger } from './logger.js';
 
 /**
@@ -64,7 +63,7 @@ export const EVENT_TYPES = {
 export const rabbitMQConfig = {
   // Connection configuration
   connection: {
-    url: env.rabbitMQ?.url || process.env.RABBITMQ_URL || 'amqp://localhost',
+    url: process.env.RABBITMQ_URL || 'amqp://localhost',
     host: process.env.RABBITMQ_HOST || 'localhost',
     port: parseInt(process.env.RABBITMQ_PORT) || 5672,
     username: process.env.RABBITMQ_USERNAME || 'guest',
@@ -377,11 +376,11 @@ export const eventRouting = {
 export function getConsumerOptions(queueName) {
   const hasOverride = Object.prototype.hasOwnProperty.call(
     rabbitMQConfig.consumer,
-    queueName
+    queueName,
   );
   if (!hasOverride) {
     safeLogger.warn(
-      `No specific consumer config for queue '${queueName}', using default options.`
+      `No specific consumer config for queue '${queueName}', using default options.`,
     );
   }
   return {

@@ -37,8 +37,8 @@ export const redisConfig = {
   tls:
     process.env.REDIS_TLS === 'true'
       ? {
-          rejectUnauthorized: false,
-        }
+        rejectUnauthorized: false,
+      }
       : undefined,
 
   // Key Management

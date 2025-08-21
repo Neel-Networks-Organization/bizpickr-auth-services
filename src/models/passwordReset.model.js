@@ -323,16 +323,16 @@ class PasswordReset extends Model {
   }
 
   /**
-   * Validate token format using centralized validators
+   * Validate reset token using centralized validators
    * @param {string} token - Token to validate
    * @returns {Object} Validation result
    */
   static async validateToken(token) {
     try {
-      const { validatePasswordResetToken } = await import(
-        '../utils/validationUtils.js'
+      const { validatePasswordReset } = await import(
+        '../validators/authValidators.js'
       );
-      return await validatePasswordResetToken(token);
+      return await validatePasswordReset({ token });
     } catch (error) {
       safeLogger.error('Token validation error', {
         error: error.message,

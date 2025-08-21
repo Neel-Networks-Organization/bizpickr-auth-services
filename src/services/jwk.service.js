@@ -215,7 +215,7 @@ class JWKService {
         return newKey;
       }
       const sortedKeys = keys.sort(
-        (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+        (a, b) => new Date(b.createdAt) - new Date(a.createdAt),
       );
       return sortedKeys[0];
     } catch (error) {
@@ -257,7 +257,7 @@ class JWKService {
       }
 
       this._activeKeys = this._activeKeys.filter(
-        key => key.kid !== keyPair.kid
+        key => key.kid !== keyPair.kid,
       );
 
       this._activeKeys.push(keyPair);
@@ -293,7 +293,7 @@ class JWKService {
 
       const now = new Date();
       const activeKeys = this._activeKeys.filter(
-        key => new Date(key.expiresAt) > now
+        key => new Date(key.expiresAt) > now,
       );
 
       if (activeKeys.length === 0) {

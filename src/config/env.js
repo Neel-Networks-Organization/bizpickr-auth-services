@@ -48,7 +48,7 @@ const coreConfig = {
 
   // CORS Configuration
   corsOrigins: process.env.CORS_ORIGINS?.split(',').map(origin =>
-    origin.trim()
+    origin.trim(),
   ) || [
     'http://localhost:3000',
     'http://localhost:3001',

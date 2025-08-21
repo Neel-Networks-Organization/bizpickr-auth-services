@@ -1,86 +1,66 @@
 import { safeLogger } from '../config/logger.js';
 import { getCorrelationId } from '../config/requestContext.js';
-import { ApiError } from '../utils/index.js';
 
 /**
- * Smart Security Middleware
- * Core security headers and CORS handling
+ * Security Middleware
+ * Core security functionality for the application
  */
 
 /**
  * Security headers middleware
  */
 export const securityHeaders = (options = {}) => {
-  const {
-    enableHSTS = true,
-    enableCSP = true,
-    enableXSS = true,
-    enableFrameOptions = true,
-    enableContentType = true,
-    enableReferrerPolicy = true,
-    enablePermissionsPolicy = true,
-  } = options;
+  const config = {
+    enableCSP: true,
+    enableHSTS: true,
+    enableXSS: true,
+    enableFrameOptions: true,
+    enableContentTypeOptions: true,
+    ...options,
+  };
 
   return (req, res, next) => {
     const correlationId = getCorrelationId();
 
     try {
-      // HSTS (HTTP Strict Transport Security)
-      if (enableHSTS) {
+      // Content Security Policy
+      if (config.enableCSP) {
+        res.setHeader(
+          'Content-Security-Policy',
+          "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' https:; connect-src 'self' https:; frame-ancestors 'none';"
+        );
+      }
+
+      // HTTP Strict Transport Security
+      if (config.enableHSTS) {
         res.setHeader(
           'Strict-Transport-Security',
           'max-age=31536000; includeSubDomains; preload'
         );
       }
 
-      // Content Security Policy
-      if (enableCSP) {
-        const csp = [
-          "default-src 'self'",
-          "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
-          "style-src 'self' 'unsafe-inline'",
-          "img-src 'self' data: https:",
-          "font-src 'self'",
-          "connect-src 'self'",
-          "frame-ancestors 'none'",
-          "base-uri 'self'",
-          "form-action 'self'",
-        ].join('; ');
-        res.setHeader('Content-Security-Policy', csp);
-      }
-
-      // XSS Protection
-      if (enableXSS) {
+      // X-XSS-Protection
+      if (config.enableXSS) {
         res.setHeader('X-XSS-Protection', '1; mode=block');
       }
 
-      // Frame Options
-      if (enableFrameOptions) {
+      // X-Frame-Options
+      if (config.enableFrameOptions) {
         res.setHeader('X-Frame-Options', 'DENY');
       }
 
-      // Content Type Options
-      if (enableContentType) {
+      // X-Content-Type-Options
+      if (config.enableContentTypeOptions) {
         res.setHeader('X-Content-Type-Options', 'nosniff');
       }
 
-      // Referrer Policy
-      if (enableReferrerPolicy) {
-        res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-      }
-
-      // Permissions Policy
-      if (enablePermissionsPolicy) {
-        res.setHeader(
-          'Permissions-Policy',
-          'geolocation=(), microphone=(), camera=()'
-        );
-      }
-
       // Additional security headers
-      res.setHeader('X-DNS-Prefetch-Control', 'off');
-      res.setHeader('X-Download-Options', 'noopen');
       res.setHeader('X-Permitted-Cross-Domain-Policies', 'none');
+      res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+      res.setHeader(
+        'Permissions-Policy',
+        'geolocation=(), microphone=(), camera=()'
+      );
 
       next();
     } catch (error) {
@@ -94,50 +74,54 @@ export const securityHeaders = (options = {}) => {
 };
 
 /**
- * CORS middleware
+ * CORS middleware with enhanced security
  */
 export const corsMiddleware = (options = {}) => {
-  const {
-    origin = process.env.ALLOWED_ORIGINS?.split(',') || [
+  const config = {
+    origin: process.env.ALLOWED_ORIGINS?.split(',') || [
       'http://localhost:3000',
     ],
-    methods = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders = ['Content-Type', 'Authorization', 'X-Requested-With'],
-    credentials = true,
-    maxAge = 86400, // 24 hours
-  } = options;
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'X-Requested-With',
+      'X-API-Key',
+      'X-Correlation-ID',
+    ],
+    exposedHeaders: ['X-Correlation-ID', 'X-Request-ID'],
+    maxAge: 86400, // 24 hours
+    ...options,
+  };
 
   return (req, res, next) => {
     const correlationId = getCorrelationId();
-    const requestOrigin = req.headers.origin;
 
     try {
-      // Handle preflight request
+      const origin = req.headers.origin;
+
+      // Check if origin is allowed
+      if (origin && config.origin.includes(origin)) {
+        res.setHeader('Access-Control-Allow-Origin', origin);
+      }
+
+      // Set CORS headers
+      res.setHeader('Access-Control-Allow-Credentials', config.credentials);
+      res.setHeader('Access-Control-Allow-Methods', config.methods.join(', '));
+      res.setHeader(
+        'Access-Control-Allow-Headers',
+        config.allowedHeaders.join(', ')
+      );
+      res.setHeader(
+        'Access-Control-Expose-Headers',
+        config.exposedHeaders.join(', ')
+      );
+      res.setHeader('Access-Control-Max-Age', config.maxAge);
+
+      // Handle preflight requests
       if (req.method === 'OPTIONS') {
-        res.setHeader('Access-Control-Allow-Origin', requestOrigin || '*');
-        res.setHeader('Access-Control-Allow-Methods', methods.join(', '));
-        res.setHeader(
-          'Access-Control-Allow-Headers',
-          allowedHeaders.join(', ')
-        );
-        res.setHeader(
-          'Access-Control-Allow-Credentials',
-          credentials.toString()
-        );
-        res.setHeader('Access-Control-Max-Age', maxAge.toString());
-        res.status(200).end();
-        return;
-      }
-
-      // Set CORS headers for actual request
-      if (requestOrigin && origin.includes(requestOrigin)) {
-        res.setHeader('Access-Control-Allow-Origin', requestOrigin);
-      } else if (origin.includes('*')) {
-        res.setHeader('Access-Control-Allow-Origin', '*');
-      }
-
-      if (credentials) {
-        res.setHeader('Access-Control-Allow-Credentials', 'true');
+        return res.status(200).end();
       }
 
       next();
@@ -152,88 +136,42 @@ export const corsMiddleware = (options = {}) => {
 };
 
 /**
- * Request size limiting middleware
+ * Request size limit middleware
  */
 export const requestSizeLimit = (maxSize = '10mb') => {
+  const maxBytes = parseSize(maxSize);
+
   return (req, res, next) => {
     const correlationId = getCorrelationId();
 
     try {
-      const contentLength = parseInt(req.headers['content-length'] || '0');
-      const maxSizeBytes = parseSize(maxSize);
+      let dataLength = 0;
 
-      if (contentLength > maxSizeBytes) {
-        safeLogger.warn('Request size limit exceeded', {
-          contentLength,
-          maxSize: maxSizeBytes,
-          correlationId,
-          path: req.path,
-        });
+      req.on('data', chunk => {
+        dataLength += chunk.length;
 
-        return res.status(413).json({
-          error: 'Request too large',
-          message: `Request size exceeds limit of ${maxSize}`,
-          correlationId,
-        });
-      }
+        if (dataLength > maxBytes) {
+          req.destroy();
+          return res.status(413).json({
+            error: 'Payload Too Large',
+            message: `Request size exceeds limit of ${maxSize}`,
+            correlationId,
+          });
+        }
+      });
 
-      next();
+      req.on('end', () => {
+        if (dataLength > maxBytes) {
+          return res.status(413).json({
+            error: 'Payload Too Large',
+            message: `Request size exceeds limit of ${maxSize}`,
+            correlationId,
+          });
+        }
+        next();
+      });
     } catch (error) {
       safeLogger.error('Request size limit error', {
-        error: error.message,
-        correlationId,
-      });
-      next();
-    }
-  };
-};
-
-/**
- * Content type validation middleware
- */
-export const validateContentType = (allowedTypes = ['application/json']) => {
-  return (req, res, next) => {
-    const correlationId = getCorrelationId();
-
-    try {
-      if (req.method === 'GET' || req.method === 'DELETE') {
-        return next();
-      }
-
-      const contentType = req.headers['content-type'];
-
-      if (!contentType) {
-        safeLogger.warn('Missing content type', {
-          correlationId,
-          path: req.path,
-        });
-        return res.status(400).json({
-          error: 'Missing content type',
-          message: 'Content-Type header is required',
-          correlationId,
-        });
-      }
-
-      const isValidType = allowedTypes.some(type => contentType.includes(type));
-
-      if (!isValidType) {
-        safeLogger.warn('Invalid content type', {
-          contentType,
-          allowedTypes,
-          correlationId,
-          path: req.path,
-        });
-
-        return res.status(400).json({
-          error: 'Invalid content type',
-          message: `Content-Type must be one of: ${allowedTypes.join(', ')}`,
-          correlationId,
-        });
-      }
-
-      next();
-    } catch (error) {
-      safeLogger.error('Content type validation error', {
         error: error.message,
         correlationId,
       });
@@ -249,8 +187,17 @@ export const sanitizeInput = (req, res, next) => {
   const correlationId = getCorrelationId();
 
   try {
+    // Safety check for req object
+    if (!req || typeof req !== 'object') {
+      safeLogger.warn('Invalid request object in sanitizeInput', {
+        correlationId,
+        reqType: typeof req,
+      });
+      return next();
+    }
+
     // Sanitize query parameters
-    if (req.query) {
+    if (req.query && typeof req.query === 'object') {
       Object.keys(req.query).forEach(key => {
         if (typeof req.query[key] === 'string') {
           req.query[key] = req.query[key].trim();
@@ -278,7 +225,7 @@ export const sanitizeInput = (req, res, next) => {
  */
 function sanitizeObject(obj) {
   for (const key in obj) {
-    if (obj.hasOwnProperty(key)) {
+    if (Object.prototype.hasOwnProperty.call(obj, key)) {
       if (typeof obj[key] === 'string') {
         obj[key] = obj[key].trim();
       } else if (typeof obj[key] === 'object' && obj[key] !== null) {
@@ -308,59 +255,9 @@ function parseSize(size) {
   return value * (units[unit] || 1);
 }
 
-/**
- * Security monitoring middleware
- */
-export const securityMonitoring = (req, res, next) => {
-  const correlationId = getCorrelationId();
-
-  try {
-    // Log suspicious requests
-    const suspiciousPatterns = [
-      /<script/i,
-      /javascript:/i,
-      /on\w+\s*=/i,
-      /union\s+select/i,
-      /drop\s+table/i,
-      /exec\s*\(/i,
-    ];
-
-    const userInput = [
-      req.url,
-      JSON.stringify(req.query),
-      JSON.stringify(req.body),
-      req.headers['user-agent'] || '',
-    ].join(' ');
-
-    const hasSuspiciousPattern = suspiciousPatterns.some(pattern =>
-      pattern.test(userInput)
-    );
-
-    if (hasSuspiciousPattern) {
-      safeLogger.warn('Suspicious request detected', {
-        correlationId,
-        path: req.path,
-        ip: req.ip,
-        userAgent: req.headers['user-agent'],
-        suspiciousInput: userInput.substring(0, 200), // Limit log size
-      });
-    }
-
-    next();
-  } catch (error) {
-    safeLogger.error('Security monitoring error', {
-      error: error.message,
-      correlationId,
-    });
-    next();
-  }
-};
-
 export default {
   securityHeaders,
   corsMiddleware,
   requestSizeLimit,
-  validateContentType,
   sanitizeInput,
-  securityMonitoring,
 };

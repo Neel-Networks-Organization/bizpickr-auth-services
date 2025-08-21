@@ -3,7 +3,6 @@ import AuthUser from '../models/authUser.model.js';
 import jwt from 'jsonwebtoken';
 import { safeLogger } from '../config/logger.js';
 import { getCorrelationId } from '../config/requestContext.js';
-import authCache from '../cache/auth.cache.js';
 import { env } from '../config/env.js';
 
 /**
@@ -34,44 +33,17 @@ function verifyToken(token) {
 }
 
 /**
- * Main authentication middleware
+ * JWT Authentication Middleware
  */
-export const authenticate = asyncHandler(async (req, res, next) => {
-  const startTime = Date.now();
-  const correlationId = getCorrelationId();
+export const verifyJWT = asyncHandler(async (req, res, next) => {
+  const token = extractToken(req);
+
+  if (!token) {
+    throw new ApiError(401, 'Access token required');
+  }
 
   try {
-    // Basic device fingerprint (simplified)
-    const deviceFingerprint = req.headers['x-device-fingerprint'];
-    if (deviceFingerprint) {
-      req.deviceFingerprint = deviceFingerprint;
-    }
-
-    // Rate limiting check
-    const clientIP = req.ip || req.connection?.remoteAddress;
-    const rateLimitKey = `auth:${clientIP}`;
-    const currentRate = await authCache.incrementRateLimit(rateLimitKey);
-
-    if (currentRate > 10) {
-      throw new ApiError(429, 'Too many authentication attempts');
-    }
-
-    const token = extractToken(req);
-
-    if (!token) {
-      throw new ApiError(401, 'Access token required');
-    }
-
-    // Check if token is blacklisted
-    const isBlacklisted = await authCache.isTokenBlacklisted(token);
-    if (isBlacklisted) {
-      throw new ApiError(401, 'Token has been revoked');
-    }
-
-    // Verify token
     const decoded = verifyToken(token);
-
-    // Get user from database
     const user = await AuthUser.findById(decoded.userId)
       .select('-password')
       .populate('permissions', 'name scope')
@@ -81,145 +53,21 @@ export const authenticate = asyncHandler(async (req, res, next) => {
       throw new ApiError(401, 'User not found');
     }
 
-    // Basic security checks
     if (!user.isActive) {
       throw new ApiError(401, 'User account is deactivated');
     }
 
-    if (user.isLocked) {
-      throw new ApiError(423, 'User account is locked');
-    }
-
-    if (user.failedLoginAttempts >= 5) {
-      throw new ApiError(
-        423,
-        'Account temporarily locked due to failed attempts'
-      );
-    }
-
-    // Check account expiration
-    if (user.accountExpiresAt && new Date() > user.accountExpiresAt) {
-      throw new ApiError(401, 'User account has expired');
-    }
-
-    // Check last password change
-    if (user.lastPasswordChange && user.passwordChangeRequired) {
-      const daysSinceChange =
-        (Date.now() - user.lastPasswordChange.getTime()) /
-        (1000 * 60 * 60 * 24);
-      if (daysSinceChange > 90) {
-        throw new ApiError(401, 'Password change required');
-      }
-    }
-
-    // Add user to request
     req.user = user;
     req.token = token;
-    req.correlationId = correlationId;
-
-    // Basic security context
-    req.securityContext = {
-      deviceFingerprint,
-      clientIP,
-      userAgent: req.headers['user-agent'],
-      timestamp: Date.now(),
-      sessionId: decoded.sessionId || null,
-    };
-
-    // Log successful authentication
-    const responseTime = Date.now() - startTime;
-    safeLogger.info('Authentication successful', {
-      userId: user._id,
-      email: user.email,
-      correlationId,
-      responseTime: `${responseTime}ms`,
-      clientIP,
-      deviceFingerprint,
-      userAgent: req.headers['user-agent'],
-      userRole: user.role?.name || 'user',
-      permissions: user.permissions?.map(p => p.name) || [],
-    });
-
-    // Update user activity
-    await AuthUser.findByIdAndUpdate(user._id, {
-      $inc: { loginCount: 1 },
-      $set: {
-        lastLoginAt: new Date(),
-        lastLoginIP: clientIP,
-        lastLoginUserAgent: req.headers['user-agent'],
-      },
-      $push: {
-        loginHistory: {
-          timestamp: new Date(),
-          ip: clientIP,
-          userAgent: req.headers['user-agent'],
-          deviceFingerprint,
-          correlationId,
-        },
-      },
-    });
+    req.correlationId = getCorrelationId();
 
     next();
   } catch (error) {
-    const responseTime = Date.now() - startTime;
-
-    // Log failed authentication
-    safeLogger.error('Authentication failed', {
-      error: error.message,
-      correlationId,
-      responseTime: `${responseTime}ms`,
-      clientIP: req.ip || req.connection?.remoteAddress,
-      deviceFingerprint: req.headers['x-device-fingerprint'],
-      userAgent: req.headers['user-agent'],
-      attemptedToken: extractToken(req) ? 'present' : 'missing',
-    });
-
-    // Increment failed login attempts if user exists
-    if (error.statusCode === 401 && req.body.email) {
-      try {
-        const user = await AuthUser.findOne({ email: req.body.email });
-        if (user) {
-          await AuthUser.findByIdAndUpdate(user._id, {
-            $inc: { failedLoginAttempts: 1 },
-            $set: { lastFailedLoginAt: new Date() },
-          });
-        }
-      } catch (updateError) {
-        safeLogger.error('Failed to update login attempts', {
-          error: updateError.message,
-        });
-      }
+    if (error instanceof ApiError) {
+      next(error);
+    } else {
+      next(new ApiError(401, 'Invalid or expired token'));
     }
-
-    next(error);
-  }
-});
-
-/**
- * Optional authentication middleware
- */
-export const optionalAuth = asyncHandler(async (req, res, next) => {
-  try {
-    const token = extractToken(req);
-
-    if (token) {
-      const decoded = verifyToken(token);
-      const user = await AuthUser.findById(decoded.userId)
-        .select('-password')
-        .populate('permissions', 'name scope')
-        .populate('role', 'name permissions');
-
-      if (user && user.isActive && !user.isLocked) {
-        req.user = user;
-        req.token = token;
-        req.correlationId = getCorrelationId();
-      }
-    }
-
-    next();
-  } catch (error) {
-    // Continue without authentication
-    next();
   }
 });
 
@@ -250,70 +98,59 @@ export const requireRole = (...roles) => {
 };
 
 /**
- * Permission-based access control middleware
+ * Audit Logging Middleware
  */
-export const requirePermission = (...permissions) => {
+export const auditLog = action => {
   return (req, res, next) => {
-    if (!req.user) {
-      return next(new ApiError(401, 'Authentication required'));
-    }
+    const auditData = {
+      action,
+      userId: req.user?._id,
+      email: req.user?.email,
+      ip: req.ip || req.connection?.remoteAddress,
+      userAgent: req.headers['user-agent'],
+      path: req.path,
+      method: req.method,
+      correlationId: req.correlationId,
+      timestamp: new Date(),
+    };
 
-    const userPermissions = req.user.permissions?.map(p => p.name) || [];
-    const hasPermission = permissions.some(permission =>
-      userPermissions.includes(permission)
-    );
-
-    if (!hasPermission) {
-      safeLogger.warn('Permission access denied', {
-        userId: req.user._id,
-        userPermissions,
-        requiredPermissions: permissions,
-        path: req.path,
-        correlationId: req.correlationId,
-      });
-
-      return next(new ApiError(403, 'Insufficient permissions'));
-    }
-
+    safeLogger.info('Audit Log', auditData);
     next();
   };
 };
 
 /**
- * Admin-only middleware
+ * Rate Limiting Middleware
  */
-export const requireAdmin = (req, res, next) => {
-  return requireRole('admin', 'super_admin')(req, res, next);
-};
+export const rateLimiter = (strategy, options = {}) => {
+  const { windowMs = 15 * 60 * 1000, max = 100 } = options;
 
-/**
- * Staff-only middleware
- */
-export const requireStaff = (req, res, next) => {
-  return requireRole('staff', 'admin', 'super_admin')(req, res, next);
-};
+  return (req, res, next) => {
+    // Simple in-memory rate limiting (for production, use Redis)
+    const key = `${strategy}:${req.ip}`;
+    const now = Date.now();
 
-/**
- * Customer-only middleware
- */
-export const requireCustomer = (req, res, next) => {
-  return requireRole('customer')(req, res, next);
-};
+    if (!req.rateLimitStore) {
+      req.rateLimitStore = new Map();
+    }
 
-/**
- * Vendor-only middleware
- */
-export const requireVendor = (req, res, next) => {
-  return requireRole('vendor')(req, res, next);
+    const userRequests = req.rateLimitStore.get(key) || [];
+    const validRequests = userRequests.filter(time => now - time < windowMs);
+
+    if (validRequests.length >= max) {
+      return next(new ApiError(429, 'Too many requests'));
+    }
+
+    validRequests.push(now);
+    req.rateLimitStore.set(key, validRequests);
+
+    next();
+  };
 };
 
 export default {
-  authenticate,
-  optionalAuth,
+  verifyJWT,
   requireRole,
-  requirePermission,
-  requireAdmin,
-  requireStaff,
-  requireCustomer,
-  requireVendor,
+  auditLog,
+  rateLimiter,
 };

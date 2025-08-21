@@ -1,10 +1,44 @@
-/.vscode
-/node_modules
-./dist
+# Dependencies
+node_modules/
+package-lock.json
 
-*.yml
-*.yaml
+# Build outputs
+dist/
+build/
+*.min.js
 
-*.env
+# Logs
+logs/
+*.log
+
+# Environment files
 .env
-.env.*
+.env.local
+.env.production
+
+# Database files
+*.sqlite
+*.db
+
+# Docker files
+Dockerfile
+docker-compose.yml
+
+# Git files
+.git/
+.gitignore
+
+# IDE files
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Test coverage
+coverage/
+
+# Temporary files
+*.tmp
+*.temp

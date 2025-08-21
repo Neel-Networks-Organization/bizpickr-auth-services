@@ -19,7 +19,7 @@ mongoose.connection.on('disconnected', () => {
   safeLogger.warn('MongoDB disconnected');
 });
 
-export const connectMongo = async () => {
+export const connectMongo = async() => {
   try {
     await mongoose.connect(uri);
     safeLogger.info('MongoDB connection established');

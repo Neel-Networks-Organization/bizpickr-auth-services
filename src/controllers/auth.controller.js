@@ -8,10 +8,10 @@
  * - Core authentication flows
  */
 import { ApiError, ApiResponse } from '../utils/index.js';
-import { signupSchemas, commonLoginSchema } from '../validators/validation.js';
 import { safeLogger } from '../config/logger.js';
 import { authService } from '../services/index.js';
 import { authCache } from '../cache/auth.cache.js';
+// Validation now handled by middleware
 
 export const cookieOptions = {
   httpOnly: true,
@@ -25,22 +25,21 @@ export const cookieOptions = {
  * Register a new user
  * POST /api/v1/auth/signup
  */
-export const signupUser = async (req, res, next) => {
-  const { error, value } = signupSchemas(req.body);
-  if (error) {
-    const errorMessages = error.details.map(err =>
-      err.message.replace(/["]/g, '')
-    );
-    throw new ApiError(400, 'Validation error', errorMessages);
-  }
-  const { email, password, type, role } = value;
+export const signupUser = async (req, res) => {
+  // Validation handled by middleware
+
+  const { email, password, fullName, type, role, phone, acceptTerms } =
+    req.body;
 
   // Prepare user data for service - AUTHENTICATION ONLY
   const userData = {
     email,
     password,
+    fullName,
     type,
-    role,
+    role: role || 'user',
+    phone,
+    acceptTerms,
     ipAddress: req.ip,
     userAgent: req.get('User-Agent'),
   };
@@ -52,7 +51,7 @@ export const signupUser = async (req, res, next) => {
     userId: user.id,
     email: user.email,
     type,
-    role,
+    role: user.role,
   });
 
   return res.status(201).json(
@@ -79,15 +78,10 @@ export const signupUser = async (req, res, next) => {
  * Login user
  * POST /api/v1/auth/login
  */
-export const loginUser = async (req, res, next) => {
-  const { error, value } = commonLoginSchema(req.body);
-  if (error) {
-    const errorMessages = error.details.map(err =>
-      err.message.replace(/["]/g, '')
-    );
-    throw new ApiError(400, 'Login validation errors', errorMessages);
-  }
-  const { email, password, type } = value;
+export const loginUser = async (req, res) => {
+  // Validation handled by middleware
+
+  const { email, password, type } = req.body;
 
   // Prepare login data for service
   const loginData = {
@@ -142,7 +136,7 @@ export const loginUser = async (req, res, next) => {
  * Refresh access token
  * POST /api/v1/auth/refresh-token
  */
-export const refreshAccessToken = async (req, res, next) => {
+export const refreshAccessToken = async (req, res) => {
   const { refreshToken } = req.body;
   if (!refreshToken) {
     throw new ApiError(400, 'Refresh token is required', [
@@ -176,7 +170,7 @@ export const refreshAccessToken = async (req, res, next) => {
  * Logout user
  * POST /api/v1/auth/logout
  */
-export const logoutUser = async (req, res, next) => {
+export const logoutUser = async (req, res) => {
   const sessionId = req.sessionId;
   const userId = req.user?.id;
 
@@ -246,7 +240,7 @@ export const logoutUser = async (req, res, next) => {
  * Verify JWT token
  * POST /api/v1/auth/verify-token
  */
-export const verifyToken = async (req, res, next) => {
+export const verifyToken = async (req, res) => {
   const { token } = req.body;
   if (!token) {
     throw new ApiError(400, 'Token is required', [
@@ -281,7 +275,7 @@ export const verifyToken = async (req, res, next) => {
  * Get current user
  * GET /api/v1/auth/me
  */
-export const getCurrentUser = async (req, res, next) => {
+export const getCurrentUser = async (req, res) => {
   const userId = req.user?.id;
   if (!userId) {
     throw new ApiError(401, 'User not authenticated', [
@@ -306,7 +300,7 @@ export const getCurrentUser = async (req, res, next) => {
  * Google OAuth login
  * GET /api/v1/auth/google
  */
-export const loginWithGoogle = async (req, res, next) => {
+export const loginWithGoogle = async (req, res) => {
   // Redirect to Google OAuth
   const googleAuthUrl = `https://accounts.google.com/oauth/authorize?client_id=${process.env.GOOGLE_CLIENT_ID}&redirect_uri=${process.env.GOOGLE_REDIRECT_URI}&scope=email profile&response_type=code`;
   return res.redirect(googleAuthUrl);
@@ -316,7 +310,7 @@ export const loginWithGoogle = async (req, res, next) => {
  * Google OAuth callback
  * GET /api/v1/auth/google/callback
  */
-export const googleCallback = async (req, res, next) => {
+export const googleCallback = async (req, res) => {
   const { code } = req.query;
   if (!code) {
     throw new ApiError(400, 'Authorization code is required', [
@@ -370,7 +364,7 @@ export const googleCallback = async (req, res, next) => {
  * Verify email
  * POST /api/v1/auth/verify-email
  */
-export const verifyEmail = async (req, res, next) => {
+export const verifyEmail = async (req, res) => {
   const { token } = req.body;
   if (!token) {
     throw new ApiError(400, 'Verification token is required', [
@@ -380,7 +374,7 @@ export const verifyEmail = async (req, res, next) => {
 
   try {
     // Call auth service to verify email
-    const result = await authService.verifyEmail(token);
+    await authService.verifyEmail(token);
 
     safeLogger.info('Email verification successful', { token });
 
@@ -403,7 +397,7 @@ export const verifyEmail = async (req, res, next) => {
  * Resend verification email
  * POST /api/v1/auth/resend-verification
  */
-export const resendVerificationEmail = async (req, res, next) => {
+export const resendVerificationEmail = async (req, res) => {
   const userId = req.user?.id;
   if (!userId) {
     throw new ApiError(401, 'User not authenticated', [
@@ -417,10 +411,7 @@ export const resendVerificationEmail = async (req, res, next) => {
       ipAddress: req.ip,
       userAgent: req.get('User-Agent'),
     };
-    const result = await authService.resendVerificationEmail(
-      userId,
-      deviceInfo
-    );
+    await authService.resendVerificationEmail(userId, deviceInfo);
 
     safeLogger.info('Verification email resent successfully', { userId });
 
@@ -444,7 +435,7 @@ export const resendVerificationEmail = async (req, res, next) => {
  * Enable two-factor authentication
  * POST /api/v1/auth/2fa/enable
  */
-export const enableTwoFactor = async (req, res, next) => {
+export const enableTwoFactor = async (req, res) => {
   const userId = req.user?.id;
   if (!userId) {
     throw new ApiError(401, 'User not authenticated', [
@@ -478,7 +469,7 @@ export const enableTwoFactor = async (req, res, next) => {
  * Disable two-factor authentication
  * POST /api/v1/auth/2fa/disable
  */
-export const disableTwoFactor = async (req, res, next) => {
+export const disableTwoFactor = async (req, res) => {
   const userId = req.user?.id;
   const { code } = req.body;
   if (!userId) {
@@ -494,7 +485,7 @@ export const disableTwoFactor = async (req, res, next) => {
 
   try {
     // Call auth service to disable 2FA
-    const result = await authService.disableTwoFactor(userId, code);
+    await authService.disableTwoFactor(userId, code);
 
     safeLogger.info('2FA disabled successfully', { userId });
 
@@ -515,7 +506,7 @@ export const disableTwoFactor = async (req, res, next) => {
  * Verify two-factor authentication
  * POST /api/v1/auth/2fa/verify
  */
-export const verifyTwoFactor = async (req, res, next) => {
+export const verifyTwoFactor = async (req, res) => {
   const { code, sessionId } = req.body;
   if (!code || !sessionId) {
     throw new ApiError(400, '2FA code and session ID are required', [
@@ -554,7 +545,7 @@ export const verifyTwoFactor = async (req, res, next) => {
  * Send password reset email
  * POST /api/v1/auth/forgot-password
  */
-export const forgotPassword = async (req, res, next) => {
+export const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
 
@@ -562,13 +553,13 @@ export const forgotPassword = async (req, res, next) => {
       throw new ApiError(400, 'Email is required');
     }
 
-    const result = await authService.sendPasswordResetEmail(email);
+    await authService.sendPasswordResetEmail(email);
 
     return res.status(200).json(
       ApiResponse.success(
         {
-          message: result.message,
-          email: result.email,
+          message: 'Password reset email sent successfully',
+          email: email,
         },
         'Password reset email sent successfully'
       )
@@ -578,7 +569,7 @@ export const forgotPassword = async (req, res, next) => {
       error: error.message,
       email: req.body.email,
     });
-    next(error);
+    throw error;
   }
 };
 
@@ -586,7 +577,7 @@ export const forgotPassword = async (req, res, next) => {
  * Verify email and activate account
  * POST /api/v1/auth/verify-email-activate
  */
-export const verifyEmailAndActivate = async (req, res, next) => {
+export const verifyEmailAndActivate = async (req, res) => {
   try {
     const { token } = req.body;
 
@@ -610,6 +601,6 @@ export const verifyEmailAndActivate = async (req, res, next) => {
       error: error.message,
       token: req.body.token,
     });
-    next(error);
+    throw error;
   }
 };

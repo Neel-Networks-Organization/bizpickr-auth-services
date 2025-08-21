@@ -1,6 +1,8 @@
 import express from 'express';
 import swaggerJsdoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
+import { rateLimiter, auditLog } from '../middlewares/auth.middleware.js';
+import { asyncHandler } from '../utils/index.js';
 
 const router = express.Router();
 
@@ -47,20 +49,27 @@ const swaggerOptions = {
 
 const swaggerSpec = swaggerJsdoc(swaggerOptions);
 
-// Serve Swagger UI
+// Serve Swagger UI with rate limiting
 router.use('/', swaggerUi.serve);
 router.get(
   '/',
+  rateLimiter('docs-ui', { windowMs: 15 * 60 * 1000, max: 100 }),
+  auditLog('docs_ui_access'),
   swaggerUi.setup(swaggerSpec, {
     customCss: '.swagger-ui .topbar { display: none }',
     customSiteTitle: 'AuthService API Documentation',
-  })
+  }),
 );
 
-// Serve OpenAPI spec
-router.get('/swagger.json', (req, res) => {
-  res.setHeader('Content-Type', 'application/json');
-  res.send(swaggerSpec);
-});
+// Serve OpenAPI spec with rate limiting
+router.get(
+  '/swagger.json',
+  rateLimiter('docs-spec', { windowMs: 15 * 60 * 1000, max: 50 }),
+  auditLog('docs_spec_access'),
+  asyncHandler((req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+    res.send(swaggerSpec);
+  }),
+);
 
 export default router;

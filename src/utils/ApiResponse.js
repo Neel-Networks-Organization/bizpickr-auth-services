@@ -48,7 +48,7 @@ class ApiResponse {
   static created(
     data,
     message = 'Resource created successfully',
-    details = undefined
+    details = undefined,
   ) {
     return new ApiResponse(201, data, message, details);
   }
@@ -64,7 +64,7 @@ class ApiResponse {
   static unauthorized(
     data = null,
     message = 'Unauthorized',
-    details = undefined
+    details = undefined,
   ) {
     return new ApiResponse(401, data, message, details);
   }
@@ -76,7 +76,7 @@ class ApiResponse {
   static notFound(
     data = null,
     message = 'Resource not found',
-    details = undefined
+    details = undefined,
   ) {
     return new ApiResponse(404, data, message, details);
   }
@@ -88,7 +88,7 @@ class ApiResponse {
   static unprocessableEntity(
     data = null,
     message = 'Unprocessable Entity',
-    details = undefined
+    details = undefined,
   ) {
     return new ApiResponse(422, data, message, details);
   }
@@ -96,7 +96,7 @@ class ApiResponse {
   static internalServerError(
     data = null,
     message = 'Internal Server Error',
-    details = undefined
+    details = undefined,
   ) {
     return new ApiResponse(500, data, message, details);
   }
@@ -104,7 +104,7 @@ class ApiResponse {
   static serviceUnavailable(
     data = null,
     message = 'Service Unavailable',
-    details = undefined
+    details = undefined,
   ) {
     return new ApiResponse(503, data, message, details);
   }
@@ -210,7 +210,7 @@ class ApiResponse {
       this.statusCode,
       this.data,
       this.message,
-      this.details
+      this.details,
     );
     if (this.metadata) cloned.metadata = { ...this.metadata };
     if (this.pagination) cloned.pagination = { ...this.pagination };

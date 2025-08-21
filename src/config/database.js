@@ -124,14 +124,11 @@ export const getDatabaseConnectionOptions = () => {
       ssl: mysql.ssl,
     },
 
-    // Logging
-    logging: mysql.logging
-      ? msg => {
-          if (process.env.NODE_ENV === 'development') {
-            safeLogger.debug('Database Query', { query: msg });
-          }
-        }
-      : false,
+    // Logging - Fixed deprecation warning
+    logging:
+      mysql.logging && process.env.NODE_ENV === 'development'
+        ? msg => safeLogger.debug('Database Query', { query: msg })
+        : false,
 
     // Benchmark
     benchmark: mysql.benchmark,
