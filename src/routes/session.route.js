@@ -1,12 +1,3 @@
-/**
- * Session Routes - Session Management Endpoints
- *
- * Handles all session-related routes:
- * - Session management
- * - Session validation
- * - Session analytics
- * - Session cleanup
- */
 import { Router } from 'express';
 import {
   getUserSessions,
@@ -16,12 +7,8 @@ import {
   validateSession,
   cleanExpiredSessions,
 } from '../controllers/session.controller.js';
-import {
-  verifyJWT,
-  requireRole,
-  auditLog,
-  rateLimiter,
-} from '../middlewares/auth.middleware.js';
+import { verifyJWT, requireRole } from '../middlewares/auth.middleware.js';
+import ipRateLimit from '../middlewares/rateLimiter.middleware.js';
 import { asyncHandler } from '../utils/index.js';
 
 const router = Router();
@@ -30,15 +17,9 @@ const router = Router();
 router
   .route('/')
   .get(verifyJWT, asyncHandler(getUserSessions))
-  .delete(
-    verifyJWT,
-    auditLog('revoke_all_sessions'),
-    asyncHandler(revokeAllSessions),
-  );
+  .delete(verifyJWT, asyncHandler(revokeAllSessions));
 
-router
-  .route('/:sessionId')
-  .delete(verifyJWT, auditLog('revoke_session'), asyncHandler(revokeSession));
+router.route('/:sessionId').delete(verifyJWT, asyncHandler(revokeSession));
 
 // Session Analytics
 router.route('/stats').get(verifyJWT, asyncHandler(getSessionStats));
@@ -47,19 +28,13 @@ router.route('/stats').get(verifyJWT, asyncHandler(getSessionStats));
 router
   .route('/validate')
   .post(
-    rateLimiter('session_validate', { windowMs: 60 * 1000, max: 30 }),
-    auditLog('session_validation'),
-    asyncHandler(validateSession),
+    ipRateLimit({ windowMs: 60 * 1000, maxRequests: 30 }),
+    asyncHandler(validateSession)
   );
 
 // Session Cleanup (Admin only)
 router
   .route('/cleanup')
-  .post(
-    verifyJWT,
-    requireRole('admin'),
-    auditLog('session_cleanup'),
-    asyncHandler(cleanExpiredSessions),
-  );
+  .post(verifyJWT, requireRole('admin'), asyncHandler(cleanExpiredSessions));
 
 export default router;

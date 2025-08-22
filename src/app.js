@@ -12,17 +12,8 @@ import {
   enterpriseSecurityMiddleware,
   enterpriseValidationMiddleware,
   enterpriseErrorHandler,
+  enterpriseCorsMiddleware,
 } from './middlewares/enterprise.middleware.js';
-
-// 🛡️ Security & Rate Limiting Middlewares
-import {
-  securityHeaders,
-  corsMiddleware,
-  requestSizeLimit,
-  sanitizeInput,
-} from './middlewares/security.middleware.js';
-
-import { ipRateLimit } from './middlewares/rateLimiter.middleware.js';
 
 const allowedOrigins = ['http://localhost:3000'];
 const app = express();
@@ -54,15 +45,8 @@ app.use(enterpriseLoggingMiddleware);
 app.use(enterpriseRateLimit(100, 15 * 60 * 1000));
 app.use(enterpriseSecurityMiddleware);
 app.use(enterpriseValidationMiddleware);
+app.use(enterpriseCorsMiddleware());
 
-// 🛡️ ENHANCED SECURITY MIDDLEWARES
-app.use(securityHeaders()); // Security headers (CSP, XSS protection)
-app.use(corsMiddleware()); // Enhanced CORS protection
-app.use(requestSizeLimit('10mb')); // Request size limits (DoS protection)
-app.use(sanitizeInput); // Input sanitization (XSS protection)
-
-// 🚫 RATE LIMITING MIDDLEWARES
-app.use(ipRateLimit); // Global IP rate limiting
 // ✅ API Routes
 import authRoutes from './routes/auth.route.js';
 import sessionRoutes from './routes/session.route.js';

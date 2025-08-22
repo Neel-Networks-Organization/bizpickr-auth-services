@@ -1,26 +1,21 @@
+import {
+  getCorrelationId,
+  getRequestMetadata,
+} from '../config/requestContext.js';
 import { safeLogger } from '../config/logger.js';
-import { getCorrelationId } from '../config/requestContext.js';
 
-/**
- * Audit Middleware
- * Core audit logging functionality
- */
-
-/**
- * Log audit event to database and logger
- */
-export const logAuditEvent = async eventData => {
+export const logAuditEvent = async (eventType, eventData) => {
   const correlationId = getCorrelationId();
+  const requestMetadata = getRequestMetadata();
 
   try {
     const auditLog = {
+      eventType,
       ...eventData,
       correlationId,
       timestamp: new Date(),
-      ipAddress: eventData.ipAddress || 'unknown',
-      userAgent: eventData.userAgent || 'unknown',
-      status: eventData.status || 'info',
-      severity: eventData.severity || 'low',
+      ipAddress: requestMetadata.ipAddress,
+      userAgent: requestMetadata.userAgent,
     };
 
     // Log to console/logger
@@ -38,8 +33,4 @@ export const logAuditEvent = async eventData => {
     });
     return false;
   }
-};
-
-export default {
-  logAuditEvent,
 };

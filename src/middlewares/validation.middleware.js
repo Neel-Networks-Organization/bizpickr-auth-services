@@ -1,14 +1,6 @@
 import Joi from 'joi';
 import { ApiError } from '../utils/index.js';
 
-/**
- * Validation Middleware
- * Core request validation functionality
- */
-
-/**
- * Validate request against Joi schema
- */
 export const validateRequest = (schema, options = {}) => {
   return (req, res, next) => {
     const {

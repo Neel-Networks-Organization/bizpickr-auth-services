@@ -1,17 +1,7 @@
-/**
- * Auth Controller - Core Authentication Layer
- *
- * Handles core authentication HTTP requests:
- * - User registration and login
- * - JWT token management
- * - OAuth integration
- * - Core authentication flows
- */
 import { ApiError, ApiResponse } from '../utils/index.js';
 import { safeLogger } from '../config/logger.js';
 import { authService } from '../services/index.js';
 import { authCache } from '../cache/auth.cache.js';
-// Validation now handled by middleware
 
 export const cookieOptions = {
   httpOnly: true,
@@ -21,17 +11,10 @@ export const cookieOptions = {
   domain: process.env.COOKIE_DOMAIN || undefined,
 };
 
-/**
- * Register a new user
- * POST /api/v1/auth/signup
- */
 export const signupUser = async (req, res) => {
-  // Validation handled by middleware
-
   const { email, password, fullName, type, role, phone, acceptTerms } =
     req.body;
 
-  // Prepare user data for service - AUTHENTICATION ONLY
   const userData = {
     email,
     password,
@@ -74,13 +57,7 @@ export const signupUser = async (req, res) => {
   );
 };
 
-/**
- * Login user
- * POST /api/v1/auth/login
- */
 export const loginUser = async (req, res) => {
-  // Validation handled by middleware
-
   const { email, password, type } = req.body;
 
   // Prepare login data for service
@@ -132,10 +109,6 @@ export const loginUser = async (req, res) => {
   );
 };
 
-/**
- * Refresh access token
- * POST /api/v1/auth/refresh-token
- */
 export const refreshAccessToken = async (req, res) => {
   const { refreshToken } = req.body;
   if (!refreshToken) {
@@ -166,10 +139,6 @@ export const refreshAccessToken = async (req, res) => {
   );
 };
 
-/**
- * Logout user
- * POST /api/v1/auth/logout
- */
 export const logoutUser = async (req, res) => {
   const sessionId = req.sessionId;
   const userId = req.user?.id;
@@ -236,10 +205,6 @@ export const logoutUser = async (req, res) => {
   }
 };
 
-/**
- * Verify JWT token
- * POST /api/v1/auth/verify-token
- */
 export const verifyToken = async (req, res) => {
   const { token } = req.body;
   if (!token) {
@@ -271,10 +236,6 @@ export const verifyToken = async (req, res) => {
   );
 };
 
-/**
- * Get current user
- * GET /api/v1/auth/me
- */
 export const getCurrentUser = async (req, res) => {
   const userId = req.user?.id;
   if (!userId) {
@@ -296,20 +257,12 @@ export const getCurrentUser = async (req, res) => {
   );
 };
 
-/**
- * Google OAuth login
- * GET /api/v1/auth/google
- */
 export const loginWithGoogle = async (req, res) => {
   // Redirect to Google OAuth
   const googleAuthUrl = `https://accounts.google.com/oauth/authorize?client_id=${process.env.GOOGLE_CLIENT_ID}&redirect_uri=${process.env.GOOGLE_REDIRECT_URI}&scope=email profile&response_type=code`;
   return res.redirect(googleAuthUrl);
 };
 
-/**
- * Google OAuth callback
- * GET /api/v1/auth/google/callback
- */
 export const googleCallback = async (req, res) => {
   const { code } = req.query;
   if (!code) {
@@ -360,10 +313,6 @@ export const googleCallback = async (req, res) => {
   }
 };
 
-/**
- * Verify email
- * POST /api/v1/auth/verify-email
- */
 export const verifyEmail = async (req, res) => {
   const { token } = req.body;
   if (!token) {
@@ -393,10 +342,6 @@ export const verifyEmail = async (req, res) => {
   }
 };
 
-/**
- * Resend verification email
- * POST /api/v1/auth/resend-verification
- */
 export const resendVerificationEmail = async (req, res) => {
   const userId = req.user?.id;
   if (!userId) {
@@ -431,10 +376,6 @@ export const resendVerificationEmail = async (req, res) => {
   }
 };
 
-/**
- * Enable two-factor authentication
- * POST /api/v1/auth/2fa/enable
- */
 export const enableTwoFactor = async (req, res) => {
   const userId = req.user?.id;
   if (!userId) {
@@ -465,10 +406,6 @@ export const enableTwoFactor = async (req, res) => {
   }
 };
 
-/**
- * Disable two-factor authentication
- * POST /api/v1/auth/2fa/disable
- */
 export const disableTwoFactor = async (req, res) => {
   const userId = req.user?.id;
   const { code } = req.body;
@@ -502,10 +439,7 @@ export const disableTwoFactor = async (req, res) => {
     throw new ApiError(400, 'Failed to disable 2FA', [error.message]);
   }
 };
-/**
- * Verify two-factor authentication
- * POST /api/v1/auth/2fa/verify
- */
+
 export const verifyTwoFactor = async (req, res) => {
   const { code, sessionId } = req.body;
   if (!code || !sessionId) {
@@ -541,10 +475,6 @@ export const verifyTwoFactor = async (req, res) => {
   }
 };
 
-/**
- * Send password reset email
- * POST /api/v1/auth/forgot-password
- */
 export const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
@@ -573,10 +503,6 @@ export const forgotPassword = async (req, res) => {
   }
 };
 
-/**
- * Verify email and activate account
- * POST /api/v1/auth/verify-email-activate
- */
 export const verifyEmailAndActivate = async (req, res) => {
   try {
     const { token } = req.body;

@@ -18,7 +18,7 @@ import {
   emitPasswordResetInitiated,
   emitAccountActivated,
 } from '../events/emitters/index.js';
-import { logAuditEvent } from '../middlewares/audit.middleware.js';
+import { logAuditEvent } from './audit.service.js';
 import { env } from '../config/env.js';
 
 import sessionService from './session.service.js';
@@ -42,11 +42,6 @@ class AuthService {
   async registerUser(userData) {
     try {
       const { email, password, type, role } = userData;
-      // Validate input - AUTHENTICATION ONLY
-      if (!email || !password) {
-        throw new ApiError(' Email and password are required');
-      }
-      // Check if user already exists
       const existingUser = await AuthUser.findOne({ where: { email } });
       if (existingUser) {
         throw new Error('User with this email already exists');
@@ -55,61 +50,30 @@ class AuthService {
       // Validate password
       passwordService.validatePassword(password);
 
-      // Password will be hashed by the model hook
-      // const hashedPassword = await passwordService.hashPassword(password);
-
       // Set defaults for type and role if not provided
       const userType = type || 'customer';
       const userRole = role || 'customer';
 
-      // Create user (only model-valid fields)
+      // Create user
       const user = await AuthUser.create({
         email,
         password, // Raw password - will be hashed by model hook
         type: userType,
         role: userRole,
-        status: 'pending', // Start with pending status
+        status: 'pending',
         emailVerified: false,
-        ipAddress: userData.ipAddress,
-        deviceInfo: userData.userAgent
-          ? { userAgent: userData.userAgent }
-          : null,
       });
 
       // Create audit log using the proper audit middleware
-      await logAuditEvent({
-        type: 'USER_REGISTERED',
-        user: {
-          userId: user.id,
-          username: user.email,
-          roles: [user.role],
-          permissions: [],
-          ip: userData.ipAddress,
-          userAgent: userData.userAgent,
-        },
-        resourceType: 'USER',
-        resourceId: user.id,
-        details: { email, type: userType, role: userRole },
-        ipAddress: userData.ipAddress,
-        userAgent: userData.userAgent,
-        status: 'success',
-        severity: 'low',
-        category: 'authentication',
-        description: 'User registration completed successfully',
-        timestamp: new Date(),
+      await logAuditEvent('USER_REGISTERED', {
+        userId: user.id,
+        email: user.email,
+        type: userType,
+        role: userRole,
+        createdAt: user.createdAt,
       });
 
       // Publish welcome email event
-      await emitUserRegistered(user, {
-        emailType: 'welcome',
-        template: 'welcome-email',
-      });
-
-      // Publish email verification event
-      // await emitEmailVerification(user, {
-      //   emailType: 'verification',
-      //   template: 'email-verification',
-      // });
 
       safeLogger.info('User registered successfully', {
         userId: user.id,
@@ -134,105 +98,80 @@ class AuthService {
     }
   }
 
-  /**
-   * Authenticate user login
-   * @param {Object} loginData - Login credentials
-   * @returns {Promise<Object>} Authentication result with tokens
-   */
   async loginUser(loginData) {
     try {
       const { email, password, deviceInfo, ipAddress, userAgent } = loginData;
 
-      // Validate input
-      if (!email || !password) {
-        throw new ApiError('Email and password are required');
-      }
-
-      // Find user
       const user = await AuthUser.findOne({ where: { email } });
       if (!user) {
         throw new ApiError('Invalid email or password');
       }
 
-      // Check user status - Allow pending users to login
-      if (user.status === 'suspended' || user.status === 'inactive') {
-        throw new ApiError('Account is not active');
+      if (user.isLocked()) {
+        throw new ApiError('Account is locked');
       }
 
       // Verify password
-      const isPasswordValid = await passwordService.verifyPassword(
-        password,
-        user.password
-      );
-      if (!isPasswordValid) {
-        throw new ApiError('Invalid email or password');
+      const isPasswordCorrect = await user.isPasswordCorrect(password);
+
+      if (!isPasswordCorrect) {
+        throw new ApiError('Invalid or password');
       }
 
-      // Generate tokens
-      const sessionId = uuidv4();
-      const accessToken = this.generateAccessToken(user, sessionId); // Use the same sessionId
+      const accessToken = this.generateAccessToken(user); // Use the same sessionId
       const refreshToken = this.generateRefreshToken(user);
 
-      // Create session using SessionService
-      const session = await sessionService.createSession({
-        userId: user.id,
-        sessionId,
-        deviceInfo,
-        ipAddress,
-        userAgent,
-      });
-
-      // Store refresh token
-      await sessionService.storeRefreshToken(refreshToken, {
-        userId: user.id,
-        sessionId,
-      });
+      // const session = await sessionService.createSession({
+      //   userId: user.id,
+      //   deviceInfo,
+      //   ipAddress,
+      //   userAgent,
+      // });
 
       // Store user session in cache
       await authCache.storeUserSession(user.id, {
-        sessionId,
-        deviceInfo,
-        ipAddress,
-        userAgent,
-        lastActive: new Date().toISOString(),
+        userId: user.id,
+        email: user.email,
+        role: user.role,
+        type: user.type,
+        status: user.status,
+        emailVerified: user.emailVerified,
         createdAt: new Date().toISOString(),
       });
 
       // Check if this is user's first login (no previous sessions)
-      const previousSessions = await sessionService.getUserSessions(user.id);
-      const isFirstLogin = previousSessions.length === 0;
+      // const previousSessions = await sessionService.getUserSessions(user.id);
+      // const isFirstLogin = previousSessions.length === 0;
 
-      // If first login, create user profile and related data
-      if (isFirstLogin) {
-        await emitUserRegistered(user, {
-          emailType: 'welcome',
-          template: 'welcome-email',
-        });
-      }
+      // // If first login, create user profile and related data
+      // if (isFirstLogin) {
+      //   await emitUserRegistered(user, {
+      //     emailType: 'welcome',
+      //     template: 'welcome-email',
+      //   });
+      // }
 
       // Publish login event
-      await emitUserLoggedIn({
-        userId: user.id,
-        email: user.email,
-        ipAddress: loginData.ipAddress,
-        userAgent: loginData.userAgent,
-      });
+      // await emitUserLoggedIn({
+      //   userId: user.id,
+      //   email: user.email,
+      //   ipAddress: loginData.ipAddress,
+      //   userAgent: loginData.userAgent,
+      // });
 
       // Create audit log
-      await AuditLog.create({
+      await logAuditEvent('USER_LOGGED_IN', {
         userId: user.id,
-        action: 'USER_LOGIN',
-        resourceType: 'SESSION',
-        resourceId: sessionId,
-        details: { deviceInfo, ipAddress },
-        ipAddress,
-        userAgent,
+        email: user.email,
+        role: user.role,
+        type: user.type,
+        status: user.status,
+        emailVerified: user.emailVerified,
       });
 
       safeLogger.info('User logged in successfully', {
         userId: user.id,
         email: user.email,
-        sessionId,
       });
 
       return {
@@ -247,11 +186,6 @@ class AuthService {
         tokens: {
           accessToken,
           refreshToken,
-          expiresIn: env.jwtExpiry,
-        },
-        session: {
-          sessionId,
-          expiresAt: session.expiresAt,
         },
       };
     } catch (error) {
@@ -277,10 +211,8 @@ class AuthService {
         throw new ApiError('Invalid refresh token');
       }
 
-      const { userId, sessionId } = refreshData;
+      const { userId } = refreshData;
 
-      // Validate session
-      const sessionData = await sessionService.validateSession(sessionId);
       if (!sessionData) {
         throw new ApiError('Session expired');
       }
@@ -292,11 +224,10 @@ class AuthService {
       }
 
       // Generate new access token
-      const newAccessToken = this.generateAccessToken(user, sessionId); // Pass existing sessionId
+      const newAccessToken = this.generateAccessToken(user); // Pass existing sessionId
 
       safeLogger.info('Token refreshed successfully', {
         userId: user.id,
-        sessionId,
       });
 
       return {
@@ -438,13 +369,12 @@ class AuthService {
    * @param {Object} user - User object
    * @returns {string} JWT access token
    */
-  generateAccessToken(user, sessionId) {
+  generateAccessToken(user) {
     return jwt.sign(
       {
         userId: user.id,
         email: user.email,
         role: user.role,
-        sessionId: sessionId, // Include sessionId for logout tracking
       },
       env.jwtSecret,
       {

@@ -18,22 +18,12 @@ import { safeLogger } from '../config/logger.js';
  * @returns {Function} Express middleware function
  */
 const asyncHandler = requestHandler => {
-  return async(req, res, next) => {
-    const requestId =
-      req.correlationId ||
-      `req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  return async (req, res, next) => {
+    const requestId = req.correlationId;
     const startTime = Date.now();
 
-    // Set correlation ID if not present
-    if (!req.correlationId) {
-      req.correlationId = requestId;
-    }
-
     try {
-      // Execute the route handler
       const result = await requestHandler(req, res, next);
-
-      // Log successful request
       const duration = Date.now() - startTime;
       safeLogger.info('Request completed successfully', {
         requestId,
@@ -70,7 +60,7 @@ const asyncHandler = requestHandler => {
           500,
           'Internal Server Error',
           [error.message],
-          process.env.NODE_ENV === 'development' ? error.stack : '',
+          process.env.NODE_ENV === 'development' ? error.stack : ''
         );
         next(apiError);
       }

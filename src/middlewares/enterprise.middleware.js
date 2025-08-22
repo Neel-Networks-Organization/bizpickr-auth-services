@@ -38,7 +38,7 @@ export const enterpriseLoggingMiddleware = (req, res, next) => {
 
   // Override res.end to log response
   const originalEnd = res.end;
-  res.end = function(...args) {
+  res.end = function (...args) {
     const duration = Date.now() - startTime;
 
     safeLogger.info('Request completed', {
@@ -59,7 +59,7 @@ export const enterpriseLoggingMiddleware = (req, res, next) => {
 // ✅ Enterprise Rate Limiting
 export const enterpriseRateLimit = (
   maxRequests = 100,
-  windowMs = 15 * 60 * 1000,
+  windowMs = 15 * 60 * 1000
 ) => {
   const requests = new Map();
 
@@ -72,7 +72,7 @@ export const enterpriseRateLimit = (
     if (requests.has(ip)) {
       requests.set(
         ip,
-        requests.get(ip).filter(time => time > windowStart),
+        requests.get(ip).filter(time => time > windowStart)
       );
     }
 
@@ -109,7 +109,7 @@ export const enterpriseSecurityMiddleware = (req, res, next) => {
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   res.setHeader(
     'Permissions-Policy',
-    'geolocation=(), microphone=(), camera=()',
+    'geolocation=(), microphone=(), camera=()'
   );
 
   next();
@@ -122,6 +122,7 @@ export const enterpriseValidationMiddleware = (req, res, next) => {
   // Check content length (10MB limit for SaaS)
   const contentLength = parseInt(req.headers['content-length'] || '0');
   if (contentLength > 10 * 1024 * 1024) {
+    // 10MB
     safeLogger.warn('Request too large', {
       correlationId,
       contentLength,
@@ -219,4 +220,63 @@ export const enterpriseErrorHandler = (error, req, res, next) => {
   }
 
   res.status(500).json(errorResponse);
+};
+
+export const enterpriseCorsMiddleware = (options = {}) => {
+  const config = {
+    origin: process.env.ALLOWED_ORIGINS?.split(',') || [
+      'http://localhost:3000',
+    ],
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'X-Requested-With',
+      'X-API-Key',
+      'X-Correlation-ID',
+    ],
+    exposedHeaders: ['X-Correlation-ID', 'X-Request-ID'],
+    maxAge: 86400, // 24 hours
+    ...options,
+  };
+
+  return (req, res, next) => {
+    const correlationId = getCorrelationId();
+
+    try {
+      const origin = req.headers.origin;
+
+      // Check if origin is allowed
+      if (origin && config.origin.includes(origin)) {
+        res.setHeader('Access-Control-Allow-Origin', origin);
+      }
+
+      // Set CORS headers
+      res.setHeader('Access-Control-Allow-Credentials', config.credentials);
+      res.setHeader('Access-Control-Allow-Methods', config.methods.join(', '));
+      res.setHeader(
+        'Access-Control-Allow-Headers',
+        config.allowedHeaders.join(', ')
+      );
+      res.setHeader(
+        'Access-Control-Expose-Headers',
+        config.exposedHeaders.join(', ')
+      );
+      res.setHeader('Access-Control-Max-Age', config.maxAge);
+
+      // Handle preflight requests
+      if (req.method === 'OPTIONS') {
+        return res.status(200).end();
+      }
+
+      next();
+    } catch (error) {
+      safeLogger.error('CORS middleware error', {
+        error: error.message,
+        correlationId,
+      });
+      next();
+    }
+  };
 };

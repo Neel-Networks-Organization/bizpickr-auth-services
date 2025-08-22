@@ -41,7 +41,7 @@ class PasswordService {
       // Verify current password
       const isCurrentPasswordValid = await bcrypt.compare(
         currentPassword,
-        user.password,
+        user.password
       );
       if (!isCurrentPasswordValid) {
         throw new Error('Current password is incorrect');
@@ -220,33 +220,6 @@ class PasswordService {
    * @throws {Error} If password is invalid
    */
   validatePassword(password) {
-    if (!password || typeof password !== 'string') {
-      throw new Error('Password is required');
-    }
-
-    if (password.length < 8) {
-      throw new Error('Password must be at least 8 characters long');
-    }
-
-    if (password.length > 128) {
-      throw new Error('Password must be less than 128 characters');
-    }
-
-    // Check for at least one uppercase letter
-    if (!/[A-Z]/.test(password)) {
-      throw new Error('Password must contain at least one uppercase letter');
-    }
-
-    // Check for at least one lowercase letter
-    if (!/[a-z]/.test(password)) {
-      throw new Error('Password must contain at least one lowercase letter');
-    }
-
-    // Check for at least one number
-    if (!/\d/.test(password)) {
-      throw new Error('Password must contain at least one number');
-    }
-
     // Check for at least one special character
     if (!/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(password)) {
       throw new Error('Password must contain at least one special character');
@@ -268,34 +241,15 @@ class PasswordService {
 
     if (commonPasswords.includes(password.toLowerCase())) {
       throw new Error(
-        'Password is too common, please choose a stronger password',
+        'Password is too common, please choose a stronger password'
       );
     }
   }
 
-  /**
-   * Hash password
-   * @param {string} password - Plain text password
-   * @returns {Promise<string>} Hashed password
-   */
-  async hashPassword(password) {
-    return await bcrypt.hash(password, this.saltRounds);
-  }
-
-  /**
-   * Verify password
-   * @param {string} password - Plain text password
-   * @param {string} hashedPassword - Hashed password
-   * @returns {Promise<boolean>} Password validity
-   */
   async verifyPassword(password, hashedPassword) {
     return await bcrypt.compare(password, hashedPassword);
   }
 
-  /**
-   * Clean expired reset tokens
-   * @returns {Promise<number>} Number of cleaned tokens
-   */
   async cleanExpiredResetTokens() {
     try {
       const expiredTokens = await PasswordReset.findAll({
@@ -328,11 +282,6 @@ class PasswordService {
     }
   }
 
-  /**
-   * Get password reset statistics
-   * @param {number} userId - User ID
-   * @returns {Promise<Object>} Reset statistics
-   */
   async getPasswordResetStats(userId) {
     try {
       const totalResets = await PasswordReset.count({

@@ -10,7 +10,7 @@ import axios from 'axios';
 import { safeLogger } from '../config/logger.js';
 import { env } from '../config/env.js';
 import { AuthUser as User } from '../models/index.model.js';
-import { logAuditEvent } from '../middlewares/audit.middleware.js';
+import { logAuditEvent } from './audit.service.js';
 import sessionService from './session.service.js';
 
 class OAuthService {
@@ -241,7 +241,7 @@ class OAuthService {
         expiresIn: env.JWT_EXPIRES_IN,
         issuer: 'auth-service',
         audience: 'api-gateway',
-      },
+      }
     );
   }
 
@@ -262,7 +262,7 @@ class OAuthService {
         expiresIn: 7 * 24 * 60 * 60, // 7 days
         issuer: 'auth-service',
         audience: 'auth-service',
-      },
+      }
     );
   }
 }
