@@ -11,6 +11,7 @@ import {
   shutdownGeneralCache,
 } from './cache/general.cache.js';
 import { connectMongo } from './db/mongoose.js';
+import { jwkService } from './services/index.js';
 
 async function initializeServices() {
   try {
@@ -21,6 +22,7 @@ async function initializeServices() {
     await initializeGrpcServices();
     await initializeRabbitMQ();
     await connectMongo();
+    await jwkService.initialize();
     safeLogger.info('All services initialized successfully');
   } catch (error) {
     safeLogger.error('Service initialization failed', { error: error.message });
@@ -45,6 +47,7 @@ async function startServer() {
         await shutdownRabbitMQ();
         await shutdownCache();
         await shutdownGeneralCache();
+        await jwkService.shutdown();
         await sequelize.close();
         const { default: mongoose } = await import('./db/mongoose.js');
         await mongoose.connection.close();
