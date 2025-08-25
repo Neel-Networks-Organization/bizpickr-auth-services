@@ -1,498 +1,672 @@
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import { ApiError } from '../../../src/utils/index.js';
+import { ApiError } from '../../../src/utils/ApiError.js';
 
-/**
- * ApiError Utility Tests
- *
- * Test Coverage:
- * - Error creation with different parameters
- * - Error inheritance and properties
- * - Stack trace functionality
- * - Error serialization
- * - Custom error messages
- * - Status code handling
- */
-
-describe('ApiError Utility Tests', () => {
-  let testError;
-
+describe('ApiError Utility Class', () => {
   beforeEach(() => {
-    // Clear any previous test data
-    testError = null;
+    jest.clearAllMocks();
   });
 
-  describe('Error Creation', () => {
-    describe('Basic Error Creation', () => {
-      it('should create error with minimal parameters', () => {
-        // Arrange & Act
-        testError = new ApiError(400, 'Bad Request');
-
-        // Assert
-        expect(testError).toBeInstanceOf(ApiError);
-        expect(testError).toBeInstanceOf(Error);
-        expect(testError.statusCode).toBe(400);
-        expect(testError.message).toBe('Bad Request');
-        expect(testError.success).toBe(false);
-        expect(testError.errors).toBeUndefined();
-        expect(testError.stack).toBeDefined();
-      });
-
-      it('should create error with all parameters', () => {
-        // Arrange
-        const statusCode = 422;
-        const message = 'Validation failed';
-        const errors = ['Email is required', 'Password is too short'];
-        const stack = 'Custom stack trace';
-
-        // Act
-        testError = new ApiError(statusCode, message, errors, stack);
-
-        // Assert
-        expect(testError.statusCode).toBe(statusCode);
-        expect(testError.message).toBe(message);
-        expect(testError.errors).toEqual(errors);
-        expect(testError.stack).toBe(stack);
-        expect(testError.success).toBe(false);
-      });
-
-      it('should create error with default success value', () => {
-        // Arrange & Act
-        testError = new ApiError(500, 'Internal Server Error');
-
-        // Assert
-        expect(testError.success).toBe(false);
-      });
-    });
-
-    describe('Status Code Validation', () => {
-      it('should accept valid HTTP status codes', () => {
-        const validStatusCodes = [
-          200, 201, 400, 401, 403, 404, 422, 500, 502, 503,
-        ];
-
-        validStatusCodes.forEach(statusCode => {
-          testError = new ApiError(statusCode, 'Test message');
-          expect(testError.statusCode).toBe(statusCode);
-        });
-      });
-
-      it('should handle string status codes', () => {
-        // Arrange & Act
-        testError = new ApiError('400', 'Bad Request');
-
-        // Assert
-        expect(testError.statusCode).toBe(400);
-      });
-
-      it('should handle zero status code', () => {
-        // Arrange & Act
-        testError = new ApiError(0, 'Zero status');
-
-        // Assert
-        expect(testError.statusCode).toBe(0);
-      });
-    });
-
-    describe('Message Handling', () => {
-      it('should handle empty message', () => {
-        // Arrange & Act
-        testError = new ApiError(400, '');
-
-        // Assert
-        expect(testError.message).toBe('');
-      });
-
-      it('should handle null message', () => {
-        // Arrange & Act
-        testError = new ApiError(400, null);
-
-        // Assert
-        expect(testError.message).toBe(null);
-      });
-
-      it('should handle undefined message', () => {
-        // Arrange & Act
-        testError = new ApiError(400, undefined);
-
-        // Assert
-        expect(testError.message).toBe(undefined);
-      });
-
-      it('should handle long messages', () => {
-        // Arrange
-        const longMessage = 'A'.repeat(1000);
-
-        // Act
-        testError = new ApiError(400, longMessage);
-
-        // Assert
-        expect(testError.message).toBe(longMessage);
-      });
-
-      it('should handle special characters in message', () => {
-        // Arrange
-        const specialMessage =
-          'Error with special chars: !@#$%^&*()_+-=[]{}|;:,.<>?';
-
-        // Act
-        testError = new ApiError(400, specialMessage);
-
-        // Assert
-        expect(testError.message).toBe(specialMessage);
-      });
-
-      it('should handle unicode characters in message', () => {
-        // Arrange
-        const unicodeMessage = 'Error with unicode: 🚀 测试 テスト';
-
-        // Act
-        testError = new ApiError(400, unicodeMessage);
-
-        // Assert
-        expect(testError.message).toBe(unicodeMessage);
-      });
-    });
-
-    describe('Errors Array Handling', () => {
-      it('should handle empty errors array', () => {
-        // Arrange & Act
-        testError = new ApiError(400, 'Bad Request', []);
-
-        // Assert
-        expect(testError.errors).toEqual([]);
-      });
-
-      it('should handle single error in array', () => {
-        // Arrange
-        const errors = ['Single error'];
-
-        // Act
-        testError = new ApiError(400, 'Bad Request', errors);
-
-        // Assert
-        expect(testError.errors).toEqual(errors);
-      });
-
-      it('should handle multiple errors in array', () => {
-        // Arrange
-        const errors = ['First error', 'Second error', 'Third error'];
-
-        // Act
-        testError = new ApiError(400, 'Bad Request', errors);
-
-        // Assert
-        expect(testError.errors).toEqual(errors);
-      });
-
-      it('should handle errors with special characters', () => {
-        // Arrange
-        const errors = [
-          'Error with special chars: !@#$%^&*()',
-          'Another error 🚀',
-        ];
-
-        // Act
-        testError = new ApiError(400, 'Bad Request', errors);
-
-        // Assert
-        expect(testError.errors).toEqual(errors);
-      });
-
-      it('should handle undefined errors parameter', () => {
-        // Arrange & Act
-        testError = new ApiError(400, 'Bad Request', undefined);
-
-        // Assert
-        expect(testError.errors).toBeUndefined();
-      });
-
-      it('should handle null errors parameter', () => {
-        // Arrange & Act
-        testError = new ApiError(400, 'Bad Request', null);
-
-        // Assert
-        expect(testError.errors).toBeNull();
-      });
-    });
-  });
-
-  describe('Error Inheritance', () => {
-    it('should inherit from Error class', () => {
-      // Arrange & Act
-      testError = new ApiError(400, 'Test error');
-
-      // Assert
-      expect(testError).toBeInstanceOf(Error);
-      expect(testError).toBeInstanceOf(ApiError);
-    });
-
-    it('should have Error prototype methods', () => {
-      // Arrange & Act
-      testError = new ApiError(400, 'Test error');
-
-      // Assert
-      expect(typeof testError.toString).toBe('function');
-      expect(typeof testError.valueOf).toBe('function');
-    });
-
-    it('should maintain prototype chain', () => {
-      // Arrange & Act
-      testError = new ApiError(400, 'Test error');
-
-      // Assert
-      expect(Object.getPrototypeOf(testError)).toBe(ApiError.prototype);
-      expect(Object.getPrototypeOf(ApiError.prototype)).toBe(Error.prototype);
-    });
-  });
-
-  describe('Stack Trace', () => {
-    it('should have stack trace by default', () => {
-      // Arrange & Act
-      testError = new ApiError(400, 'Test error');
-
-      // Assert
-      expect(testError.stack).toBeDefined();
-      expect(typeof testError.stack).toBe('string');
-      expect(testError.stack.length).toBeGreaterThan(0);
-    });
-
-    it('should use custom stack trace when provided', () => {
-      // Arrange
-      const customStack = 'Custom stack trace at line 10';
-
-      // Act
-      testError = new ApiError(400, 'Test error', undefined, customStack);
-
-      // Assert
-      expect(testError.stack).toBe(customStack);
-    });
-
-    it('should include error message in stack trace', () => {
-      // Arrange & Act
-      testError = new ApiError(400, 'Custom error message');
-
-      // Assert
-      expect(testError.stack).toContain('Custom error message');
-    });
-  });
-
-  describe('Error Serialization', () => {
-    it('should serialize to JSON correctly', () => {
+  describe('Constructor', () => {
+    it('should create ApiError with valid parameters', () => {
       // Arrange
       const statusCode = 400;
       const message = 'Bad Request';
       const errors = ['Field is required'];
+      const stack = 'Error stack trace';
 
       // Act
-      testError = new ApiError(statusCode, message, errors);
-      const serialized = JSON.stringify(testError);
+      const error = new ApiError(statusCode, message, errors, stack);
 
       // Assert
-      const parsed = JSON.parse(serialized);
-      expect(parsed.statusCode).toBe(statusCode);
-      expect(parsed.message).toBe(message);
-      expect(parsed.errors).toEqual(errors);
-      expect(parsed.success).toBe(false);
+      expect(error).toBeInstanceOf(Error);
+      expect(error).toBeInstanceOf(ApiError);
+      expect(error.statusCode).toBe(400);
+      expect(error.message).toBe('Bad Request');
+      expect(error.errors).toEqual(['Field is required']);
+      expect(error.success).toBe(false);
+      expect(error.isOperational).toBe(true);
+      expect(error.timestamp).toBeDefined();
+      expect(error.stack).toBe('Error stack trace');
     });
 
-    it('should handle circular references in serialization', () => {
+    it('should create ApiError with numeric status code string', () => {
       // Arrange
-      testError = new ApiError(400, 'Test error');
+      const statusCode = '404';
+      const message = 'Not Found';
 
-      // Create circular reference
-      testError.self = testError;
+      // Act
+      const error = new ApiError(statusCode, message);
 
-      // Act & Assert
-      expect(() => JSON.stringify(testError)).not.toThrow();
+      // Assert
+      expect(error.statusCode).toBe(404);
+      expect(typeof error.statusCode).toBe('number');
+    });
+
+    it('should create ApiError with default message when not provided', () => {
+      // Arrange
+      const statusCode = 500;
+
+      // Act
+      const error = new ApiError(statusCode);
+
+      // Assert
+      expect(error.message).toBe('API Error');
+    });
+
+    it('should create ApiError with default errors when not provided', () => {
+      // Arrange
+      const statusCode = 400;
+      const message = 'Bad Request';
+
+      // Act
+      const error = new ApiError(statusCode, message);
+
+      // Assert
+      expect(error.errors).toBeUndefined();
+    });
+
+    it('should create ApiError with default stack when not provided', () => {
+      // Arrange
+      const statusCode = 500;
+      const message = 'Internal Server Error';
+
+      // Act
+      const error = new ApiError(statusCode, message);
+
+      // Assert
+      expect(error.stack).toBeDefined();
+      expect(error.stack).toContain('ApiError');
+    });
+
+    it('should create ApiError with current timestamp', () => {
+      // Arrange
+      const statusCode = 200;
+      const message = 'OK';
+      const beforeCreation = new Date();
+
+      // Act
+      const error = new ApiError(statusCode, message);
+      const afterCreation = new Date();
+
+      // Assert
+      const errorTime = new Date(error.timestamp);
+      expect(errorTime.getTime()).toBeGreaterThanOrEqual(
+        beforeCreation.getTime()
+      );
+      expect(errorTime.getTime()).toBeLessThanOrEqual(afterCreation.getTime());
     });
   });
 
-  describe('Common Error Scenarios', () => {
-    it('should create validation error', () => {
-      // Arrange & Act
-      testError = new ApiError(400, 'Validation failed', [
-        'Email is required',
-        'Password must be at least 8 characters',
-      ]);
+  describe('Status Code Validation', () => {
+    it('should accept valid HTTP status codes', () => {
+      const validStatusCodes = [200, 201, 400, 401, 403, 404, 500, 503];
 
-      // Assert
-      expect(testError.statusCode).toBe(400);
-      expect(testError.message).toBe('Validation failed');
-      expect(testError.errors).toHaveLength(2);
-      expect(testError.errors).toContain('Email is required');
-      expect(testError.errors).toContain(
-        'Password must be at least 8 characters'
+      validStatusCodes.forEach(statusCode => {
+        expect(() => new ApiError(statusCode, 'Test')).not.toThrow();
+      });
+    });
+
+    it('should accept string status codes and convert them', () => {
+      const stringStatusCodes = ['200', '400', '500'];
+
+      stringStatusCodes.forEach(statusCode => {
+        const error = new ApiError(statusCode, 'Test');
+        expect(typeof error.statusCode).toBe('number');
+        expect(error.statusCode).toBe(Number(statusCode));
+      });
+    });
+
+    it('should throw error for invalid status code (NaN)', () => {
+      // Arrange
+      const invalidStatusCode = 'invalid';
+
+      // Act & Assert
+      expect(() => new ApiError(invalidStatusCode, 'Test')).toThrow(
+        'Invalid HTTP status code'
       );
     });
 
-    it('should create authentication error', () => {
-      // Arrange & Act
-      testError = new ApiError(401, 'Unauthorized access');
+    it('should handle null status code by converting to 0', () => {
+      // Arrange
+      const nullStatusCode = null;
+
+      // Act
+      const error = new ApiError(nullStatusCode, 'Test');
 
       // Assert
-      expect(testError.statusCode).toBe(401);
-      expect(testError.message).toBe('Unauthorized access');
-      expect(testError.errors).toBeUndefined();
+      expect(error.statusCode).toBe(0);
     });
 
-    it('should create authorization error', () => {
-      // Arrange & Act
-      testError = new ApiError(403, 'Forbidden: Insufficient permissions');
+    it('should handle undefined status code by converting to NaN and throwing error', () => {
+      // Arrange
+      const undefinedStatusCode = undefined;
 
-      // Assert
-      expect(testError.statusCode).toBe(403);
-      expect(testError.message).toBe('Forbidden: Insufficient permissions');
+      // Act & Assert
+      expect(() => new ApiError(undefinedStatusCode, 'Test')).toThrow(
+        'Invalid HTTP status code'
+      );
     });
 
-    it('should create not found error', () => {
-      // Arrange & Act
-      testError = new ApiError(404, 'Resource not found');
+    it('should handle empty string status code by converting to 0', () => {
+      // Arrange
+      const emptyStatusCode = '';
+
+      // Act
+      const error = new ApiError(emptyStatusCode, 'Test');
 
       // Assert
-      expect(testError.statusCode).toBe(404);
-      expect(testError.message).toBe('Resource not found');
-    });
-
-    it('should create server error', () => {
-      // Arrange & Act
-      testError = new ApiError(500, 'Internal server error');
-
-      // Assert
-      expect(testError.statusCode).toBe(500);
-      expect(testError.message).toBe('Internal server error');
-    });
-
-    it('should create service unavailable error', () => {
-      // Arrange & Act
-      testError = new ApiError(503, 'Service temporarily unavailable');
-
-      // Assert
-      expect(testError.statusCode).toBe(503);
-      expect(testError.message).toBe('Service temporarily unavailable');
+      expect(error.statusCode).toBe(0);
     });
   });
 
-  describe('Error Comparison', () => {
-    it('should not be equal to different errors', () => {
+  describe('Message Handling', () => {
+    it('should handle empty message', () => {
       // Arrange
-      const error1 = new ApiError(400, 'Error 1');
-      const error2 = new ApiError(400, 'Error 2');
+      const statusCode = 400;
+      const emptyMessage = '';
 
-      // Act & Assert
-      expect(error1).not.toEqual(error2);
+      // Act
+      const error = new ApiError(statusCode, emptyMessage);
+
+      // Assert
+      expect(error.message).toBe('API Error');
     });
 
-    it('should be equal to identical errors', () => {
+    it('should handle null message', () => {
       // Arrange
-      const error1 = new ApiError(400, 'Same error', ['Error 1']);
-      const error2 = new ApiError(400, 'Same error', ['Error 1']);
+      const statusCode = 400;
+      const nullMessage = null;
 
-      // Act & Assert
-      expect(error1.statusCode).toBe(error2.statusCode);
-      expect(error1.message).toBe(error2.message);
-      expect(error1.errors).toEqual(error2.errors);
+      // Act
+      const error = new ApiError(statusCode, nullMessage);
+
+      // Assert
+      expect(error.message).toBe('API Error');
+    });
+
+    it('should handle undefined message', () => {
+      // Arrange
+      const statusCode = 400;
+      const undefinedMessage = undefined;
+
+      // Act
+      const error = new ApiError(statusCode, undefinedMessage);
+
+      // Assert
+      expect(error.message).toBe('API Error');
+    });
+
+    it('should handle long messages', () => {
+      // Arrange
+      const statusCode = 400;
+      const longMessage = 'A'.repeat(1000);
+
+      // Act
+      const error = new ApiError(statusCode, longMessage);
+
+      // Assert
+      expect(error.message).toBe(longMessage);
+    });
+
+    it('should handle special characters in message', () => {
+      // Arrange
+      const statusCode = 400;
+      const specialMessage = 'Special chars: !@#$%^&*()_+-=[]{}|;:,.<>?';
+
+      // Act
+      const error = new ApiError(statusCode, specialMessage);
+
+      // Assert
+      expect(error.message).toBe(specialMessage);
+    });
+
+    it('should handle unicode characters in message', () => {
+      // Arrange
+      const statusCode = 400;
+      const unicodeMessage = 'Unicode: 🚀 测试 テスト';
+
+      // Act
+      const error = new ApiError(statusCode, unicodeMessage);
+
+      // Assert
+      expect(error.message).toBe(unicodeMessage);
     });
   });
 
-  describe('Error Methods', () => {
-    it('should have toString method', () => {
+  describe('Errors Array Handling', () => {
+    it('should handle empty errors array', () => {
       // Arrange
-      testError = new ApiError(400, 'Test error');
+      const statusCode = 400;
+      const message = 'Bad Request';
+      const emptyErrors = [];
 
       // Act
-      const stringRepresentation = testError.toString();
+      const error = new ApiError(statusCode, message, emptyErrors);
 
       // Assert
-      expect(typeof stringRepresentation).toBe('string');
-      expect(stringRepresentation).toContain('ApiError');
-      expect(stringRepresentation).toContain('Test error');
+      expect(error.errors).toEqual([]);
     });
 
-    it('should have toJSON method', () => {
+    it('should handle single error string', () => {
       // Arrange
-      testError = new ApiError(400, 'Test error', ['Error 1']);
+      const statusCode = 400;
+      const message = 'Bad Request';
+      const singleError = 'Field is required';
 
       // Act
-      const jsonRepresentation = testError.toJSON();
+      const error = new ApiError(statusCode, message, singleError);
 
       // Assert
-      expect(jsonRepresentation).toMatchObject({
+      expect(error.errors).toBe(singleError);
+    });
+
+    it('should handle multiple errors array', () => {
+      // Arrange
+      const statusCode = 400;
+      const message = 'Bad Request';
+      const multipleErrors = [
+        'Field is required',
+        'Invalid format',
+        'Too short',
+      ];
+
+      // Act
+      const error = new ApiError(statusCode, message, multipleErrors);
+
+      // Assert
+      expect(error.errors).toEqual(multipleErrors);
+      expect(error.errors.length).toBe(3);
+    });
+
+    it('should handle null errors', () => {
+      // Arrange
+      const statusCode = 400;
+      const message = 'Bad Request';
+      const nullErrors = null;
+
+      // Act
+      const error = new ApiError(statusCode, message, nullErrors);
+
+      // Assert
+      expect(error.errors).toBeNull();
+    });
+
+    it('should handle undefined errors', () => {
+      // Arrange
+      const statusCode = 400;
+      const message = 'Bad Request';
+      const undefinedErrors = undefined;
+
+      // Act
+      const error = new ApiError(statusCode, message, undefinedErrors);
+
+      // Assert
+      expect(error.errors).toBeUndefined();
+    });
+
+    it('should handle errors with special characters', () => {
+      // Arrange
+      const statusCode = 400;
+      const message = 'Bad Request';
+      const specialErrors = ['Special: !@#$%^&*()', 'Unicode: 🚀 测试'];
+
+      // Act
+      const error = new ApiError(statusCode, message, specialErrors);
+
+      // Assert
+      expect(error.errors).toEqual(specialErrors);
+    });
+  });
+
+  describe('Stack Trace Handling', () => {
+    it('should use provided stack trace', () => {
+      // Arrange
+      const statusCode = 500;
+      const message = 'Internal Server Error';
+      const customStack = 'Custom stack trace\nat line 10\nat line 20';
+
+      // Act
+      const error = new ApiError(statusCode, message, undefined, customStack);
+
+      // Assert
+      expect(error.stack).toBe(customStack);
+    });
+
+    it('should generate stack trace when not provided', () => {
+      // Arrange
+      const statusCode = 500;
+      const message = 'Internal Server Error';
+
+      // Act
+      const error = new ApiError(statusCode, message);
+
+      // Assert
+      expect(error.stack).toBeDefined();
+      expect(error.stack).toContain('ApiError');
+      expect(error.stack).toContain('at');
+    });
+
+    it('should handle empty stack trace string by generating default stack', () => {
+      // Arrange
+      const statusCode = 500;
+      const message = 'Internal Server Error';
+      const emptyStack = '';
+
+      // Act
+      const error = new ApiError(statusCode, message, undefined, emptyStack);
+
+      // Assert
+      // Empty string is falsy, so it will generate default stack trace
+      expect(error.stack).toBeDefined();
+      expect(error.stack).toContain('ApiError');
+    });
+  });
+
+  describe('Inheritance and Prototype', () => {
+    it('should inherit from Error class', () => {
+      // Arrange
+      const statusCode = 400;
+      const message = 'Bad Request';
+
+      // Act
+      const error = new ApiError(statusCode, message);
+
+      // Assert
+      expect(error).toBeInstanceOf(Error);
+      expect(error).toBeInstanceOf(ApiError);
+      expect(Object.getPrototypeOf(error)).toBe(ApiError.prototype);
+    });
+
+    it('should have correct constructor name', () => {
+      // Arrange
+      const statusCode = 400;
+      const message = 'Bad Request';
+
+      // Act
+      const error = new ApiError(statusCode, message);
+
+      // Assert
+      expect(error.constructor.name).toBe('ApiError');
+    });
+
+    it('should maintain prototype chain', () => {
+      // Arrange
+      const statusCode = 400;
+      const message = 'Bad Request';
+
+      // Act
+      const error = new ApiError(statusCode, message);
+
+      // Assert
+      expect(error.hasOwnProperty('statusCode')).toBe(true);
+      expect(error.hasOwnProperty('message')).toBe(true);
+      expect(error.hasOwnProperty('success')).toBe(true);
+      expect(error.hasOwnProperty('isOperational')).toBe(true);
+      expect(error.hasOwnProperty('timestamp')).toBe(true);
+    });
+  });
+
+  describe('toString Method', () => {
+    it('should return formatted string representation', () => {
+      // Arrange
+      const statusCode = 400;
+      const message = 'Bad Request';
+      const error = new ApiError(statusCode, message);
+
+      // Act
+      const result = error.toString();
+
+      // Assert
+      expect(result).toBe('ApiError: Bad Request');
+    });
+
+    it('should handle empty message in toString', () => {
+      // Arrange
+      const statusCode = 400;
+      const error = new ApiError(statusCode);
+
+      // Act
+      const result = error.toString();
+
+      // Assert
+      expect(result).toBe('ApiError: API Error');
+    });
+
+    it('should handle special characters in toString', () => {
+      // Arrange
+      const statusCode = 400;
+      const specialMessage = 'Special: !@#$%^&*() 🚀';
+      const error = new ApiError(statusCode, specialMessage);
+
+      // Act
+      const result = error.toString();
+
+      // Assert
+      expect(result).toBe(`ApiError: ${specialMessage}`);
+    });
+  });
+
+  describe('toJSON Method', () => {
+    it('should return JSON representation with all properties', () => {
+      // Arrange
+      const statusCode = 400;
+      const message = 'Bad Request';
+      const errors = ['Field is required'];
+      const error = new ApiError(statusCode, message, errors);
+
+      // Act
+      const result = error.toJSON();
+
+      // Assert
+      expect(result).toEqual({
         statusCode: 400,
-        message: 'Test error',
-        errors: ['Error 1'],
+        message: 'Bad Request',
+        errors: ['Field is required'],
         success: false,
+        isOperational: true,
+        timestamp: error.timestamp,
       });
     });
-  });
 
-  describe('Edge Cases', () => {
-    it('should handle very large status codes', () => {
-      // Arrange & Act
-      testError = new ApiError(99999, 'Large status code');
+    it('should handle undefined errors in JSON', () => {
+      // Arrange
+      const statusCode = 400;
+      const message = 'Bad Request';
+      const error = new ApiError(statusCode, message);
+
+      // Act
+      const result = error.toJSON();
 
       // Assert
-      expect(testError.statusCode).toBe(99999);
+      expect(result.errors).toBeUndefined();
+    });
+
+    it('should handle null errors in JSON', () => {
+      // Arrange
+      const statusCode = 400;
+      const message = 'Bad Request';
+      const error = new ApiError(statusCode, message, null);
+
+      // Act
+      const result = error.toJSON();
+
+      // Assert
+      expect(result.errors).toBeNull();
+    });
+
+    it('should handle empty errors array in JSON', () => {
+      // Arrange
+      const statusCode = 400;
+      const message = 'Bad Request';
+      const error = new ApiError(statusCode, message, []);
+
+      // Act
+      const result = error.toJSON();
+
+      // Assert
+      expect(result.errors).toEqual([]);
+    });
+  });
+
+  describe('Edge Cases and Error Handling', () => {
+    it('should handle very large status codes', () => {
+      // Arrange
+      const largeStatusCode = 999999;
+
+      // Act
+      const error = new ApiError(largeStatusCode, 'Test');
+
+      // Assert
+      expect(error.statusCode).toBe(999999);
+    });
+
+    it('should handle zero status code', () => {
+      // Arrange
+      const zeroStatusCode = 0;
+
+      // Act
+      const error = new ApiError(zeroStatusCode, 'Test');
+
+      // Assert
+      expect(error.statusCode).toBe(0);
     });
 
     it('should handle negative status codes', () => {
-      // Arrange & Act
-      testError = new ApiError(-1, 'Negative status code');
+      // Arrange
+      const negativeStatusCode = -100;
+
+      // Act
+      const error = new ApiError(negativeStatusCode, 'Test');
 
       // Assert
-      expect(testError.statusCode).toBe(-1);
+      expect(error.statusCode).toBe(-100);
     });
 
     it('should handle floating point status codes', () => {
-      // Arrange & Act
-      testError = new ApiError(400.5, 'Float status code');
-
-      // Assert
-      expect(testError.statusCode).toBe(400.5);
-    });
-
-    it('should handle very long error arrays', () => {
       // Arrange
-      const longErrors = Array.from({ length: 1000 }, (_, i) => `Error ${i}`);
+      const floatStatusCode = 400.5;
 
       // Act
-      testError = new ApiError(400, 'Many errors', longErrors);
+      const error = new ApiError(floatStatusCode, 'Test');
 
       // Assert
-      expect(testError.errors).toHaveLength(1000);
-      expect(testError.errors[0]).toBe('Error 0');
-      expect(testError.errors[999]).toBe('Error 999');
+      expect(error.statusCode).toBe(400.5);
+    });
+
+    it('should handle boolean status codes', () => {
+      // Arrange
+      const booleanStatusCode = true;
+
+      // Act
+      const error = new ApiError(booleanStatusCode, 'Test');
+
+      // Assert
+      expect(error.statusCode).toBe(1);
     });
   });
 
   describe('Performance Tests', () => {
-    it('should create errors quickly', () => {
+    it('should create errors efficiently', () => {
       // Arrange
       const iterations = 1000;
-      const startTime = performance.now();
+      const startTime = Date.now();
 
       // Act
       for (let i = 0; i < iterations; i++) {
         new ApiError(400, `Error ${i}`);
       }
-      const endTime = performance.now();
+      const endTime = Date.now();
 
       // Assert
       const averageTime = (endTime - startTime) / iterations;
       expect(averageTime).toBeLessThan(1); // Less than 1ms per error
     });
 
-    it('should handle memory efficiently', () => {
+    it('should handle JSON serialization efficiently', () => {
       // Arrange
-      const errors = [];
+      const error = new ApiError(400, 'Test', ['Error 1', 'Error 2']);
+      const iterations = 1000;
+      const startTime = Date.now();
 
       // Act
-      for (let i = 0; i < 1000; i++) {
-        errors.push(new ApiError(400, `Error ${i}`));
+      for (let i = 0; i < iterations; i++) {
+        error.toJSON();
       }
+      const endTime = Date.now();
 
       // Assert
-      expect(errors).toHaveLength(1000);
-      // Memory usage should be reasonable (no memory leaks)
+      const averageTime = (endTime - startTime) / iterations;
+      expect(averageTime).toBeLessThan(0.1); // Less than 0.1ms per serialization
+    });
+  });
+
+  describe('Common Error Scenarios', () => {
+    it('should handle validation errors', () => {
+      // Arrange
+      const validationErrors = [
+        'Email is required',
+        'Password must be at least 8 characters',
+        'Invalid phone number format',
+      ];
+
+      // Act
+      const error = new ApiError(422, 'Validation failed', validationErrors);
+
+      // Assert
+      expect(error.statusCode).toBe(422);
+      expect(error.message).toBe('Validation failed');
+      expect(error.errors).toEqual(validationErrors);
+      expect(error.success).toBe(false);
+    });
+
+    it('should handle authentication errors', () => {
+      // Arrange
+      const authErrors = ['Invalid credentials', 'Token expired'];
+
+      // Act
+      const error = new ApiError(401, 'Authentication failed', authErrors);
+
+      // Assert
+      expect(error.statusCode).toBe(401);
+      expect(error.message).toBe('Authentication failed');
+      expect(error.errors).toEqual(authErrors);
+    });
+
+    it('should handle authorization errors', () => {
+      // Act
+      const error = new ApiError(403, 'Access denied');
+
+      // Assert
+      expect(error.statusCode).toBe(403);
+      expect(error.message).toBe('Access denied');
+      expect(error.errors).toBeUndefined();
+    });
+
+    it('should handle not found errors', () => {
+      // Act
+      const error = new ApiError(404, 'Resource not found');
+
+      // Assert
+      expect(error.statusCode).toBe(404);
+      expect(error.message).toBe('Resource not found');
+    });
+
+    it('should handle server errors', () => {
+      // Act
+      const error = new ApiError(500, 'Internal server error');
+
+      // Assert
+      expect(error.statusCode).toBe(500);
+      expect(error.message).toBe('Internal server error');
+    });
+
+    it('should handle service unavailable errors', () => {
+      // Act
+      const error = new ApiError(503, 'Service temporarily unavailable');
+
+      // Assert
+      expect(error.statusCode).toBe(503);
+      expect(error.message).toBe('Service temporarily unavailable');
     });
   });
 });

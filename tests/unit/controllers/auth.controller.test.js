@@ -6,29 +6,24 @@ import {
   beforeEach,
   afterEach,
 } from '@jest/globals';
-import request from 'supertest';
-import express from 'express';
-
-// Import the controller functions
+import { ApiError } from '../../../src/utils/index.js';
 import {
   signupUser,
   loginUser,
   logoutUser,
   verifyToken,
   refreshAccessToken,
+  getCurrentUser,
 } from '../../../src/controllers/auth.controller.js';
 
-// Import models and utilities
-import AuthUser from '../../../src/models/authUser.model.js';
-import { ApiError } from '../../../src/utils/index.js';
-import {
-  createUserProfile,
-  getUserById,
-} from '../../../src/grpc/client/user.client.js';
-import {
-  generateAccessToken,
-  generateRefreshToken,
-} from '../../../src/crypto/tokenService.js';
+// Mock dependencies
+jest.mock('../../../src/services/index.js');
+jest.mock('../../../src/cache/auth.cache.js');
+jest.mock('../../../src/config/logger.js');
+
+import { authService } from '../../../src/services/index.js';
+import { authCache } from '../../../src/cache/auth.cache.js';
+import { safeLogger } from '../../../src/config/logger.js';
 
 // Import test utilities
 import {
@@ -38,606 +33,419 @@ import {
   createMockNext,
   validateApiResponse,
   validateApiError,
-  setupTestEnvironment,
-  cleanupTestEnvironment,
 } from '../../utils/testUtils.js';
 
-// Mock all external dependencies
-jest.mock('../../../src/models/authUser.model.js');
-jest.mock('../../../src/grpc/client/user.client.js');
-jest.mock('../../../src/crypto/tokenService.js');
-jest.mock('../../../src/cache/auth.cache.js');
-jest.mock('../../../src/config/logger.js');
-
-// Create Express app for integration-style tests
-const app = express();
-app.use(express.json());
-
-/**
- * Auth Controller Unit Tests
- *
- * Test Coverage:
- * - User registration (signup)
- * - User authentication (login)
- * - User logout
- * - Token verification
- * - Token refresh
- * - Error handling
- * - Input validation
- * - Security measures
- */
-
 describe('Auth Controller Unit Tests', () => {
-  let mockAuthUser;
-  let mockUserData;
+  let mockReq, mockRes, mockNext;
 
   beforeEach(() => {
-    // Setup test environment
-    setupTestEnvironment();
-
-    // Clear all mocks
     jest.clearAllMocks();
 
-    // Setup mock data
-    mockUserData = { ...TEST_DATA.users.customer };
-    mockAuthUser = {
-      id: 1,
-      fullName: mockUserData.fullName,
-      email: mockUserData.email,
-      type: mockUserData.type,
-      role: mockUserData.role,
-      userId: mockUserData.userId,
-      isValidPassword: jest.fn(),
-      save: jest.fn(),
+    mockReq = createMockRequest();
+    mockRes = createMockResponse();
+    mockNext = createMockNext();
+  });
+
+  describe('signupUser', () => {
+    const validUserData = {
+      email: 'test@example.com',
+      password: 'Password123',
+      fullName: 'Test User',
+      type: 'customer',
+      role: 'user',
+      phone: '+1234567890',
+      acceptTerms: true,
     };
-  });
 
-  afterEach(() => {
-    cleanupTestEnvironment();
-  });
-
-  describe('User Registration (signupUser)', () => {
-    describe('Success Scenarios', () => {
-      it('should successfully register a new customer user', async () => {
-        // Arrange
-        const req = createMockRequest({
-          body: {
-            fullName: 'New Customer',
-            email: 'newcustomer@test.com',
-            password: 'securePassword123',
-            type: 'customer',
-            role: 'user',
-          },
-        });
-        const res = createMockResponse();
-        const next = createMockNext();
-
-        // Mock dependencies
-        AuthUser.findOne.mockResolvedValue(null);
-        createUserProfile.mockResolvedValue({ userId: 201 });
-        AuthUser.create.mockResolvedValue({
-          id: 3,
-          ...req.body,
-          userId: 201,
-        });
-
-        // Act
-        await signupUser(req, res, next);
-
-        // Assert
-        expect(AuthUser.findOne).toHaveBeenCalledWith({
-          where: { email: req.body.email, type: req.body.type },
-        });
-        expect(createUserProfile).toHaveBeenCalledWith({
-          fullName: req.body.fullName,
-          email: req.body.email,
-          type: req.body.type,
-          role: req.body.role,
-        });
-        expect(AuthUser.create).toHaveBeenCalledWith(
-          expect.objectContaining({
-            fullName: req.body.fullName,
-            email: req.body.email,
-            type: req.body.type,
-            role: req.body.role,
-            userId: 201,
-          })
-        );
-        validateApiResponse(res, 201);
-      });
-
-      it('should successfully register a new vendor user', async () => {
-        // Arrange
-        const req = createMockRequest({
-          body: {
-            fullName: 'New Vendor',
-            email: 'newvendor@test.com',
-            password: 'securePassword123',
-            type: 'vendor',
-            role: 'requirement_coordinator',
-          },
-        });
-        const res = createMockResponse();
-        const next = createMockNext();
-
-        // Mock dependencies
-        AuthUser.findOne.mockResolvedValue(null);
-        createUserProfile.mockResolvedValue({ userId: 202 });
-        AuthUser.create.mockResolvedValue({
-          id: 4,
-          ...req.body,
-          userId: 202,
-        });
-
-        // Act
-        await signupUser(req, res, next);
-
-        // Assert
-        expect(createUserProfile).toHaveBeenCalledWith({
-          fullName: req.body.fullName,
-          email: req.body.email,
-          type: req.body.type,
-          role: req.body.role,
-        });
-        validateApiResponse(res, 201);
-      });
-    });
-
-    describe('Error Scenarios', () => {
-      it('should throw error if user already exists', async () => {
-        // Arrange
-        const req = createMockRequest({
-          body: mockUserData,
-        });
-        const res = createMockResponse();
-        const next = createMockNext();
-
-        AuthUser.findOne.mockResolvedValue(mockAuthUser);
-
-        // Act
-        await signupUser(req, res, next);
-
-        // Assert
-        validateApiError(next, {
-          statusCode: 400,
-          message: 'customer already exists with this email',
-        });
-      });
-
-      it('should handle validation errors for invalid email', async () => {
-        // Arrange
-        const req = createMockRequest({
-          body: {
-            email: 'invalid-email',
-            password: '123',
-            type: 'customer',
-          },
-        });
-        const res = createMockResponse();
-        const next = createMockNext();
-
-        // Act
-        await signupUser(req, res, next);
-
-        // Assert
-        validateApiError(next, {
-          statusCode: 400,
-          message: 'Validation error',
-        });
-      });
-
-      it('should handle validation errors for weak password', async () => {
-        // Arrange
-        const req = createMockRequest({
-          body: {
-            email: 'test@example.com',
-            password: '123', // too short
-            type: 'customer',
-          },
-        });
-        const res = createMockResponse();
-        const next = createMockNext();
-
-        // Act
-        await signupUser(req, res, next);
-
-        // Assert
-        validateApiError(next, {
-          statusCode: 400,
-          message: 'Validation error',
-        });
-      });
-
-      it('should handle gRPC service errors', async () => {
-        // Arrange
-        const req = createMockRequest({
-          body: mockUserData,
-        });
-        const res = createMockResponse();
-        const next = createMockNext();
-
-        AuthUser.findOne.mockResolvedValue(null);
-        createUserProfile.mockRejectedValue(
-          new Error('gRPC service unavailable')
-        );
-
-        // Act
-        await signupUser(req, res, next);
-
-        // Assert
-        validateApiError(next, {
-          statusCode: 500,
-          message: 'Internal server error',
-        });
-      });
-    });
-
-    describe('Security Tests', () => {
-      it('should not expose password in response', async () => {
-        // Arrange
-        const req = createMockRequest({
-          body: mockUserData,
-        });
-        const res = createMockResponse();
-        const next = createMockNext();
-
-        AuthUser.findOne.mockResolvedValue(null);
-        createUserProfile.mockResolvedValue({ userId: 123 });
-        AuthUser.create.mockResolvedValue({
-          id: 1,
-          ...mockUserData,
-          userId: 123,
-        });
-
-        // Act
-        await signupUser(req, res, next);
-
-        // Assert
-        expect(res.json).toHaveBeenCalledWith(
-          expect.not.objectContaining({
-            data: expect.objectContaining({
-              password: expect.any(String),
-            }),
-          })
-        );
-      });
-
-      it('should hash password before saving', async () => {
-        // Arrange
-        const req = createMockRequest({
-          body: mockUserData,
-        });
-        const res = createMockResponse();
-        const next = createMockNext();
-
-        AuthUser.findOne.mockResolvedValue(null);
-        createUserProfile.mockResolvedValue({ userId: 123 });
-        AuthUser.create.mockResolvedValue({
-          id: 1,
-          ...mockUserData,
-          userId: 123,
-        });
-
-        // Act
-        await signupUser(req, res, next);
-
-        // Assert
-        expect(AuthUser.create).toHaveBeenCalledWith(
-          expect.objectContaining({
-            password: expect.not.toBe(mockUserData.password),
-          })
-        );
-      });
-    });
-  });
-
-  describe('User Authentication (loginUser)', () => {
-    describe('Success Scenarios', () => {
-      it('should successfully login user with valid credentials', async () => {
-        // Arrange
-        const req = createMockRequest({
-          body: {
-            email: mockUserData.email,
-            password: mockUserData.password,
-            type: mockUserData.type,
-          },
-        });
-        const res = createMockResponse();
-        const next = createMockNext();
-
-        // Mock dependencies
-        mockAuthUser.isValidPassword.mockResolvedValue(true);
-        AuthUser.findOne.mockResolvedValue(mockAuthUser);
-        getUserById.mockResolvedValue({
-          name: mockUserData.fullName,
-          userId: mockUserData.userId,
-        });
-        generateAccessToken.mockResolvedValue(TEST_DATA.tokens.accessToken);
-        generateRefreshToken.mockResolvedValue(TEST_DATA.tokens.refreshToken);
-
-        // Act
-        await loginUser(req, res, next);
-
-        // Assert
-        expect(AuthUser.findOne).toHaveBeenCalledWith({
-          where: { email: req.body.email, type: req.body.type },
-        });
-        expect(mockAuthUser.isValidPassword).toHaveBeenCalledWith(
-          req.body.password
-        );
-        expect(generateAccessToken).toHaveBeenCalledWith(mockAuthUser);
-        expect(generateRefreshToken).toHaveBeenCalledWith(mockAuthUser);
-        expect(res.cookie).toHaveBeenCalledTimes(2); // access and refresh tokens
-        validateApiResponse(res, 200);
-      });
-    });
-
-    describe('Error Scenarios', () => {
-      it('should throw error for invalid credentials', async () => {
-        // Arrange
-        const req = createMockRequest({
-          body: {
-            email: mockUserData.email,
-            password: 'wrongpassword',
-            type: mockUserData.type,
-          },
-        });
-        const res = createMockResponse();
-        const next = createMockNext();
-
-        mockAuthUser.isValidPassword.mockResolvedValue(false);
-        AuthUser.findOne.mockResolvedValue(mockAuthUser);
-
-        // Act
-        await loginUser(req, res, next);
-
-        // Assert
-        validateApiError(next, {
-          statusCode: 401,
-          message: 'Invalid email or password',
-        });
-      });
-
-      it('should throw error for non-existent user', async () => {
-        // Arrange
-        const req = createMockRequest({
-          body: {
-            email: 'nonexistent@test.com',
-            password: mockUserData.password,
-            type: mockUserData.type,
-          },
-        });
-        const res = createMockResponse();
-        const next = createMockNext();
-
-        AuthUser.findOne.mockResolvedValue(null);
-
-        // Act
-        await loginUser(req, res, next);
-
-        // Assert
-        validateApiError(next, {
-          statusCode: 401,
-          message: 'Invalid email or password',
-        });
-      });
-
-      it('should handle token generation errors', async () => {
-        // Arrange
-        const req = createMockRequest({
-          body: {
-            email: mockUserData.email,
-            password: mockUserData.password,
-            type: mockUserData.type,
-          },
-        });
-        const res = createMockResponse();
-        const next = createMockNext();
-
-        mockAuthUser.isValidPassword.mockResolvedValue(true);
-        AuthUser.findOne.mockResolvedValue(mockAuthUser);
-        getUserById.mockResolvedValue({
-          name: mockUserData.fullName,
-          userId: mockUserData.userId,
-        });
-        generateAccessToken.mockRejectedValue(
-          new Error('Token generation failed')
-        );
-
-        // Act
-        await loginUser(req, res, next);
-
-        // Assert
-        validateApiError(next, {
-          statusCode: 500,
-          message: 'Internal server error',
-        });
-      });
-    });
-
-    describe('Security Tests', () => {
-      it('should set secure cookie options', async () => {
-        // Arrange
-        const req = createMockRequest({
-          body: {
-            email: mockUserData.email,
-            password: mockUserData.password,
-            type: mockUserData.type,
-          },
-        });
-        const res = createMockResponse();
-        const next = createMockNext();
-
-        mockAuthUser.isValidPassword.mockResolvedValue(true);
-        AuthUser.findOne.mockResolvedValue(mockAuthUser);
-        getUserById.mockResolvedValue({
-          name: mockUserData.fullName,
-          userId: mockUserData.userId,
-        });
-        generateAccessToken.mockResolvedValue(TEST_DATA.tokens.accessToken);
-        generateRefreshToken.mockResolvedValue(TEST_DATA.tokens.refreshToken);
-
-        // Act
-        await loginUser(req, res, next);
-
-        // Assert
-        expect(res.cookie).toHaveBeenCalledWith(
-          'accessToken',
-          TEST_DATA.tokens.accessToken,
-          expect.objectContaining({
-            httpOnly: true,
-            secure: true,
-            sameSite: 'strict',
-          })
-        );
-      });
-
-      it('should not expose password in logs or responses', async () => {
-        // Arrange
-        const req = createMockRequest({
-          body: {
-            email: mockUserData.email,
-            password: mockUserData.password,
-            type: mockUserData.type,
-          },
-        });
-        const res = createMockResponse();
-        const next = createMockNext();
-
-        mockAuthUser.isValidPassword.mockResolvedValue(true);
-        AuthUser.findOne.mockResolvedValue(mockAuthUser);
-        getUserById.mockResolvedValue({
-          name: mockUserData.fullName,
-          userId: mockUserData.userId,
-        });
-        generateAccessToken.mockResolvedValue(TEST_DATA.tokens.accessToken);
-        generateRefreshToken.mockResolvedValue(TEST_DATA.tokens.refreshToken);
-
-        // Act
-        await loginUser(req, res, next);
-
-        // Assert
-        expect(res.json).toHaveBeenCalledWith(
-          expect.not.objectContaining({
-            password: expect.any(String),
-          })
-        );
-      });
-    });
-  });
-
-  describe('User Logout (logoutUser)', () => {
-    it('should successfully logout user and clear cookies', async () => {
+    it('should successfully register a new user', async () => {
       // Arrange
-      const req = createMockRequest();
-      const res = createMockResponse();
-      const next = createMockNext();
+      mockReq.body = validUserData;
+      mockReq.ip = '192.168.1.1';
+      mockReq.get = jest.fn().mockReturnValue('Mozilla/5.0');
+
+      const mockUser = {
+        id: 1,
+        email: validUserData.email,
+        type: validUserData.type,
+        role: validUserData.role,
+        status: 'pending',
+        emailVerified: false,
+      };
+
+      authService.registerUser.mockResolvedValue(mockUser);
+      safeLogger.info.mockReturnValue();
 
       // Act
-      await logoutUser(req, res, next);
+      await signupUser(mockReq, mockRes, mockNext);
 
       // Assert
-      expect(res.clearCookie).toHaveBeenCalledWith('accessToken');
-      expect(res.clearCookie).toHaveBeenCalledWith('refreshToken');
-      validateApiResponse(res, 200);
+      expect(authService.registerUser).toHaveBeenCalledWith({
+        ...validUserData,
+        ipAddress: '192.168.1.1',
+        userAgent: 'Mozilla/5.0',
+      });
+      expect(mockRes.status).toHaveBeenCalledWith(201);
+      expect(mockRes.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          statusCode: 201,
+          success: true,
+          data: expect.objectContaining({
+            id: mockUser.id,
+            email: mockUser.email,
+          }),
+        })
+      );
+      expect(safeLogger.info).toHaveBeenCalledWith(
+        'User registered successfully',
+        {
+          userId: mockUser.id,
+          email: mockUser.email,
+          type: validUserData.type,
+          role: mockUser.role,
+        }
+      );
+    });
+
+    it('should handle registration errors', async () => {
+      // Arrange
+      mockReq.body = validUserData;
+      const error = new Error('User already exists');
+      authService.registerUser.mockRejectedValue(error);
+
+      // Act
+      await signupUser(mockReq, mockRes, mockNext);
+
+      // Assert
+      expect(mockNext).toHaveBeenCalledWith(error);
+    });
+
+    it('should use default role when not provided', async () => {
+      // Arrange
+      const userDataWithoutRole = { ...validUserData };
+      delete userDataWithoutRole.role;
+      mockReq.body = userDataWithoutRole;
+      mockReq.ip = '192.168.1.1';
+      mockReq.get = jest.fn().mockReturnValue('Mozilla/5.0');
+
+      const mockUser = {
+        id: 1,
+        email: userDataWithoutRole.email,
+        type: userDataWithoutRole.type,
+        role: 'user', // Default role
+        status: 'pending',
+        emailVerified: false,
+      };
+
+      authService.registerUser.mockResolvedValue(mockUser);
+
+      // Act
+      await signupUser(mockReq, mockRes, mockNext);
+
+      // Assert
+      expect(authService.registerUser).toHaveBeenCalledWith({
+        ...userDataWithoutRole,
+        role: 'user', // Should use default
+        ipAddress: '192.168.1.1',
+        userAgent: 'Mozilla/5.0',
+      });
     });
   });
 
-  describe('Token Verification (verifyToken)', () => {
-    it('should verify valid token and return user data', async () => {
+  describe('loginUser', () => {
+    const validLoginData = {
+      email: 'test@example.com',
+      password: 'Password123',
+      type: 'customer',
+    };
+
+    it('should successfully login user', async () => {
       // Arrange
-      const req = createMockRequest({
-        headers: {
-          authorization: `Bearer ${TEST_DATA.tokens.accessToken}`,
+      mockReq.body = validLoginData;
+      mockReq.ip = '192.168.1.1';
+      mockReq.get = jest.fn().mockReturnValue('Mozilla/5.0');
+
+      const mockResult = {
+        user: { id: 1, email: validLoginData.email },
+        tokens: {
+          accessToken: 'access-token',
+          refreshToken: 'refresh-token',
+          expiresIn: 3600,
         },
-      });
-      const res = createMockResponse();
-      const next = createMockNext();
+        session: { sessionId: 'session-123' },
+      };
 
-      // Mock token verification
-      jest.mock('../../../src/crypto/tokenService.js', () => ({
-        verifyToken: jest.fn().mockResolvedValue({
-          id: mockAuthUser.id,
-          email: mockAuthUser.email,
-          type: mockAuthUser.type,
-        }),
-      }));
+      authService.loginUser.mockResolvedValue(mockResult);
 
       // Act
-      await verifyToken(req, res, next);
+      await loginUser(mockReq, mockRes, mockNext);
 
       // Assert
-      expect(req.user).toBeDefined();
-      expect(req.user.id).toBe(mockAuthUser.id);
-      expect(next).toHaveBeenCalled();
-    });
-
-    it('should handle invalid token', async () => {
-      // Arrange
-      const req = createMockRequest({
-        headers: {
-          authorization: 'Bearer invalid-token',
-        },
+      expect(authService.loginUser).toHaveBeenCalledWith({
+        ...validLoginData,
+        deviceInfo: 'Mozilla/5.0',
+        ipAddress: '192.168.1.1',
+        userAgent: 'Mozilla/5.0',
       });
-      const res = createMockResponse();
-      const next = createMockNext();
-
-      // Act
-      await verifyToken(req, res, next);
-
-      // Assert
-      validateApiError(next, {
-        statusCode: 401,
-        message: 'Invalid token',
-      });
-    });
-  });
-
-  describe('Token Refresh (refreshAccessToken)', () => {
-    it('should refresh access token with valid refresh token', async () => {
-      // Arrange
-      const req = createMockRequest({
-        cookies: {
-          refreshToken: TEST_DATA.tokens.refreshToken,
-        },
-      });
-      const res = createMockResponse();
-      const next = createMockNext();
-
-      // Mock token refresh
-      generateAccessToken.mockResolvedValue('new-access-token');
-
-      // Act
-      await refreshAccessToken(req, res, next);
-
-      // Assert
-      expect(generateAccessToken).toHaveBeenCalled();
-      expect(res.cookie).toHaveBeenCalledWith(
+      expect(mockRes.cookie).toHaveBeenCalledWith(
         'accessToken',
-        'new-access-token',
+        'access-token',
+        expect.objectContaining({
+          maxAge: 60 * 60 * 1000, // 1 hour
+        })
+      );
+      expect(mockRes.cookie).toHaveBeenCalledWith(
+        'refreshToken',
+        'refresh-token',
+        expect.objectContaining({
+          maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+        })
+      );
+      expect(mockRes.status).toHaveBeenCalledWith(200);
+      expect(safeLogger.info).toHaveBeenCalledWith(
+        'User logged in successfully',
+        {
+          userId: mockResult.user.id,
+          email: mockResult.user.email,
+          loginMethod: 'email',
+        }
+      );
+    });
+
+    it('should handle login errors', async () => {
+      // Arrange
+      mockReq.body = validLoginData;
+      const error = new ApiError(401, 'Invalid credentials');
+      authService.loginUser.mockRejectedValue(error);
+
+      // Act
+      await loginUser(mockReq, mockRes, mockNext);
+
+      // Assert
+      expect(mockNext).toHaveBeenCalledWith(error);
+    });
+  });
+
+  describe('logoutUser', () => {
+    it('should successfully logout user', async () => {
+      // Arrange
+      mockReq.user = { id: 1, email: 'test@example.com' };
+      mockReq.sessionId = 'session-123';
+      authCache.blacklistToken.mockResolvedValue();
+      safeLogger.info.mockReturnValue();
+
+      // Act
+      await logoutUser(mockReq, mockRes, mockNext);
+
+      // Assert
+      expect(authCache.blacklistToken).toHaveBeenCalledWith('session-123', {
+        userId: 1,
+        logoutReason: 'user_logout',
+        timestamp: expect.any(Date),
+      });
+      expect(mockRes.clearCookie).toHaveBeenCalledWith(
+        'accessToken',
         expect.any(Object)
       );
-      validateApiResponse(res, 200);
+      expect(mockRes.clearCookie).toHaveBeenCalledWith(
+        'refreshToken',
+        expect.any(Object)
+      );
+      expect(mockRes.status).toHaveBeenCalledWith(200);
+      expect(safeLogger.info).toHaveBeenCalledWith(
+        'User logged out successfully',
+        {
+          userId: 1,
+          sessionId: 'session-123',
+        }
+      );
     });
 
-    it('should handle invalid refresh token', async () => {
+    it('should throw error if user not authenticated', async () => {
       // Arrange
-      const req = createMockRequest({
-        cookies: {
-          refreshToken: TEST_DATA.tokens.invalidToken,
-        },
-      });
-      const res = createMockResponse();
-      const next = createMockNext();
+      mockReq.user = undefined;
 
       // Act
-      await refreshAccessToken(req, res, next);
+      await logoutUser(mockReq, mockRes, mockNext);
 
       // Assert
-      validateApiError(next, {
-        statusCode: 401,
-        message: 'Invalid refresh token',
-      });
+      expect(mockNext).toHaveBeenCalledWith(
+        expect.objectContaining({
+          statusCode: 400,
+          message: 'User not authenticated',
+        })
+      );
+    });
+
+    it('should continue logout even if blacklisting fails', async () => {
+      // Arrange
+      mockReq.user = { id: 1, email: 'test@example.com' };
+      mockReq.sessionId = 'session-123';
+      authCache.blacklistToken.mockRejectedValue(new Error('Blacklist failed'));
+      safeLogger.warn.mockReturnValue();
+      safeLogger.info.mockReturnValue();
+
+      // Act
+      await logoutUser(mockReq, mockRes, mockNext);
+
+      // Assert
+      expect(safeLogger.warn).toHaveBeenCalledWith(
+        'Failed to blacklist token during logout',
+        {
+          userId: 1,
+          sessionId: 'session-123',
+          error: 'Blacklist failed',
+        }
+      );
+      expect(mockRes.clearCookie).toHaveBeenCalled();
+      expect(mockRes.status).toHaveBeenCalledWith(200);
+    });
+  });
+
+  describe('verifyToken', () => {
+    it('should verify valid token', async () => {
+      // Arrange
+      mockReq.body = { token: 'valid-token' };
+      const mockDecoded = {
+        userId: 'user-123',
+        email: 'test@example.com',
+        role: 'user',
+        exp: new Date(Date.now() + 3600000).getTime(),
+      };
+      authService.verifyToken.mockResolvedValue(mockDecoded);
+
+      // Act
+      await verifyToken(mockReq, mockRes, mockNext);
+
+      // Assert
+      expect(authService.verifyToken).toHaveBeenCalledWith('valid-token');
+      expect(mockRes.status).toHaveBeenCalledWith(200);
+      expect(mockRes.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          statusCode: 200,
+          success: true,
+          data: expect.objectContaining({
+            valid: true,
+            user: {
+              userId: mockDecoded.userId,
+              email: mockDecoded.email,
+              role: mockDecoded.role,
+            },
+            expiresAt: mockDecoded.exp,
+          }),
+        })
+      );
+      expect(safeLogger.info).toHaveBeenCalledWith(
+        'Token verified successfully',
+        {
+          userId: mockDecoded.userId,
+        }
+      );
+    });
+
+    it('should throw error if token missing', async () => {
+      // Arrange
+      mockReq.body = {};
+
+      // Act
+      await verifyToken(mockReq, mockRes, mockNext);
+
+      // Assert
+      expect(mockNext).toHaveBeenCalledWith(
+        expect.objectContaining({
+          statusCode: 400,
+          message: 'Token is required',
+        })
+      );
+    });
+  });
+
+  describe('refreshAccessToken', () => {
+    it('should refresh access token', async () => {
+      // Arrange
+      mockReq.body = { refreshToken: 'refresh-token' };
+      const mockResult = {
+        accessToken: 'new-access-token',
+        expiresIn: 3600,
+      };
+      authService.refreshToken.mockResolvedValue(mockResult);
+
+      // Act
+      await refreshAccessToken(mockReq, mockRes, mockNext);
+
+      // Assert
+      expect(authService.refreshToken).toHaveBeenCalledWith('refresh-token');
+      expect(mockRes.cookie).toHaveBeenCalledWith(
+        'accessToken',
+        'new-access-token',
+        expect.objectContaining({
+          maxAge: 60 * 60 * 1000, // 1 hour
+        })
+      );
+      expect(mockRes.status).toHaveBeenCalledWith(200);
+      expect(safeLogger.info).toHaveBeenCalledWith(
+        'Access token refreshed successfully'
+      );
+    });
+
+    it('should throw error if refresh token missing', async () => {
+      // Arrange
+      mockReq.body = {};
+
+      // Act
+      await refreshAccessToken(mockReq, mockRes, mockNext);
+
+      // Assert
+      expect(mockNext).toHaveBeenCalledWith(
+        expect.objectContaining({
+          statusCode: 400,
+          message: 'Refresh token is required',
+        })
+      );
+    });
+  });
+
+  describe('getCurrentUser', () => {
+    it('should get current user profile', async () => {
+      // Arrange
+      mockReq.user = { id: 1, email: 'test@example.com' };
+      const mockUser = {
+        id: 1,
+        email: 'test@example.com',
+        fullName: 'Test User',
+        type: 'customer',
+        role: 'user',
+      };
+      authService.getUserById.mockResolvedValue(mockUser);
+
+      // Act
+      await getCurrentUser(mockReq, mockRes, mockNext);
+
+      // Assert
+      expect(authService.getUserById).toHaveBeenCalledWith(1);
+      expect(mockRes.status).toHaveBeenCalledWith(200);
+      expect(mockRes.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          statusCode: 200,
+          success: true,
+          data: { user: mockUser },
+        })
+      );
+    });
+
+    it('should throw error if user not authenticated', async () => {
+      // Arrange
+      mockReq.user = undefined;
+
+      // Act
+      await getCurrentUser(mockReq, mockRes, mockNext);
+
+      // Assert
+      expect(mockNext).toHaveBeenCalledWith(
+        expect.objectContaining({
+          statusCode: 401,
+          message: 'User not authenticated',
+        })
+      );
     });
   });
 });

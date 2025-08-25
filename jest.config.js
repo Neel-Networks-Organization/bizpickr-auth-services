@@ -1,20 +1,20 @@
 export default {
-  testEnvironment: "node",
+  testEnvironment: 'node',
   globals: {
-    "ts-jest": {
+    'ts-jest': {
       useESM: true,
     },
   },
   moduleNameMapper: {
-    "^@/(.*)$": "<rootDir>/src/$1"
+    '^@/(.*)$': '<rootDir>/src/$1',
   },
-  setupFilesAfterEnv: ["<rootDir>/tests/setup.js"],
-  testMatch: ["<rootDir>/tests/**/*.test.js", "<rootDir>/tests/**/*.spec.js"],
+  setupFilesAfterEnv: ['<rootDir>/tests/setup.js'],
+  testMatch: ['<rootDir>/tests/**/*.test.js', '<rootDir>/tests/**/*.spec.js'],
   collectCoverageFrom: [
-    "src/**/*.js",
-    "!src/index.js",
-    "!src/config/**",
-    "!**/node_modules/**",
+    'src/**/*.js',
+    '!src/index.js',
+    '!src/config/**',
+    '!**/node_modules/**',
   ],
   coverageThreshold: {
     global: {
@@ -29,8 +29,10 @@ export default {
   clearMocks: true,
   restoreMocks: true,
   resetMocks: true,
-  transformIgnorePatterns: ["node_modules/(?!(.*\\.mjs$))"],
-  moduleFileExtensions: ["js", "json"],
-  testPathIgnorePatterns: ["/node_modules/", "/tests/e2e/"],
-  coveragePathIgnorePatterns: ["/node_modules/", "/tests/", "/tests/e2e/"],
+  transformIgnorePatterns: ['node_modules/(?!(.*\\.mjs$))'],
+  moduleFileExtensions: ['js', 'json'],
+  testPathIgnorePatterns: ['/node_modules/', '/tests/e2e/'],
+  coveragePathIgnorePatterns: ['/node_modules/', '/tests/', '/tests/e2e/'],
+  transform: {},
+  preset: undefined,
 };
