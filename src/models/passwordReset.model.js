@@ -2,13 +2,12 @@ import { DataTypes, Model, Op } from 'sequelize';
 import sequelize from '../db/index.js';
 import { safeLogger } from '../config/logger.js';
 import { getCorrelationId } from '../config/requestContext.js';
-import { ApiError } from '../utils/ApiError.js';
 
 class PasswordReset extends Model {
-  static async findByToken(token) {
+  static async findByOtp(otp) {
     try {
       return await this.findOne({
-        where: { token },
+        where: { otp, status: 'pending' },
         include: [
           {
             model: sequelize.models.AuthUser,
@@ -19,7 +18,6 @@ class PasswordReset extends Model {
       });
     } catch (error) {
       safeLogger.error('Failed to find password reset by token', {
-        token: token ? `${token.substring(0, 8)}...` : null,
         error: error.message,
         correlationId: getCorrelationId(),
       });
@@ -27,10 +25,10 @@ class PasswordReset extends Model {
     }
   }
 
-  static async findByTokenHash(tokenHash) {
+  static async findByOtpHash(otpHash) {
     try {
       return await this.findOne({
-        where: { tokenHash },
+        where: { otpHash, status: 'pending' },
         include: [
           {
             model: sequelize.models.AuthUser,
@@ -40,7 +38,7 @@ class PasswordReset extends Model {
         ],
       });
     } catch (error) {
-      safeLogger.error('Failed to find password reset by token hash', {
+      safeLogger.error('Failed to find password reset by otp hash', {
         error: error.message,
         correlationId: getCorrelationId(),
       });
@@ -78,6 +76,10 @@ class PasswordReset extends Model {
     return this.attempts >= this.maxAttempts;
   }
 
+  isUsed() {
+    return this.status === 'used';
+  }
+
   async incrementAttempts() {
     this.attempts += 1;
     await this.save();
@@ -99,8 +101,8 @@ class PasswordReset extends Model {
 
   toSafeJSON() {
     const safeData = this.toJSON();
-    delete safeData.token;
-    delete safeData.tokenHash;
+    delete safeData.otp;
+    delete safeData.otpHash;
     return safeData;
   }
 }
@@ -123,19 +125,7 @@ PasswordReset.init(
       },
       comment: 'Associated user ID',
     },
-    token: {
-      type: DataTypes.STRING(255),
-      allowNull: false,
-      unique: true,
-      validate: {
-        len: {
-          args: [32, 255],
-          msg: 'Token must be between 32 and 255 characters',
-        },
-      },
-      comment: 'Secure reset token',
-    },
-    tokenHash: {
+    otpHash: {
       type: DataTypes.STRING(255),
       allowNull: false,
       field: 'token_hash',
@@ -212,13 +202,8 @@ PasswordReset.init(
         fields: ['user_id'],
       },
       {
-        name: 'idx_password_reset_token',
-        fields: ['token'],
-        unique: true,
-      },
-      {
-        name: 'idx_password_reset_token_hash',
-        fields: ['token_hash'],
+        name: 'idx_password_reset_otp_hash',
+        fields: ['otp_hash'],
       },
       {
         name: 'idx_password_reset_expires_at',

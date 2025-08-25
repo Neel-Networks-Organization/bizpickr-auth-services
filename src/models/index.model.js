@@ -1,58 +1,58 @@
 // authService/src/models/index.model.js
 import sequelize from '../db/index.js';
-import AuthUser from './authUser.model.js';
+import { AuthUser as User } from './authUser.model.js';
 import Session from './session.model.js';
 import UserActivity from './userActivity.model.js';
 import AuditLog from './auditLog.model.js';
 import PasswordReset from './passwordReset.model.js';
 import EmailVerification from './emailVerification.model.js';
 
-// AuthUser Associations
-AuthUser.hasMany(Session, {
+// User Associations
+User.hasMany(Session, {
   foreignKey: 'userId',
   onDelete: 'CASCADE',
   onUpdate: 'CASCADE',
   as: 'sessions',
 });
 
-Session.belongsTo(AuthUser, {
+Session.belongsTo(User, {
   foreignKey: 'userId',
   as: 'user',
 });
 
-AuthUser.hasMany(PasswordReset, {
+User.hasMany(PasswordReset, {
   foreignKey: 'userId',
   onDelete: 'CASCADE',
   onUpdate: 'CASCADE',
   as: 'passwordResets',
 });
 
-PasswordReset.belongsTo(AuthUser, {
+PasswordReset.belongsTo(User, {
   foreignKey: 'userId',
   as: 'user',
 });
 
-AuthUser.hasMany(EmailVerification, {
+User.hasMany(EmailVerification, {
   foreignKey: 'userId',
   onDelete: 'CASCADE',
   onUpdate: 'CASCADE',
   as: 'emailVerifications',
 });
 
-EmailVerification.belongsTo(AuthUser, {
+EmailVerification.belongsTo(User, {
   foreignKey: 'userId',
   as: 'user',
 });
 
-// Export all models and sequelize instance (Sequelize models only)
-export { sequelize, AuthUser, Session, PasswordReset, EmailVerification };
+// Export all models and sequelize instance
+export { sequelize, User, Session, PasswordReset, EmailVerification };
 // Export Mongoose models separately
 export { UserActivity, AuditLog };
 
 // Export default for backward compatibility
 export default {
   sequelize,
-  AuthUser,
+  User,
   Session,
   UserActivity,
   AuditLog,

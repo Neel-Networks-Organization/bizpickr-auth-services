@@ -4,21 +4,21 @@ import { safeLogger } from '../config/logger.js';
 import { getCorrelationId } from '../config/requestContext.js';
 
 class EmailVerification extends Model {
-  static async findByToken(token) {
+  static async findByEmail(email) {
     try {
       return await this.findOne({
-        where: { token },
+        where: { email },
         include: [
           {
             model: sequelize.models.AuthUser,
             as: 'user',
-            attributes: ['id', 'email', 'type', 'role'],
+            attributes: ['id', 'email', 'type', 'role', 'emailVerified'],
           },
         ],
       });
     } catch (error) {
-      safeLogger.error('Failed to find verification by token', {
-        token: token ? `${token.substring(0, 8)}...` : null,
+      safeLogger.error('Failed to find verification by email', {
+        email,
         error: error.message,
         correlationId: getCorrelationId(),
       });
@@ -26,10 +26,10 @@ class EmailVerification extends Model {
     }
   }
 
-  static async findByTokenHash(tokenHash) {
+  static async findByOtp(otp) {
     try {
       return await this.findOne({
-        where: { tokenHash },
+        where: { otp },
         include: [
           {
             model: sequelize.models.AuthUser,
@@ -39,7 +39,29 @@ class EmailVerification extends Model {
         ],
       });
     } catch (error) {
-      safeLogger.error('Failed to find verification by token hash', {
+      safeLogger.error('Failed to find verification by otp', {
+        otp: otp ? `${otp.substring(0, 8)}...` : null,
+        error: error.message,
+        correlationId: getCorrelationId(),
+      });
+      throw error;
+    }
+  }
+
+  static async findByOtpHash(otpHash) {
+    try {
+      return await this.findOne({
+        where: { otpHash },
+        include: [
+          {
+            model: sequelize.models.AuthUser,
+            as: 'user',
+            attributes: ['id', 'email', 'type', 'role'],
+          },
+        ],
+      });
+    } catch (error) {
+      safeLogger.error('Failed to find verification by otp hash', {
         error: error.message,
         correlationId: getCorrelationId(),
       });
@@ -77,6 +99,10 @@ class EmailVerification extends Model {
     return this.attempts >= this.maxAttempts;
   }
 
+  isVerified() {
+    return this.status === 'verified';
+  }
+
   async incrementAttempts() {
     try {
       this.attempts += 1;
@@ -91,10 +117,38 @@ class EmailVerification extends Model {
     }
   }
 
+  async markAsVerified() {
+    try {
+      this.status = 'verified';
+      this.verifiedAt = new Date();
+      await this.save();
+    } catch (error) {
+      safeLogger.error('Failed to mark as verified', {
+        verificationId: this.id,
+        error: error.message,
+      });
+      throw error;
+    }
+  }
+
+  async markAsExpired() {
+    try {
+      this.status = 'expired';
+      this.expiredAt = new Date();
+      await this.save();
+    } catch (error) {
+      safeLogger.error('Failed to mark as expired', {
+        verificationId: this.id,
+        error: error.message,
+      });
+      throw error;
+    }
+  }
+
   toSafeJSON() {
     const safeData = this.toJSON();
-    delete safeData.token;
-    delete safeData.tokenHash;
+    delete safeData.otp;
+    delete safeData.otpHash;
     return safeData;
   }
 }
@@ -130,19 +184,7 @@ EmailVerification.init(
       },
       comment: 'Email address to verify',
     },
-    token: {
-      type: DataTypes.STRING(255),
-      allowNull: false,
-      unique: true,
-      validate: {
-        len: {
-          args: [32, 255],
-          msg: 'Token must be between 32 and 255 characters',
-        },
-      },
-      comment: 'Secure verification token',
-    },
-    tokenHash: {
+    otpHash: {
       type: DataTypes.STRING(255),
       allowNull: false,
       field: 'token_hash',
@@ -185,7 +227,7 @@ EmailVerification.init(
           msg: 'Status must be one of: pending, verified, expired, revoked',
         },
       },
-      comment: 'Status of the verification token',
+      comment: 'Status of the verification',
     },
     attempts: {
       type: DataTypes.INTEGER,
@@ -194,7 +236,7 @@ EmailVerification.init(
         min: 0,
         max: 10,
       },
-      comment: 'Number of attempts to use this token',
+      comment: 'Number of attempts to use this verification',
     },
     maxAttempts: {
       type: DataTypes.INTEGER,
@@ -223,13 +265,8 @@ EmailVerification.init(
         fields: ['email'],
       },
       {
-        name: 'idx_email_verification_token',
-        fields: ['token'],
-        unique: true,
-      },
-      {
-        name: 'idx_email_verification_token_hash',
-        fields: ['token_hash'],
+        name: 'idx_email_verification_otp_hash',
+        fields: ['otp_hash'],
       },
       {
         name: 'idx_email_verification_expires_at',

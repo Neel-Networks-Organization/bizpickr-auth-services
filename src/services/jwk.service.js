@@ -10,13 +10,14 @@ class JWKService {
   static MAX_KEYS = 5;
   static CACHE_TTL = 3600; //1 hr
   static RSA_KEY_SIZE = 2048;
-  static JWT_ALGORITHM = 'RS256';
+  static JWT_ALGORITHM = env.jwt.accessAlgorithm;
 
   constructor() {
     this.keyRotationInterval = JWKService.KEY_ROTATION_INTERVAL;
     this.maxKeys = JWKService.MAX_KEYS;
     this.cacheTTL = JWKService.CACHE_TTL;
     this._activeKeys = [];
+    this.keyRotationTimer = null;
   }
 
   async initialize() {
@@ -31,6 +32,7 @@ class JWKService {
           keyCount: keys.length,
         });
       }
+      this.startRotationTimer();
     } catch (error) {
       safeLogger.error('Failed to initialize JWK service', {
         error: error.message,
@@ -43,7 +45,7 @@ class JWKService {
     try {
       const keyId = kid || this.generateKeyId();
 
-      const pemPair = await jose.generateKeyPair('RS256', {
+      const pemPair = await jose.generateKeyPair(JWKService.JWT_ALGORITHM, {
         modulusLength: JWKService.RSA_KEY_SIZE,
       });
 
@@ -215,7 +217,7 @@ class JWKService {
         return newKey;
       }
       const sortedKeys = keys.sort(
-        (a, b) => new Date(b.createdAt) - new Date(a.createdAt),
+        (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
       );
       return sortedKeys[0];
     } catch (error) {
@@ -257,7 +259,7 @@ class JWKService {
       }
 
       this._activeKeys = this._activeKeys.filter(
-        key => key.kid !== keyPair.kid,
+        key => key.kid !== keyPair.kid
       );
 
       this._activeKeys.push(keyPair);
@@ -293,7 +295,7 @@ class JWKService {
 
       const now = new Date();
       const activeKeys = this._activeKeys.filter(
-        key => new Date(key.expiresAt) > now,
+        key => new Date(key.expiresAt) > now
       );
 
       if (activeKeys.length === 0) {
@@ -330,6 +332,40 @@ class JWKService {
 
   generateKeyId() {
     return `jwk-${uuidv4()}`;
+  }
+
+  startRotationTimer() {
+    this.rotationTimer = setInterval(
+      async () => {
+        try {
+          const wasRotated = await this.validateAndRotateKeys();
+          if (wasRotated) {
+            safeLogger.info('Keys automatically rotated via scheduler');
+          }
+        } catch (error) {
+          safeLogger.error('Scheduled key rotation failed', {
+            error: error.message,
+            stack: error.stack,
+          });
+        }
+      },
+      2 * 60 * 1000
+    );
+
+    safeLogger.info('Key rotation timer started - validating every 2 minutes');
+  }
+
+  stopRotationTimer() {
+    if (this.rotationTimer) {
+      clearInterval(this.rotationTimer);
+      this.rotationTimer = null;
+      safeLogger.info('Key rotation timer stopped');
+    }
+  }
+
+  async shutdown() {
+    this.stopRotationTimer();
+    safeLogger.info('JWK service shutdown');
   }
 
   async getKeyStats() {

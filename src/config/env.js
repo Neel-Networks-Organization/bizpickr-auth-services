@@ -48,7 +48,7 @@ const coreConfig = {
 
   // CORS Configuration
   corsOrigins: process.env.CORS_ORIGINS?.split(',').map(origin =>
-    origin.trim(),
+    origin.trim()
   ) || [
     'http://localhost:3000',
     'http://localhost:3001',
@@ -59,9 +59,16 @@ const coreConfig = {
   cookieSecret: process.env.COOKIE_SECRET || 'default-cookie-secret',
 
   // JWT Configuration
-  jwtSecret: process.env.JWT_SECRET || 'default-jwt-secret',
-  refreshTokenSecret:
-    process.env.REFRESH_TOKEN_SECRET || 'default-refresh-secret',
+  jwt: {
+    refreshSecret:
+      process.env.JWT_REFRESH_SECRET || 'default-jwt-refresh-secret',
+    accessAlgorithm: process.env.JWT_ACCESS_ALGORITHM || 'RS256',
+    refreshAlgorithm: process.env.JWT_REFRESH_ALGORITHM || 'HS256',
+    refreshTTL: process.env.JWT_REFRESH_TTL || '7d',
+    accessTTL: process.env.JWT_ACCESS_TTL || '1h',
+    issuer: process.env.JWT_ISSUER || 'bizPickr-auth-service',
+    audience: process.env.JWT_AUDIENCE || 'bizPickr-api',
+  },
 
   // Service Configurations - Imported from respective files
   database: databaseConfig,

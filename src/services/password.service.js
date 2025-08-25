@@ -1,326 +1,123 @@
-/**
- * Password Service - Password Management Layer
- *
- * Handles all password-related business logic:
- * - Password reset
- * - Password change
- * - Password validation
- * - Password reset tokens
- */
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
-import { safeLogger } from '../config/logger.js';
-import { publishEvent } from '../events/index.js';
-import {
-  AuthUser as User,
-  PasswordReset,
-  AuditLog,
-} from '../models/index.model.js';
 import { Op } from 'sequelize';
+import { ApiError } from '../utils/ApiError.js';
+import { safeLogger } from '../config/logger.js';
+import { logAuditEvent } from './audit.service.js';
+import { User, PasswordReset } from '../models/index.model.js';
 
 class PasswordService {
   constructor() {
-    this.saltRounds = 12;
-    this.resetTokenExpiry = 60 * 60 * 1000; // 1 hour
+    this.otpExpiry = 60 * 60 * 1000; // 1 hour
+    this.saltRounds = 10;
+    this.maxAttempts = 5;
+    this.resendCooldown = 60 * 1000; // optional: 1 min cooldown for resend
   }
 
-  /**
-   * Change user password
-   * @param {number} userId - User ID
-   * @param {string} currentPassword - Current password
-   * @param {string} newPassword - New password
-   * @returns {Promise<boolean>} Password change success
-   */
-  async changePassword(userId, currentPassword, newPassword) {
-    try {
-      const user = await User.findByPk(userId);
-      if (!user) {
-        throw new Error('User not found');
-      }
-
-      // Verify current password
-      const isCurrentPasswordValid = await bcrypt.compare(
-        currentPassword,
-        user.password
-      );
-      if (!isCurrentPasswordValid) {
-        throw new Error('Current password is incorrect');
-      }
-
-      // Validate new password
-      this.validatePassword(newPassword);
-
-      // Hash new password
-      const hashedNewPassword = await bcrypt.hash(newPassword, this.saltRounds);
-
-      // Update password
-      await user.update({ password: hashedNewPassword });
-
-      // Publish password changed event
-      await publishEvent('user.password_changed', {
-        userId,
-        email: user.email,
-        timestamp: new Date(),
-      });
-
-      // Create audit log
-      await AuditLog.create({
-        userId,
-        action: 'PASSWORD_CHANGED',
-        resourceType: 'USER',
-        resourceId: userId,
-        details: { passwordChanged: true },
-      });
-
-      safeLogger.info('Password changed successfully', {
-        userId,
-      });
-
-      return true;
-    } catch (error) {
-      safeLogger.error('Password change failed', {
-        error: error.message,
-        userId,
-      });
-      throw error;
-    }
-  }
-
-  /**
-   * Initiate password reset
-   * @param {string} email - User email
-   * @returns {Promise<boolean>} Reset initiation success
-   */
   async initiatePasswordReset(email) {
-    try {
-      const user = await User.findOne({ where: { email } });
-      if (!user) {
-        // Don't reveal if user exists or not
-        safeLogger.info('Password reset requested for non-existent email', {
-          email,
-        });
-        return true;
-      }
-
-      // Generate reset token
-      const resetToken = crypto.randomBytes(32).toString('hex');
-      const resetTokenHash = await bcrypt.hash(resetToken, 10);
-      const expiresAt = new Date(Date.now() + this.resetTokenExpiry);
-
-      // Store reset token
-      await PasswordReset.create({
-        userId: user.id,
-        token: resetTokenHash,
-        expiresAt,
-        used: false,
-      });
-
-      // Publish password reset initiated event
-      await publishEvent('user.password_reset_initiated', {
-        userId: user.id,
-        email: user.email,
-        resetToken,
-        expiresAt,
-        timestamp: new Date(),
-      });
-
-      // Create audit log
-      await AuditLog.create({
-        userId: user.id,
-        action: 'PASSWORD_RESET_INITIATED',
-        resourceType: 'USER',
-        resourceId: user.id,
-        details: { email },
-      });
-
-      safeLogger.info('Password reset initiated', {
-        userId: user.id,
+    const user = await User.findOne({ where: { email } });
+    if (!user) {
+      safeLogger.info('Password reset requested for non-existing email', {
         email,
       });
-
-      return true;
-    } catch (error) {
-      safeLogger.error('Password reset initiation failed', {
-        error: error.message,
-        email,
-      });
-      throw error;
+      return {};
     }
-  }
 
-  /**
-   * Reset password with token
-   * @param {string} token - Reset token
-   * @param {string} newPassword - New password
-   * @returns {Promise<boolean>} Reset success
-   */
-  async resetPassword(token, newPassword) {
-    try {
-      // Find reset token
-      const resetRecord = await PasswordReset.findOne({
-        where: {
-          token: await bcrypt.hash(token, 10),
-          used: false,
-          expiresAt: {
-            [Op.gt]: new Date(),
-          },
-        },
-        include: [{ model: User, as: 'user' }],
-      });
+    let existing = await PasswordReset.findOne({
+      where: { userId: user.id, status: 'pending' },
+      order: [['createdAt', 'DESC']],
+    });
 
-      if (!resetRecord) {
-        throw new Error('Invalid or expired reset token');
+    const now = Date.now();
+    if (existing && !existing.isExpired()) {
+      const elapsed = now - existing.updatedAt.getTime();
+      if (elapsed < this.resendCooldown) {
+        throw new ApiError(
+          429,
+          `Please wait ${Math.ceil((this.resendCooldown - elapsed) / 1000)}s before requesting a new OTP`
+        );
       }
-
-      // Validate new password
-      this.validatePassword(newPassword);
-
-      // Hash new password
-      const hashedNewPassword = await bcrypt.hash(newPassword, this.saltRounds);
-
-      // Update user password
-      await resetRecord.user.update({ password: hashedNewPassword });
-
-      // Mark token as used
-      await resetRecord.update({ used: true, usedAt: new Date() });
-
-      // Publish password reset completed event
-      await publishEvent('user.password_reset_completed', {
-        userId: resetRecord.userId,
-        email: resetRecord.user.email,
-        timestamp: new Date(),
-      });
-
-      // Create audit log
-      await AuditLog.create({
-        userId: resetRecord.userId,
-        action: 'PASSWORD_RESET_COMPLETED',
-        resourceType: 'USER',
-        resourceId: resetRecord.userId,
-        details: { email: resetRecord.user.email },
-      });
-
-      safeLogger.info('Password reset completed', {
-        userId: resetRecord.userId,
-        email: resetRecord.user.email,
-      });
-
-      return true;
-    } catch (error) {
-      safeLogger.error('Password reset failed', {
-        error: error.message,
-      });
-      throw error;
+      await existing.markAsExpired();
     }
+
+    const otp = crypto.randomInt(100000, 999999).toString();
+    const otpHash = await bcrypt.hash(otp, this.saltRounds);
+    const expiresAt = new Date(now + this.otpExpiry);
+
+    await PasswordReset.create({
+      userId: user.id,
+      otpHash,
+      status: 'pending',
+      attempts: 0,
+      expiresAt,
+    });
+
+    // TODO: Send OTP via email
+
+    await logAuditEvent('PASSWORD_RESET_INITIATED', { userId: user.id, email });
+    safeLogger.info('Password reset OTP generated', { userId: user.id, email });
+
+    return {
+      expiresAt,
+      expiresIn: this.otpExpiry,
+    };
   }
 
-  /**
-   * Validate password strength
-   * @param {string} password - Password to validate
-   * @throws {Error} If password is invalid
-   */
-  validatePassword(password) {
-    // Check for at least one special character
-    if (!/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(password)) {
-      throw new Error('Password must contain at least one special character');
+  async resetPassword(email, otp, newPassword) {
+    const user = await User.findOne({ where: { email } });
+    if (!user) throw new ApiError(400, 'Invalid request');
+
+    const resetRecord = await PasswordReset.findOne({
+      where: { userId: user.id, status: 'pending' },
+      order: [['createdAt', 'DESC']],
+    });
+
+    if (!resetRecord) throw new ApiError(400, 'No pending reset found');
+    if (resetRecord.isUsed()) throw new ApiError(400, 'OTP already used');
+    if (resetRecord.isExpired()) throw new ApiError(400, 'OTP expired');
+    if (resetRecord.attempts >= this.maxAttempts)
+      throw new ApiError(400, 'Max attempts reached');
+
+    const valid = await bcrypt.compare(otp, resetRecord.otpHash);
+    if (!valid) {
+      await resetRecord.incrementAttempts();
+      throw new ApiError(400, 'Invalid OTP');
     }
 
-    // Check for common passwords (basic check)
-    const commonPasswords = [
-      'password',
-      '123456',
-      '123456789',
-      'qwerty',
-      'abc123',
-      'password123',
-      'admin',
-      'letmein',
-      'welcome',
-      'monkey',
-    ];
+    await user.update({ password: newPassword });
+    await resetRecord.markAsUsed();
 
-    if (commonPasswords.includes(password.toLowerCase())) {
-      throw new Error(
-        'Password is too common, please choose a stronger password'
-      );
-    }
-  }
+    await logAuditEvent('PASSWORD_RESET_COMPLETED', { userId: user.id, email });
+    safeLogger.info('Password reset completed', { userId: user.id, email });
 
-  async verifyPassword(password, hashedPassword) {
-    return await bcrypt.compare(password, hashedPassword);
+    return true;
   }
 
   async cleanExpiredResetTokens() {
-    try {
-      const expiredTokens = await PasswordReset.findAll({
-        where: {
-          expiresAt: {
-            [Op.lt]: new Date(),
-          },
-        },
-      });
-
-      const deletedCount = await PasswordReset.destroy({
-        where: {
-          expiresAt: {
-            [Op.lt]: new Date(),
-          },
-        },
-      });
-
-      safeLogger.info('Expired password reset tokens cleaned', {
-        cleanedCount: deletedCount,
-        totalExpired: expiredTokens.length,
-      });
-
-      return deletedCount;
-    } catch (error) {
-      safeLogger.error('Failed to clean expired reset tokens', {
-        error: error.message,
-      });
-      throw error;
-    }
+    const deletedCount = await PasswordReset.destroy({
+      where: { expiresAt: { [Op.lt]: new Date() } },
+    });
+    safeLogger.info('Expired password reset tokens cleaned', {
+      cleanedCount: deletedCount,
+    });
+    return deletedCount;
   }
 
   async getPasswordResetStats(userId) {
-    try {
-      const totalResets = await PasswordReset.count({
-        where: { userId },
-      });
+    const total = await PasswordReset.count({ where: { userId } });
+    const used = await PasswordReset.count({
+      where: { userId, status: 'used' },
+    });
+    const pending = await PasswordReset.count({
+      where: { userId, status: 'pending', expiresAt: { [Op.gt]: new Date() } },
+    });
+    const recent = await PasswordReset.findAll({
+      where: { userId },
+      order: [['createdAt', 'DESC']],
+      limit: 5,
+    });
 
-      const usedResets = await PasswordReset.count({
-        where: { userId, status: 'used' },
-      });
-
-      const pendingResets = await PasswordReset.count({
-        where: {
-          userId,
-          status: 'pending',
-          expiresAt: {
-            [Op.gt]: new Date(),
-          },
-        },
-      });
-
-      const recentResets = await PasswordReset.findAll({
-        where: { userId },
-        order: [['createdAt', 'DESC']],
-        limit: 5,
-      });
-
-      return {
-        totalResets,
-        usedResets,
-        pendingResets,
-        recentResets,
-      };
-    } catch (error) {
-      safeLogger.error('Failed to get password reset statistics', {
-        error: error.message,
-        userId,
-      });
-      throw error;
-    }
+    return { total, used, pending, recent };
   }
 }
 

@@ -12,22 +12,15 @@ export const cookieOptions = {
 };
 
 export const signupUser = async (req, res) => {
-  const { email, password, fullName, type, role, phone, acceptTerms } =
-    req.body;
+  const { email, password, type, role } = req.body;
 
   const userData = {
     email,
     password,
-    fullName,
     type,
     role: role || 'user',
-    phone,
-    acceptTerms,
-    ipAddress: req.ip,
-    userAgent: req.get('User-Agent'),
   };
 
-  // Call auth service to register user
   const user = await authService.registerUser(userData);
 
   safeLogger.info('User registered successfully', {
@@ -60,20 +53,14 @@ export const signupUser = async (req, res) => {
 export const loginUser = async (req, res) => {
   const { email, password, type } = req.body;
 
-  // Prepare login data for service
   const loginData = {
     email,
     password,
     type,
-    deviceInfo: req.get('User-Agent'),
-    ipAddress: req.ip,
-    userAgent: req.get('User-Agent'),
   };
 
-  // Call auth service to login user
   const result = await authService.loginUser(loginData);
 
-  // Set cookies
   res.cookie('accessToken', result.tokens.accessToken, {
     ...cookieOptions,
     maxAge: 60 * 60 * 1000, // 1 hour

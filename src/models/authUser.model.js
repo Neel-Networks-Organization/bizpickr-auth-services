@@ -92,6 +92,10 @@ class AuthUser extends Model {
     if (!this.lockedUntil) return false;
     return new Date() < this.lockedUntil;
   }
+
+  isActive() {
+    return this.status === 'active' && !this.isLocked();
+  }
 }
 
 AuthUser.init(
@@ -283,30 +287,6 @@ AuthUser.init(
           user.password = await bcrypt.hash(user.password, saltRounds);
           user.passwordChangedAt = new Date();
         }
-      },
-      afterCreate: async user => {
-        safeLogger.info('User created', {
-          userId: user.id,
-          email: user.email,
-          type: user.type,
-          role: user.role,
-          correlationId: getCorrelationId(),
-        });
-      },
-      afterUpdate: async user => {
-        safeLogger.info('User updated', {
-          userId: user.id,
-          email: user.email,
-          changedFields: user.changed(),
-          correlationId: getCorrelationId(),
-        });
-      },
-      afterDestroy: async user => {
-        safeLogger.info('User deleted', {
-          userId: user.id,
-          email: user.email,
-          correlationId: getCorrelationId(),
-        });
       },
     },
   }
