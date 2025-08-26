@@ -1,7 +1,6 @@
 import { ApiError, ApiResponse } from '../utils/index.js';
 import { safeLogger } from '../config/logger.js';
 import { authService } from '../services/index.js';
-import { authCache } from '../cache/auth.cache.js';
 
 export const cookieOptions = {
   httpOnly: true,
@@ -83,15 +82,10 @@ export const loginUser = async (req, res) => {
         tokens: {
           accessToken: result.tokens.accessToken,
           refreshToken: result.tokens.refreshToken,
-          expiresIn: result.tokens.expiresIn,
         },
-        session: result.session,
       },
       'Login successful',
-      {
-        loginMethod: 'email',
-        sessionId: result.session.sessionId,
-      }
+      { loginMethod: 'email' }
     )
   );
 };
@@ -113,13 +107,18 @@ export const refreshAccessToken = async (req, res) => {
     maxAge: 60 * 60 * 1000, // 1 hour
   });
 
+  res.cookie('refreshToken', result.refreshToken, {
+    ...cookieOptions,
+    maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+  });
+
   safeLogger.info('Access token refreshed successfully');
 
   return res.status(200).json(
     ApiResponse.success(
       {
         accessToken: result.accessToken,
-        expiresIn: result.expiresIn,
+        refreshToken: result.refreshToken,
       },
       'Token refreshed successfully'
     )
@@ -127,100 +126,31 @@ export const refreshAccessToken = async (req, res) => {
 };
 
 export const logoutUser = async (req, res) => {
-  const sessionId = req.sessionId;
-  const userId = req.user?.id;
+  const userPayload = req.user;
 
-  // Debug: Log what we received
-  safeLogger.debug('Logout attempt', {
-    sessionId: sessionId,
-    userId: userId,
-    hasSessionId: !!sessionId,
-    hasUserId: !!userId,
-    user: req.user,
-  });
-
-  if (!userId) {
+  if (!userPayload) {
     throw new ApiError(400, 'User not authenticated', [
       'User must be authenticated to logout',
     ]);
   }
 
-  try {
-    // Simplified logout: Just blacklist the token if we have one
-    if (sessionId) {
-      // Try to blacklist the token
-      try {
-        await authCache.blacklistToken(sessionId, {
-          userId,
-          logoutReason: 'user_logout',
-          timestamp: new Date(),
-        });
-        safeLogger.info('Token blacklisted during logout', {
-          userId,
-          sessionId,
-        });
-      } catch (blacklistError) {
-        safeLogger.warn('Failed to blacklist token during logout', {
-          userId,
-          sessionId,
-          error: blacklistError.message,
-        });
-        // Continue with logout even if blacklisting fails
-      }
-    }
+  await authService.logoutUser(userPayload);
 
-    // Clear cookies
-    res.clearCookie('accessToken', cookieOptions);
-    res.clearCookie('refreshToken', cookieOptions);
-
-    safeLogger.info('User logged out successfully', {
-      userId,
-      sessionId: sessionId || 'none',
-    });
-
-    return res.status(200).json(ApiResponse.success({}, 'Logout successful'));
-  } catch (error) {
-    safeLogger.error('Logout failed', {
-      userId,
-      sessionId,
-      error: error.message,
-    });
-    throw new ApiError(500, 'Logout failed', [
-      'An error occurred during logout',
-      'Please try again',
-    ]);
-  }
-};
-
-export const verifyToken = async (req, res) => {
-  const { token } = req.body;
-  if (!token) {
-    throw new ApiError(400, 'Token is required', [
-      'Please provide a valid JWT token',
-    ]);
-  }
-
-  // Call auth service to verify token
-  const decoded = await authService.verifyToken(token);
-
-  safeLogger.info('Token verified successfully', {
-    userId: decoded.userId,
+  res.clearCookie('accessToken', {
+    ...cookieOptions,
+  });
+  res.clearCookie('refreshToken', {
+    ...cookieOptions,
   });
 
-  return res.status(200).json(
-    ApiResponse.success(
-      {
-        valid: true,
-        user: {
-          userId: decoded.userId,
-          email: decoded.email,
-          role: decoded.role,
-        },
-        expiresAt: decoded.exp,
-      },
-      'Token is valid'
-    )
-  );
+  return res
+    .status(200)
+    .json(
+      ApiResponse.success(
+        { message: 'User logged out successfully' },
+        'User logged out successfully'
+      )
+    );
 };
 
 export const getCurrentUser = async (req, res) => {
@@ -231,7 +161,6 @@ export const getCurrentUser = async (req, res) => {
     ]);
   }
 
-  // Call auth service to get user profile
   const user = await authService.getUserById(userId);
 
   return res.status(200).json(
@@ -243,6 +172,8 @@ export const getCurrentUser = async (req, res) => {
     )
   );
 };
+
+// Google OAuth - future features
 
 export const loginWithGoogle = async (req, res) => {
   // Redirect to Google OAuth
@@ -300,68 +231,7 @@ export const googleCallback = async (req, res) => {
   }
 };
 
-export const verifyEmail = async (req, res) => {
-  const { token } = req.body;
-  if (!token) {
-    throw new ApiError(400, 'Verification token is required', [
-      'Please provide a valid verification token',
-    ]);
-  }
-
-  try {
-    // Call auth service to verify email
-    await authService.verifyEmail(token);
-
-    safeLogger.info('Email verification successful', { token });
-
-    return res.status(200).json(
-      ApiResponse.success(
-        {
-          emailVerified: true,
-          message: 'Email verified successfully',
-        },
-        'Email verified successfully'
-      )
-    );
-  } catch (error) {
-    safeLogger.error('Email verification failed', { error: error.message });
-    throw new ApiError(400, 'Email verification failed', [error.message]);
-  }
-};
-
-export const resendVerificationEmail = async (req, res) => {
-  const userId = req.user?.id;
-  if (!userId) {
-    throw new ApiError(401, 'User not authenticated', [
-      'Please login to resend verification email',
-    ]);
-  }
-
-  try {
-    // Call auth service to resend verification email
-    const deviceInfo = {
-      ipAddress: req.ip,
-      userAgent: req.get('User-Agent'),
-    };
-    await authService.resendVerificationEmail(userId, deviceInfo);
-
-    safeLogger.info('Verification email resent successfully', { userId });
-
-    return res.status(200).json(
-      ApiResponse.success(
-        {
-          message: 'Verification email sent successfully',
-        },
-        'Verification email sent'
-      )
-    );
-  } catch (error) {
-    safeLogger.error('Resend verification failed', { error: error.message });
-    throw new ApiError(400, 'Failed to resend verification email', [
-      error.message,
-    ]);
-  }
-};
+// 2FA - future features
 
 export const enableTwoFactor = async (req, res) => {
   const userId = req.user?.id;
@@ -459,61 +329,5 @@ export const verifyTwoFactor = async (req, res) => {
   } catch (error) {
     safeLogger.error('2FA verification failed', { error: error.message });
     throw new ApiError(400, '2FA verification failed', [error.message]);
-  }
-};
-
-export const forgotPassword = async (req, res) => {
-  try {
-    const { email } = req.body;
-
-    if (!email) {
-      throw new ApiError(400, 'Email is required');
-    }
-
-    await authService.sendPasswordResetEmail(email);
-
-    return res.status(200).json(
-      ApiResponse.success(
-        {
-          message: 'Password reset email sent successfully',
-          email: email,
-        },
-        'Password reset email sent successfully'
-      )
-    );
-  } catch (error) {
-    safeLogger.error('Password reset email failed', {
-      error: error.message,
-      email: req.body.email,
-    });
-    throw error;
-  }
-};
-
-export const verifyEmailAndActivate = async (req, res) => {
-  try {
-    const { token } = req.body;
-
-    if (!token) {
-      throw new ApiError(400, 'Verification token is required');
-    }
-
-    const result = await authService.verifyEmailAndActivate(token);
-
-    return res.status(200).json(
-      ApiResponse.success(
-        {
-          user: result.user,
-          message: result.message,
-        },
-        'Email verified and account activated successfully'
-      )
-    );
-  } catch (error) {
-    safeLogger.error('Email verification and activation failed', {
-      error: error.message,
-      token: req.body.token,
-    });
-    throw error;
   }
 };

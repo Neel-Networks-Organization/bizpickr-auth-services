@@ -2,7 +2,7 @@ import { User } from '../models/index.model.js';
 import { safeLogger } from '../config/logger.js';
 import { ApiError } from '../utils/index.js';
 import { logAuditEvent } from './audit.service.js';
-import { passwordService, cryptoService, oauthService } from './index.js';
+import { cryptoService, oauthService } from './index.js';
 import authCache from '../cache/auth.cache.js';
 
 class AuthService {
@@ -171,6 +171,22 @@ class AuthService {
       return true;
     } catch (error) {
       safeLogger.error('User logout failed', {
+        error: error.message,
+        userId,
+      });
+      throw error;
+    }
+  }
+
+  async getUserById(userId) {
+    try {
+      const user = await User.findByPk(userId);
+      if (!user) {
+        throw new ApiError(404, 'User not found');
+      }
+      return user;
+    } catch (error) {
+      safeLogger.error('User retrieval failed', {
         error: error.message,
         userId,
       });

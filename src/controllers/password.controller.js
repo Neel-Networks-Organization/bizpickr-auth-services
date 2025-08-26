@@ -1,12 +1,3 @@
-/**
- * Password Controller - Password Management Layer
- *
- * Handles all password-related HTTP requests:
- * - Password reset
- * - Password change
- * - Password validation
- * - Password statistics
- */
 import { asyncHandler, ApiError, ApiResponse } from '../utils/index.js';
 import { safeLogger } from '../config/logger.js';
 import passwordService from '../services/password.service.js';
@@ -16,7 +7,7 @@ import passwordService from '../services/password.service.js';
  * POST /api/v1/password/change
  */
 export const changePassword = asyncHandler(
-  async(req, res) => {
+  async (req, res) => {
     const userId = req.user?.id;
     const { currentPassword, newPassword } = req.body;
 
@@ -44,8 +35,8 @@ export const changePassword = asyncHandler(
         'Password changed successfully. Please login again.',
         {
           requiresReLogin: true,
-        },
-      ),
+        }
+      )
     );
   },
   {
@@ -53,7 +44,7 @@ export const changePassword = asyncHandler(
     enableLogging: true,
     timeout: 15000,
     retryAttempts: 1,
-  },
+  }
 );
 
 /**
@@ -61,7 +52,7 @@ export const changePassword = asyncHandler(
  * POST /api/v1/password/forgot
  */
 export const forgotPassword = asyncHandler(
-  async(req, res) => {
+  async (req, res) => {
     const { email } = req.body;
 
     if (!email) {
@@ -81,7 +72,7 @@ export const forgotPassword = asyncHandler(
         email,
         message:
           'If an account exists with this email, you will receive a password reset link',
-      }),
+      })
     );
   },
   {
@@ -89,7 +80,7 @@ export const forgotPassword = asyncHandler(
     enableLogging: true,
     timeout: 15000,
     retryAttempts: 1,
-  },
+  }
 );
 
 /**
@@ -97,7 +88,7 @@ export const forgotPassword = asyncHandler(
  * POST /api/v1/password/reset
  */
 export const resetPassword = asyncHandler(
-  async(req, res) => {
+  async (req, res) => {
     const { token, newPassword } = req.body;
 
     if (!token || !newPassword) {
@@ -117,8 +108,8 @@ export const resetPassword = asyncHandler(
       .json(
         ApiResponse.success(
           {},
-          'Password reset successful. You can now login with your new password.',
-        ),
+          'Password reset successful. You can now login with your new password.'
+        )
       );
   },
   {
@@ -126,7 +117,7 @@ export const resetPassword = asyncHandler(
     enableLogging: true,
     timeout: 15000,
     retryAttempts: 1,
-  },
+  }
 );
 
 /**
@@ -134,7 +125,7 @@ export const resetPassword = asyncHandler(
  * POST /api/v1/password/validate
  */
 export const validatePassword = asyncHandler(
-  async(req, res) => {
+  async (req, res) => {
     const { password } = req.body;
 
     if (!password) {
@@ -153,8 +144,8 @@ export const validatePassword = asyncHandler(
         .json(
           ApiResponse.success(
             { isValid: true },
-            'Password meets all requirements',
-          ),
+            'Password meets all requirements'
+          )
         );
     } catch (error) {
       safeLogger.info('Password validation failed', {
@@ -166,8 +157,8 @@ export const validatePassword = asyncHandler(
         .json(
           ApiResponse.badRequest(
             { isValid: false, error: error.message },
-            'Password validation failed',
-          ),
+            'Password validation failed'
+          )
         );
     }
   },
@@ -176,7 +167,7 @@ export const validatePassword = asyncHandler(
     enableLogging: true,
     timeout: 5000,
     retryAttempts: 1,
-  },
+  }
 );
 
 /**
@@ -184,7 +175,7 @@ export const validatePassword = asyncHandler(
  * GET /api/v1/password/stats
  */
 export const getPasswordStats = asyncHandler(
-  async(req, res) => {
+  async (req, res) => {
     const userId = req.user?.id;
 
     if (!userId) {
@@ -206,8 +197,8 @@ export const getPasswordStats = asyncHandler(
       .json(
         ApiResponse.success(
           stats,
-          'Password reset statistics retrieved successfully',
-        ),
+          'Password reset statistics retrieved successfully'
+        )
       );
   },
   {
@@ -215,7 +206,7 @@ export const getPasswordStats = asyncHandler(
     enableLogging: true,
     timeout: 10000,
     retryAttempts: 1,
-  },
+  }
 );
 
 /**
@@ -223,7 +214,7 @@ export const getPasswordStats = asyncHandler(
  * POST /api/v1/password/cleanup
  */
 export const cleanExpiredTokens = asyncHandler(
-  async(req, res) => {
+  async (req, res) => {
     const userId = req.user?.id;
     const userRole = req.user?.role;
 
@@ -251,8 +242,8 @@ export const cleanExpiredTokens = asyncHandler(
       .json(
         ApiResponse.success(
           { cleanedCount },
-          'Expired password reset tokens cleaned successfully',
-        ),
+          'Expired password reset tokens cleaned successfully'
+        )
       );
   },
   {
@@ -260,5 +251,5 @@ export const cleanExpiredTokens = asyncHandler(
     enableLogging: true,
     timeout: 30000,
     retryAttempts: 1,
-  },
+  }
 );

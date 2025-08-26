@@ -97,6 +97,7 @@ class CryptoService {
     }
   }
 
+  //generate tokens
   async generateTokens(user, options = {}) {
     const [accessToken, refreshToken] = await Promise.all([
       this.generateAccessToken(user, options),
@@ -106,12 +107,14 @@ class CryptoService {
     return { accessToken, refreshToken };
   }
 
+  //revoke tokens
   async revokeToken(jti) {
     // TODO: Implement token blacklisting
     // This could use Redis or database to store revoked JTIs
     safeLogger.info('Token revoked', { jti });
   }
 
+  //verify tokens
   async verifyRefreshToken(refreshToken) {
     if (!refreshToken) {
       throw new ApiError(400, 'Refresh token is required');
