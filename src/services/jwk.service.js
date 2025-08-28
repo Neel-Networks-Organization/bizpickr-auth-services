@@ -41,9 +41,9 @@ class JWKService {
     }
   }
 
-  async generateKeyPair(kid = null) {
+  async generateKeyPair() {
     try {
-      const keyId = kid || this.generateKeyId();
+      const keyId = this.generateKeyId();
 
       const pemPair = await jose.generateKeyPair(JWKService.JWT_ALGORITHM, {
         modulusLength: JWKService.RSA_KEY_SIZE,
@@ -151,8 +151,6 @@ class JWKService {
 
   async rotateKeys() {
     try {
-      safeLogger.info('Starting key rotation');
-
       const newKey = await this.generateKeyPair();
       const keys = await this.getAllKeys();
 
@@ -456,5 +454,24 @@ class JWKService {
       };
     }
   }
+
+  async cleanupExpiredKeys() {
+    const keys = await this.getAllKeys();
+    const expiredKeys = keys.filter(
+      key => new Date(key.expiresAt) < new Date()
+    );
+    return expiredKeys.length;
+  }
 }
-export default new JWKService();
+const jwkService = new JWKService();
+export default jwkService;
+
+const initializeJWKService = async () => {
+  await jwkService.initialize();
+};
+
+const shutdownJWKService = async () => {
+  await jwkService.shutdown();
+};
+
+export { initializeJWKService, shutdownJWKService };

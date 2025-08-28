@@ -1,5 +1,5 @@
 // authService/src/models/index.model.js
-import sequelize from '../db/index.js';
+import { getDatabase } from '../db/index.js';
 import { AuthUser as User } from './authUser.model.js';
 import Session from './session.model.js';
 import UserActivity from './userActivity.model.js';
@@ -45,13 +45,13 @@ EmailVerification.belongsTo(User, {
 });
 
 // Export all models and sequelize instance
-export { sequelize, User, Session, PasswordReset, EmailVerification };
+export { getDatabase, User, Session, PasswordReset, EmailVerification };
 // Export Mongoose models separately
 export { UserActivity, AuditLog };
 
 // Export default for backward compatibility
 export default {
-  sequelize,
+  getDatabase,
   User,
   Session,
   UserActivity,

@@ -4,30 +4,33 @@
  */
 
 // Joi-based validation schemas
-export { authSchemas, default as authValidators } from './authValidators.js';
-export { jwkValidators, default as jwkValidators } from './jwkValidators.js';
-
-// Basic validation functions (legacy support)
-export { default as basicValidators } from './basicValidators.js';
+export { authSchemas, default as authValidator } from './authValidator.js';
+export { jwkSchemas, default as jwkValidator } from './jwkValidator.js';
+export {
+  passwordSchemas,
+  default as passwordValidator,
+} from './passwordValidator.js';
+export { emailSchemas, default as emailValidator } from './emailValidator.js';
 
 // Re-export individual schemas for convenience
 export {
   signup,
   login,
-  verifyEmail,
-  resendVerification,
   enableTwoFactor,
   verifyTwoFactor,
   forgotPassword,
-  verifyEmailActivate,
-  verifyToken,
   refreshToken,
-} from './authValidators.js';
+} from './authValidator.js';
+
+export { getJWKByKid } from './jwkValidator.js';
 
 export {
-  createJwk,
-  updateJwk,
-  jwkId,
-  listJwks,
-  validateJWKRequest,
-} from './jwkValidators.js';
+  changePassword,
+  getPasswordResetStatsByEmail,
+} from './passwordValidator.js';
+
+export {
+  sendVerificationEmail,
+  verifyEmail,
+  getVerificationStatsByEmail,
+} from './emailValidator.js';

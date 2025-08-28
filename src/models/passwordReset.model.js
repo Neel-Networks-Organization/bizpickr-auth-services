@@ -1,7 +1,9 @@
 import { DataTypes, Model, Op } from 'sequelize';
-import sequelize from '../db/index.js';
+import { getDatabase } from '../db/index.js';
 import { safeLogger } from '../config/logger.js';
 import { getCorrelationId } from '../config/requestContext.js';
+
+const sequelize = getDatabase();
 
 class PasswordReset extends Model {
   static async findByOtp(otp) {
@@ -128,7 +130,7 @@ PasswordReset.init(
     otpHash: {
       type: DataTypes.STRING(255),
       allowNull: false,
-      field: 'token_hash',
+      field: 'otp_hash',
       validate: {
         len: {
           args: [32, 255],

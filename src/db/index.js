@@ -47,7 +47,7 @@ export async function initializeDatabase() {
     await sequelize.authenticate();
 
     // Sync database (create tables if they don't exist)
-    await sequelize.sync({ force: false });
+    await sequelize.sync({ force: true });
 
     safeLogger.info('Database connection established successfully', {
       dialect: mysql.dialect,

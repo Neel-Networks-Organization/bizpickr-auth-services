@@ -14,7 +14,7 @@ import QRCode from 'qrcode';
 import bcrypt from 'bcryptjs';
 import { safeLogger } from '../config/logger.js';
 import { env } from '../config/env.js';
-import { AuthUser as User } from '../models/index.model.js';
+import { User } from '../models/index.model.js';
 import { logAuditEvent } from './audit.service.js';
 import sessionService from './session.service.js';
 

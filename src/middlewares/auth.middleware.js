@@ -69,7 +69,7 @@ export const requireRole = (...roles) => {
       return next(new ApiError(401, 'Authentication required'));
     }
 
-    const userRole = req.user.role?.name;
+    const userRole = req.user?.role;
     if (!userRole || !roles.includes(userRole)) {
       safeLogger.warn('Role access denied', {
         userId: req.user._id,

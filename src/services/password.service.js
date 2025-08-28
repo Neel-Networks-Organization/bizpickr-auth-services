@@ -14,6 +14,28 @@ class PasswordService {
     this.resendCooldown = 60 * 1000; // optional: 1 min cooldown for resend
   }
 
+  async changePassword(userId, currentPassword, newPassword) {
+    if (!userId || !currentPassword || !newPassword)
+      throw new ApiError(400, 'Invalid request');
+
+    try {
+      const user = await User.findByPk(userId);
+      if (!user) throw new ApiError(404, 'User not found');
+
+      const isPasswordCorrect = await user.isPasswordCorrect(currentPassword);
+      if (!isPasswordCorrect)
+        throw new ApiError(400, 'Invalid current password');
+
+      await user.update({ password: newPassword });
+
+      await logAuditEvent('PASSWORD_CHANGED', { userId });
+      safeLogger.info('Password changed successfully', { userId });
+    } catch (error) {
+      safeLogger.error('Error changing password', { error });
+      throw new ApiError(500, 'Failed to change password');
+    }
+  }
+
   async initiatePasswordReset(email) {
     const user = await User.findOne({ where: { email } });
     if (!user) {
@@ -93,31 +115,42 @@ class PasswordService {
     return true;
   }
 
-  async cleanExpiredResetTokens() {
+  async cleanExpiredResetOtp() {
     const deletedCount = await PasswordReset.destroy({
       where: { expiresAt: { [Op.lt]: new Date() } },
     });
-    safeLogger.info('Expired password reset tokens cleaned', {
+    safeLogger.info('Expired password reset otp cleaned', {
       cleanedCount: deletedCount,
     });
     return deletedCount;
   }
 
-  async getPasswordResetStats(userId) {
-    const total = await PasswordReset.count({ where: { userId } });
+  async getPasswordResetStats() {
+    const total = await PasswordReset.count();
     const used = await PasswordReset.count({
-      where: { userId, status: 'used' },
+      where: { status: 'used' },
     });
     const pending = await PasswordReset.count({
-      where: { userId, status: 'pending', expiresAt: { [Op.gt]: new Date() } },
+      where: { status: 'pending', expiresAt: { [Op.gt]: new Date() } },
     });
     const recent = await PasswordReset.findAll({
-      where: { userId },
       order: [['createdAt', 'DESC']],
       limit: 5,
     });
 
     return { total, used, pending, recent };
+  }
+
+  async getPasswordResetStatsByEmail(email) {
+    const total = await PasswordReset.count({ where: { email } });
+    const used = await PasswordReset.count({
+      where: { email, status: 'used' },
+    });
+    const pending = await PasswordReset.count({
+      where: { email, status: 'pending', expiresAt: { [Op.gt]: new Date() } },
+    });
+
+    return { total, used, pending };
   }
 }
 

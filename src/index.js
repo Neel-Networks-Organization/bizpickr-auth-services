@@ -1,6 +1,6 @@
 import { env } from './config/env.js';
 import { app } from './app.js';
-import sequelize, { initializeDatabase } from './db/index.js';
+import { initializeDatabase, closeDatabase } from './db/index.js';
 import { initRedis } from './db/redis.js';
 import { initializeGrpcServices, shutdownGrpcServices } from './grpc/index.js';
 import { safeLogger } from './config/logger.js';
@@ -11,7 +11,10 @@ import {
   shutdownGeneralCache,
 } from './cache/general.cache.js';
 import { connectMongo } from './db/mongoose.js';
-import { jwkService } from './services/index.js';
+import {
+  initializeJWKService,
+  shutdownJWKService,
+} from './services/jwk.service.js';
 
 async function initializeServices() {
   try {
@@ -22,7 +25,7 @@ async function initializeServices() {
     await initializeGrpcServices();
     await initializeRabbitMQ();
     await connectMongo();
-    await jwkService.initialize();
+    await initializeJWKService();
     safeLogger.info('All services initialized successfully');
   } catch (error) {
     safeLogger.error('Service initialization failed', { error: error.message });
@@ -47,8 +50,8 @@ async function startServer() {
         await shutdownRabbitMQ();
         await shutdownCache();
         await shutdownGeneralCache();
-        await jwkService.shutdown();
-        await sequelize.close();
+        await shutdownJWKService();
+        await closeDatabase();
         const { default: mongoose } = await import('./db/mongoose.js');
         await mongoose.connection.close();
         safeLogger.info('Graceful shutdown completed');

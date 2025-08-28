@@ -1,10 +1,5 @@
 import Joi from 'joi';
 
-/**
- * Auth Service Validation Schemas
- * Comprehensive Joi validation for all authentication endpoints
- */
-
 export const authSchemas = {
   // User Registration
   signup: Joi.object({
@@ -83,31 +78,6 @@ export const authSchemas = {
     params: Joi.object({}).optional(),
   }),
 
-  // Email Verification
-  verifyEmail: Joi.object({
-    body: Joi.object({
-      token: Joi.string().required().messages({
-        'any.required': 'Verification token is required',
-      }),
-      email: Joi.string().email().optional().messages({
-        'string.email': 'Please provide a valid email address',
-      }),
-    }).required(),
-    query: Joi.object({}).optional(),
-    params: Joi.object({}).optional(),
-  }),
-
-  // Resend Verification Email
-  resendVerification: Joi.object({
-    body: Joi.object({
-      email: Joi.string().email().optional().messages({
-        'string.email': 'Please provide a valid email address',
-      }),
-    }).optional(),
-    query: Joi.object({}).optional(),
-    params: Joi.object({}).optional(),
-  }),
-
   // Two-Factor Authentication
   enableTwoFactor: Joi.object({
     body: Joi.object({
@@ -140,43 +110,6 @@ export const authSchemas = {
     params: Joi.object({}).optional(),
   }),
 
-  // Password Reset
-  forgotPassword: Joi.object({
-    body: Joi.object({
-      email: Joi.string().email().required().messages({
-        'string.email': 'Please provide a valid email address',
-        'any.required': 'Email is required',
-      }),
-    }).required(),
-    query: Joi.object({}).optional(),
-    params: Joi.object({}).optional(),
-  }),
-
-  // Email Verification and Activation
-  verifyEmailActivate: Joi.object({
-    body: Joi.object({
-      token: Joi.string().required().messages({
-        'any.required': 'Activation token is required',
-      }),
-      email: Joi.string().email().optional().messages({
-        'string.email': 'Please provide a valid email address',
-      }),
-    }).required(),
-    query: Joi.object({}).optional(),
-    params: Joi.object({}).optional(),
-  }),
-
-  // Token Verification
-  verifyToken: Joi.object({
-    body: Joi.object({
-      token: Joi.string().required().messages({
-        'any.required': 'Token is required',
-      }),
-    }).required(),
-    query: Joi.object({}).optional(),
-    params: Joi.object({}).optional(),
-  }),
-
   // Refresh Token
   refreshToken: Joi.object({
     body: Joi.object({
@@ -193,13 +126,9 @@ export const authSchemas = {
 export const {
   signup,
   login,
-  verifyEmail,
-  resendVerification,
   enableTwoFactor,
   verifyTwoFactor,
   forgotPassword,
-  verifyEmailActivate,
-  verifyToken,
   refreshToken,
 } = authSchemas;
 

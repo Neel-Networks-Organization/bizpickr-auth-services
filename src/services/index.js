@@ -20,6 +20,7 @@ import jwkService from './jwk.service.js';
 import oauthService from './oauth.service.js';
 import twoFactorService from './twoFactor.service.js';
 import cryptoService from './crypto.service.js';
+import emailService from './email.service.js';
 
 // Service registry for dependency injection
 const serviceRegistry = {
@@ -30,6 +31,7 @@ const serviceRegistry = {
   oauth: oauthService,
   twoFactor: twoFactorService,
   crypto: cryptoService,
+  email: emailService,
 };
 
 export {
@@ -40,6 +42,7 @@ export {
   oauthService,
   twoFactorService,
   cryptoService,
+  emailService,
 };
 
 /**

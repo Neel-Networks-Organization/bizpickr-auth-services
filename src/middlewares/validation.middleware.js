@@ -1,4 +1,3 @@
-import Joi from 'joi';
 import { ApiError } from '../utils/index.js';
 
 export const validateRequest = (schema, options = {}) => {
@@ -75,6 +74,4 @@ export const validateRequest = (schema, options = {}) => {
   };
 };
 
-export default {
-  validateRequest,
-};
+export default validateRequest;

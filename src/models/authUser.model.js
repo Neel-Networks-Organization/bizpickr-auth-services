@@ -1,5 +1,5 @@
 import { DataTypes, Op, Model } from 'sequelize';
-import sequelize from '../db/index.js';
+import { getDatabase } from '../db/index.js';
 import bcrypt from 'bcryptjs';
 import { safeLogger } from '../config/logger.js';
 import { getCorrelationId } from '../config/requestContext.js';
@@ -236,7 +236,7 @@ AuthUser.init(
     },
   },
   {
-    sequelize,
+    sequelize: getDatabase(),
     modelName: 'AuthUser',
     tableName: 'auth_users',
     timestamps: true,
@@ -292,3 +292,4 @@ AuthUser.init(
   }
 );
 export default AuthUser;
+export { AuthUser };

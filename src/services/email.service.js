@@ -113,24 +113,33 @@ class EmailService {
     }
   }
 
-  async getVerificationStats(email) {
-    const verification = await EmailVerification.findByEmail(email);
-    if (!verification) {
-      throw new ApiError(400, 'Email not found');
-    }
+  async getVerificationStats() {
+    const totalVerifications = await EmailVerification.count();
+    const usedVerifications = await EmailVerification.count({
+      where: { status: 'used' },
+    });
+    const pendingVerifications = await EmailVerification.count({
+      where: { status: 'pending' },
+    });
+    const expiredVerifications = await EmailVerification.count({
+      where: { status: 'expired' },
+    });
+
+    return {
+      totalVerifications,
+      usedVerifications,
+      pendingVerifications,
+      expiredVerifications,
+    };
   }
 
-  async getVerificationStats(email) {
-    const verification = await EmailVerification.findByEmail(email);
+  async getVerificationStatsByEmail(email) {
     const totalVerifications = await EmailVerification.count({
       where: { email },
     });
     const usedVerifications = await EmailVerification.count({
       where: { email, status: 'used' },
     });
-    if (!verification) {
-      throw new ApiError(400, 'Email not found');
-    }
 
     return {
       totalVerifications,

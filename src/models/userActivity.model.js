@@ -5,7 +5,6 @@ const userActivitySchema = new mongoose.Schema(
     userId: {
       type: String,
       required: true,
-      index: true,
       description: 'Associated user ID (MySQL UUID string)',
     },
     action: {
@@ -13,7 +12,6 @@ const userActivitySchema = new mongoose.Schema(
       required: true,
       maxlength: 100,
       description: 'Activity action type',
-      index: true,
     },
     description: {
       type: String,
@@ -25,7 +23,6 @@ const userActivitySchema = new mongoose.Schema(
       enum: ['low', 'medium', 'high', 'critical'],
       default: 'low',
       description: 'Activity severity level',
-      index: true,
     },
     category: {
       type: String,
@@ -38,13 +35,11 @@ const userActivitySchema = new mongoose.Schema(
       ],
       default: 'system',
       description: 'Activity category',
-      index: true,
     },
     ipAddress: {
       type: String,
       maxlength: 45,
       description: 'IP address of activity',
-      index: true,
     },
     userAgent: {
       type: String,
@@ -68,7 +63,6 @@ const userActivitySchema = new mongoose.Schema(
       enum: ['success', 'failure', 'pending'],
       default: 'success',
       description: 'Activity status',
-      index: true,
     },
     metadata: {
       type: Object,

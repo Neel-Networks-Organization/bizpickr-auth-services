@@ -1,5 +1,5 @@
 import { DataTypes, Model } from 'sequelize';
-import sequelize from '../db/index.js';
+import { getDatabase } from '../db/index.js';
 import { safeLogger } from '../config/logger.js';
 import { getCorrelationId } from '../config/requestContext.js';
 
@@ -11,7 +11,7 @@ class Session extends Model {
           userId,
           isActive: true,
           expiresAt: {
-            [sequelize.Op.gt]: new Date(),
+            [getDatabase().Op.gt]: new Date(),
           },
         },
         order: [['createdAt', 'DESC']],
@@ -137,17 +137,12 @@ Session.init(
     },
   },
   {
-    sequelize,
+    sequelize: getDatabase(),
     modelName: 'Session',
     tableName: 'sessions',
     timestamps: true,
     paranoid: true,
     indexes: [
-      {
-        fields: ['session_token'],
-        unique: true,
-        name: 'sessions_sessionToken_unique',
-      },
       {
         fields: ['refresh_token'],
         unique: true,
@@ -164,10 +159,6 @@ Session.init(
       {
         fields: ['expires_at'],
         name: 'sessions_expiresAt_idx',
-      },
-      {
-        fields: ['last_activity_at'],
-        name: 'sessions_lastActivityAt_idx',
       },
       {
         fields: ['created_at'],

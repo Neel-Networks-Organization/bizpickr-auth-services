@@ -5,10 +5,11 @@ import {
   rotateJWKs,
   getJWKStats,
   validateAndRotateKeys,
+  getHealthStatus,
 } from '../controllers/jwk.controller.js';
 import ipRateLimit from '../middlewares/rateLimiter.middleware.js';
-import { validateRequest } from '../middlewares/validation.middleware.js';
-import { validateJWKRequest } from '../validators/jwkValidators.js';
+import { jwkSchemas } from '../validators/index.js';
+import validateRequest from '../middlewares/validation.middleware.js';
 import { asyncHandler } from '../utils/index.js';
 
 const router = Router();
@@ -25,6 +26,7 @@ router
   .route('/keys/:kid')
   .get(
     ipRateLimit({ windowMs: 60 * 1000, maxRequests: 50 }),
+    validateRequest(jwkSchemas.getJWKByKid),
     asyncHandler(getJWKByKid)
   );
 
@@ -33,7 +35,6 @@ router
   .route('/refresh')
   .post(
     ipRateLimit({ windowMs: 60 * 60 * 1000, maxRequests: 10 }),
-    validateRequest(validateJWKRequest),
     asyncHandler(rotateJWKs)
   );
 
@@ -41,7 +42,6 @@ router
   .route('/validate')
   .post(
     ipRateLimit({ windowMs: 60 * 1000, maxRequests: 30 }),
-    validateRequest(validateJWKRequest),
     asyncHandler(validateAndRotateKeys)
   );
 
@@ -51,6 +51,14 @@ router
   .get(
     ipRateLimit({ windowMs: 60 * 1000, maxRequests: 20 }),
     asyncHandler(getJWKStats)
+  );
+
+// JWK Health Status
+router
+  .route('/health')
+  .get(
+    ipRateLimit({ windowMs: 60 * 1000, maxRequests: 20 }),
+    asyncHandler(getHealthStatus)
   );
 
 export default router;
