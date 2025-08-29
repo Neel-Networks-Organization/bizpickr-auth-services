@@ -1,5 +1,4 @@
 import express from 'express';
-import cors from 'cors';
 import helmet from 'helmet';
 
 import cookieParser from 'cookie-parser';
@@ -16,19 +15,10 @@ import {
 } from './middlewares/enterprise.middleware.js';
 import { getGlobalRateLimitConfig } from './config/rateLimit.config.js';
 
-const allowedOrigins = ['http://localhost:3000'];
 const app = express();
 
 // ✅ Basic Security with Helmet
 app.use(helmet());
-
-// ✅ Simple CORS
-app.use(
-  cors({
-    origin: allowedOrigins,
-    credentials: true,
-  })
-);
 
 // ✅ Basic Compression
 app.use(compression());

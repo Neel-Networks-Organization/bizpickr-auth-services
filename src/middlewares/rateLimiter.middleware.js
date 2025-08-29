@@ -1,6 +1,7 @@
 import { safeLogger } from '../config/logger.js';
 import { getCorrelationId } from '../config/requestContext.js';
 import redisClient from '../db/redis.js';
+import { env } from '../config/env.js';
 
 /**
  * Rate Limiting Middleware
@@ -11,7 +12,11 @@ import redisClient from '../db/redis.js';
  * Redis-based IP rate limiting middleware
  */
 const ipRateLimit = (options = {}) => {
-  const { windowMs = 15 * 60 * 1000, maxRequests = 100 } = options;
+  const config = env.services.rateLimit;
+  const {
+    windowMs = config.defaultWindow || 15 * 60 * 1000,
+    maxRequests = config.defaultLimit || 100,
+  } = options;
 
   return async (req, res, next) => {
     const correlationId = getCorrelationId();
@@ -62,10 +67,11 @@ const ipRateLimit = (options = {}) => {
             value: now.toString(),
           });
 
-          // Set expiry for the key (windowMs + 1 hour buffer)
+          // Set expiry for the key (windowMs + buffer time)
+          const bufferTime = config.redisTTLBuffer * 60 * 1000; // Convert minutes to milliseconds
           await redisClient.expire(
             rateLimitKey,
-            Math.ceil((windowMs + 60 * 60 * 1000) / 1000)
+            Math.ceil((windowMs + bufferTime) / 1000)
           );
 
           // Clean old entries outside the window
@@ -175,72 +181,6 @@ const ipRateLimit = (options = {}) => {
       next();
     }
   };
-};
-
-// ✅ ADDED: Redis health check function
-export const checkRedisHealth = async () => {
-  try {
-    if (redisClient && redisClient.isReady) {
-      await redisClient.ping();
-      safeLogger.info('Redis rate limiting is ready');
-      return true;
-    } else {
-      safeLogger.warn('Redis not available, using in-memory fallback');
-      return false;
-    }
-  } catch (error) {
-    safeLogger.error('Redis health check failed', { error: error.message });
-    return false;
-  }
-};
-
-// ✅ ADDED: Get rate limit stats from Redis
-export const getRateLimitStats = async (ip, path) => {
-  try {
-    if (redisClient && redisClient.isReady) {
-      const rateLimitKey = `rate_limit:${ip}:${path}`;
-      const now = Date.now();
-      const windowMs = 15 * 60 * 1000; // 15 minutes
-      const windowStart = now - windowMs;
-
-      const currentRequests = await redisClient.zRangeByScore(
-        rateLimitKey,
-        windowStart,
-        '+inf'
-      );
-
-      return {
-        ip,
-        path,
-        currentRequests: currentRequests.length,
-        windowMs,
-        windowStart: new Date(windowStart).toISOString(),
-        windowEnd: new Date(now + windowMs).toISOString(),
-      };
-    }
-    return null;
-  } catch (error) {
-    safeLogger.error('Failed to get rate limit stats', {
-      error: error.message,
-    });
-    return null;
-  }
-};
-
-// ✅ ADDED: Clear rate limit for specific IP/path
-export const clearRateLimit = async (ip, path) => {
-  try {
-    if (redisClient && redisClient.isReady) {
-      const rateLimitKey = `rate_limit:${ip}:${path}`;
-      await redisClient.del(rateLimitKey);
-      safeLogger.info('Rate limit cleared', { ip, path });
-      return true;
-    }
-    return false;
-  } catch (error) {
-    safeLogger.error('Failed to clear rate limit', { error: error.message });
-    return false;
-  }
 };
 
 export default ipRateLimit;

@@ -2,6 +2,7 @@ import { safeLogger } from '../config/logger.js';
 import { getCorrelationId } from '../config/requestContext.js';
 import { ApiError } from '../utils/index.js';
 import { v4 as uuidv4 } from 'uuid';
+import redisClient from '../db/redis.js';
 
 /**
  * Enterprise-Grade Middlewares for SaaS Projects
@@ -62,16 +63,7 @@ export const enterpriseRateLimit = (
   maxRequests = 100,
   windowMs = 15 * 60 * 1000
 ) => {
-  // Import Redis client dynamically to avoid circular dependencies
-  let redisClient;
-  try {
-    redisClient = require('../db/redis.js').redisClient;
-  } catch (error) {
-    safeLogger.warn(
-      'Redis not available for enterprise rate limiting, using in-memory fallback'
-    );
-  }
-
+  // Redis client is imported at the top - no circular dependency exists
   // In-memory fallback store
   const requests = new Map();
 
@@ -459,10 +451,18 @@ export const enterpriseErrorHandler = (error, req, res, next) => {
 };
 
 export const enterpriseCorsMiddleware = (options = {}) => {
+  let corsOrigins;
+
+  corsOrigins = process.env.CORS_ORIGINS?.split(',').map(origin =>
+    origin.trim()
+  ) || [
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'http://localhost:3002',
+  ];
+
   const config = {
-    origin: process.env.ALLOWED_ORIGINS?.split(',') || [
-      'http://localhost:3000',
-    ],
+    origin: corsOrigins,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: [
