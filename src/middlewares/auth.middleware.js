@@ -1,22 +1,28 @@
 import { ApiError, asyncHandler } from '../utils/index.js';
 import AuthUser from '../models/authUser.model.js';
-import jwt from 'jsonwebtoken';
 import { safeLogger } from '../config/logger.js';
 import { getCorrelationId } from '../config/requestContext.js';
-import { env } from '../config/env.js';
+import { cryptoService } from '../services/index.js';
 
 function extractToken(req) {
-  const authHeader = req.headers.authorization;
+  const authHeader = req.headers.authorization || req.cookies.accessToken;
+
   if (authHeader && authHeader.startsWith('Bearer ')) {
     return authHeader.substring(7);
   }
-  return null;
+
+  return authHeader;
 }
 
-function verifyToken(token) {
+async function verifyToken(token) {
   try {
-    return jwt.verify(token, env.jwtSecret);
+    // Use the crypto service to verify the access token
+    return await cryptoService.verifyAccessToken(token);
   } catch (error) {
+    safeLogger.error('Token verification failed in middleware', {
+      error: error.message,
+      tokenLength: token?.length,
+    });
     throw new ApiError(401, 'Invalid or expired token');
   }
 }
@@ -26,23 +32,21 @@ function verifyToken(token) {
  */
 export const verifyJWT = asyncHandler(async (req, res, next) => {
   const token = extractToken(req);
-
   if (!token) {
     throw new ApiError(401, 'Access token required');
   }
 
   try {
-    const decoded = verifyToken(token);
-    const user = await AuthUser.findById(decoded.userId)
-      .select('-password')
-      .populate('permissions', 'name scope')
-      .populate('role', 'name permissions');
+    const decoded = await verifyToken(token);
+    const user = await AuthUser.findByPk(decoded.userId, {
+      attributes: { exclude: ['password'] },
+    });
 
     if (!user) {
       throw new ApiError(401, 'User not found');
     }
 
-    if (!user.isActive) {
+    if (!user.isActive()) {
       throw new ApiError(401, 'User account is deactivated');
     }
 
@@ -72,7 +76,7 @@ export const requireRole = (...roles) => {
     const userRole = req.user?.role;
     if (!userRole || !roles.includes(userRole)) {
       safeLogger.warn('Role access denied', {
-        userId: req.user._id,
+        userId: req.user.id,
         userRole,
         requiredRoles: roles,
         path: req.path,

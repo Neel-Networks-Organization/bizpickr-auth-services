@@ -140,7 +140,7 @@ describe('Auth API Integration Tests', () => {
           email: 'integration.vendor@test.com',
           password: 'SecurePassword123!',
           type: 'vendor',
-          role: 'requirement_coordinator',
+          role: 'manager',
         };
 
         // Act
@@ -404,7 +404,7 @@ describe('Auth API Integration Tests', () => {
           email: 'vendor.login@test.com',
           password: 'SecurePassword123!',
           type: 'vendor',
-          role: 'requirement_coordinator',
+          role: 'manager',
         };
 
         await request(testServer)
@@ -425,7 +425,7 @@ describe('Auth API Integration Tests', () => {
 
         // Assert
         expect(response.body.data.user.type).toBe('vendor');
-        expect(response.body.data.user.role).toBe('requirement_coordinator');
+        expect(response.body.data.user.role).toBe('manager');
       });
     });
 

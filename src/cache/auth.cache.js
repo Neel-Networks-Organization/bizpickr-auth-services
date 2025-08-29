@@ -10,14 +10,18 @@ import { safeLogger } from '../config/logger.js';
 const PREFIX = {
   USER_SESSION: 'user:session:',
   BLACKLISTED_TOKEN: 'blacklist:token:',
-  USER_PROFILE: 'user:profile:',
+  USER_SESSION: 'user:session:',
+  LOCKOUT: 'lockout:',
+  RATE_LIMIT: 'rate_limit:',
 };
 
 // ✅ Essential cache expiry times
 const EXPIRY = {
   USER_SESSION: 24 * 60 * 60, // 24 hours
   BLACKLISTED_TOKEN: 7 * 24 * 60 * 60, // 7 days
-  USER_PROFILE: 60 * 60, // 1 hour
+  USER_SESSION: 60 * 60, // 1 hour
+  LOCKOUT: 30 * 60, // 30 minutes
+  RATE_LIMIT: 60 * 60, // 1 hour
 };
 
 /**
@@ -190,10 +194,10 @@ class AuthCache {
   async storeUserProfile(userId, profileData) {
     try {
       const redis = await this._getRedis();
-      const key = `${PREFIX.USER_PROFILE}${userId}`;
+      const key = `${PREFIX.USER_SESSION}${userId}`;
       const serializedData = JSON.stringify(profileData);
 
-      await redis.set(key, serializedData, 'EX', EXPIRY.USER_PROFILE);
+      await redis.set(key, serializedData, 'EX', EXPIRY.USER_SESSION);
 
       safeLogger.debug('User profile stored in cache', { userId });
       return true;
@@ -214,7 +218,7 @@ class AuthCache {
   async getUserProfile(userId) {
     try {
       const redis = await this._getRedis();
-      const key = `${PREFIX.USER_PROFILE}${userId}`;
+      const key = `${PREFIX.USER_SESSION}${userId}`;
 
       const data = await redis.get(key);
       if (!data) {
@@ -239,7 +243,7 @@ class AuthCache {
   async removeUserProfile(userId) {
     try {
       const redis = await this._getRedis();
-      const key = `${PREFIX.USER_PROFILE}${userId}`;
+      const key = `${PREFIX.USER_SESSION}${userId}`;
 
       await redis.del(key);
 
@@ -251,6 +255,263 @@ class AuthCache {
         userId,
       });
       return false;
+    }
+  }
+
+  /**
+   * Generic get method for any key
+   * @param {string} key - Cache key
+   * @returns {Promise<any>} Cached data or null
+   */
+  async get(key) {
+    try {
+      const redis = await this._getRedis();
+      const data = await redis.get(key);
+
+      if (!data) {
+        return null;
+      }
+
+      return JSON.parse(data);
+    } catch (error) {
+      safeLogger.error('Failed to get data from cache', {
+        error: error.message,
+        key,
+      });
+      return null;
+    }
+  }
+
+  /**
+   * Generic set method for any key with expiry
+   * @param {string} key - Cache key
+   * @param {any} value - Data to cache
+   * @param {number} expiry - Expiry time in seconds
+   * @returns {Promise<boolean>} Success status
+   */
+  async set(key, value, expiry = null) {
+    try {
+      const redis = await this._getRedis();
+      const serializedData = JSON.stringify(value);
+
+      if (expiry) {
+        await redis.set(key, serializedData, 'EX', expiry);
+      } else {
+        await redis.set(key, serializedData);
+      }
+
+      safeLogger.debug('Data stored in cache', { key, expiry });
+      return true;
+    } catch (error) {
+      safeLogger.error('Failed to store data in cache', {
+        error: error.message,
+        key,
+        expiry,
+      });
+      return false;
+    }
+  }
+
+  /**
+   * Generic delete method for any key
+   * @param {string} key - Cache key
+   * @returns {Promise<boolean>} Success status
+   */
+  async delete(key) {
+    try {
+      const redis = await this._getRedis();
+      await redis.del(key);
+
+      safeLogger.debug('Data deleted from cache', { key });
+      return true;
+    } catch (error) {
+      safeLogger.error('Failed to delete data from cache', {
+        error: error.message,
+        key,
+      });
+      return false;
+    }
+  }
+
+  /**
+   * Store lockout data for failed login attempts
+   * @param {string} email - User email
+   * @param {Object} lockoutData - Lockout data
+   * @returns {Promise<boolean>} Success status
+   */
+  async storeLockout(email, lockoutData) {
+    try {
+      const redis = await this._getRedis();
+      const key = `${PREFIX.LOCKOUT}${email}`;
+      const serializedData = JSON.stringify(lockoutData);
+
+      await redis.set(key, serializedData, 'EX', EXPIRY.LOCKOUT);
+
+      safeLogger.debug('Lockout data stored in cache', { email });
+      return true;
+    } catch (error) {
+      safeLogger.error('Failed to store lockout data in cache', {
+        error: error.message,
+        email,
+      });
+      return false;
+    }
+  }
+
+  /**
+   * Get lockout data for user
+   * @param {string} email - User email
+   * @returns {Promise<Object|null>} Lockout data or null
+   */
+  async getLockout(email) {
+    try {
+      const redis = await this._getRedis();
+      const key = `${PREFIX.LOCKOUT}${email}`;
+
+      const data = await redis.get(key);
+      if (!data) {
+        return null;
+      }
+
+      return JSON.parse(data);
+    } catch (error) {
+      safeLogger.error('Failed to get lockout data from cache', {
+        error: error.message,
+        email,
+      });
+      return null;
+    }
+  }
+
+  /**
+   * Remove lockout data for user
+   * @param {string} email - User email
+   * @returns {Promise<boolean>} Success status
+   */
+  async removeLockout(email) {
+    try {
+      const redis = await this._getRedis();
+      const key = `${PREFIX.LOCKOUT}${email}`;
+
+      await redis.del(key);
+
+      safeLogger.debug('Lockout data removed from cache', { email });
+      return true;
+    } catch (error) {
+      safeLogger.error('Failed to remove lockout data from cache', {
+        error: error.message,
+        email,
+      });
+      return false;
+    }
+  }
+
+  /**
+   * Store rate limit data
+   * @param {string} key - Rate limit key (IP, email, etc.)
+   * @param {Object} rateLimitData - Rate limit data
+   * @returns {Promise<boolean>} Success status
+   */
+  async storeRateLimit(key, rateLimitData) {
+    try {
+      const redis = await this._getRedis();
+      const cacheKey = `${PREFIX.RATE_LIMIT}${key}`;
+      const serializedData = JSON.stringify(rateLimitData);
+
+      await redis.set(cacheKey, serializedData, 'EX', EXPIRY.RATE_LIMIT);
+
+      safeLogger.debug('Rate limit data stored in cache', { key });
+      return true;
+    } catch (error) {
+      safeLogger.error('Failed to store rate limit data in cache', {
+        error: error.message,
+        key,
+      });
+      return false;
+    }
+  }
+
+  /**
+   * Get rate limit data
+   * @param {string} key - Rate limit key
+   * @returns {Promise<Object|null>} Rate limit data or null
+   */
+  async getRateLimit(key) {
+    try {
+      const redis = await this._getRedis();
+      const cacheKey = `${PREFIX.RATE_LIMIT}${key}`;
+
+      const data = await redis.get(cacheKey);
+      if (!data) {
+        return null;
+      }
+
+      return JSON.parse(data);
+    } catch (error) {
+      safeLogger.error('Failed to get rate limit data from cache', {
+        error: error.message,
+        key,
+      });
+      return null;
+    }
+  }
+
+  /**
+   * Clear all cache data for a user
+   * @param {string} userId - User ID
+   * @param {string} email - User email
+   * @returns {Promise<boolean>} Success status
+   */
+  async clearUserCache(userId, email) {
+    try {
+      const redis = await this._getRedis();
+      const keys = [
+        `${PREFIX.USER_SESSION}${userId}`,
+        `${PREFIX.USER_SESSION}${userId}`,
+        `${PREFIX.LOCKOUT}${email}`,
+      ];
+
+      // Delete all keys in parallel
+      await Promise.all(keys.map(key => redis.del(key)));
+
+      safeLogger.debug('User cache cleared', { userId, email });
+      return true;
+    } catch (error) {
+      safeLogger.error('Failed to clear user cache', {
+        error: error.message,
+        userId,
+        email,
+      });
+      return false;
+    }
+  }
+
+  /**
+   * Get cache statistics
+   * @returns {Promise<Object>} Cache statistics
+   */
+  async getStats() {
+    try {
+      const redis = await this._getRedis();
+      const info = await redis.info('memory');
+
+      // Parse Redis info for basic stats
+      const stats = {
+        connected: true,
+        memory: info,
+        timestamp: new Date().toISOString(),
+      };
+
+      return stats;
+    } catch (error) {
+      safeLogger.error('Failed to get cache stats', {
+        error: error.message,
+      });
+      return {
+        connected: false,
+        error: error.message,
+        timestamp: new Date().toISOString(),
+      };
     }
   }
 

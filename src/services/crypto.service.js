@@ -1,19 +1,30 @@
 import * as jose from 'jose';
 import { v4 as uuidv4 } from 'uuid';
 import { safeLogger } from '../config/logger.js';
-import { env } from '../config/env.js';
 import { ApiError } from '../utils/index.js';
 import { jwkService } from './index.js';
+import { env } from '../config/env.js';
 
 class CryptoService {
   constructor() {
-    this.refreshSecret = env.jwt.refreshSecret;
-    this.refreshTokenTTL = env.jwt.refreshTTL;
-    this.accessTokenTTL = env.jwt.accessTTL;
-    this.refreshAlgorithm = env.jwt.refreshAlgorithm;
-    this.accessAlgorithm = env.jwt.accessAlgorithm;
-    this.issuer = env.jwt.issuer;
-    this.audience = env.jwt.audience;
+    const config = env.jwt;
+
+    // Convert string secret to Uint8Array for HS256 algorithm
+    this.refreshSecret = new TextEncoder().encode(
+      config.refreshSecret ||
+        'default-jwt-refresh-secretfdsfsdfsdfsfsfsfsfsfdsfsfdsfsfsdfdsfsds'
+    );
+    this.refreshTokenTTL = config.refreshTTL;
+    this.accessTokenTTL = config.expiresIn;
+    this.refreshAlgorithm = config.refreshAlgorithm;
+    this.accessAlgorithm = config.accessAlgorithm;
+    this.issuer = config.issuer;
+    this.audience = config.audience;
+
+    // Validate refresh secret format
+    this.validateRefreshSecret();
+
+    safeLogger.info('CryptoService initialized with config', { config });
   }
 
   async generateAccessToken(user, options = {}) {
@@ -36,7 +47,7 @@ class CryptoService {
         Object.assign(payload, options.customClaims);
       }
 
-      const token = await new SignJWT(payload)
+      const token = await new jose.SignJWT(payload)
         .setProtectedHeader({
           alg: this.accessAlgorithm,
           kid: signingKey.kid,
@@ -76,7 +87,7 @@ class CryptoService {
         jti: uuidv4(),
       };
 
-      const token = await new SignJWT(payload)
+      const token = await new jose.SignJWT(payload)
         .setProtectedHeader({
           alg: this.refreshAlgorithm,
           typ: 'JWT',
@@ -92,6 +103,9 @@ class CryptoService {
       safeLogger.error('Refresh token generation failed', {
         error: error.message,
         userId: user?.id,
+        refreshAlgorithm: this.refreshAlgorithm,
+        secretType: typeof this.refreshSecret,
+        secretLength: this.refreshSecret?.length,
       });
       throw error;
     }
@@ -133,6 +147,9 @@ class CryptoService {
     } catch (error) {
       safeLogger.error('Refresh token verification failed', {
         error: error.message,
+        refreshAlgorithm: this.refreshAlgorithm,
+        secretType: typeof this.refreshSecret,
+        secretLength: this.refreshSecret?.length,
       });
       throw error;
     }
@@ -144,17 +161,57 @@ class CryptoService {
     }
 
     try {
-      const { payload } = await jose.jwtVerify(accessToken, this.accessSecret, {
-        algorithms: [this.accessAlgorithm],
-      });
+      const signingKey = await jwkService.getCurrentSigningKey();
+
+      const { payload } = await jose.jwtVerify(
+        accessToken,
+        signingKey.publicKey,
+        {
+          algorithms: [this.accessAlgorithm],
+        }
+      );
 
       return payload;
     } catch (error) {
       safeLogger.error('Access token verification failed', {
         error: error.message,
+        accessAlgorithm: this.accessAlgorithm,
       });
       throw error;
     }
+  }
+
+  validateRefreshSecret() {
+    if (!this.refreshSecret || this.refreshSecret.length === 0) {
+      throw new Error('Refresh secret cannot be empty');
+    }
+
+    // For HS256, ensure minimum key length (at least 32 bytes recommended)
+    if (this.refreshSecret.length < 32) {
+      safeLogger.warn('Refresh secret is shorter than recommended 32 bytes', {
+        currentLength: this.refreshSecret.length,
+        recommendedLength: 32,
+      });
+    }
+  }
+
+  // Check if the service is properly initialized
+  isServiceHealthy() {
+    return {
+      refreshSecret: {
+        configured: !!this.refreshSecret,
+        type: typeof this.refreshSecret,
+        length: this.refreshSecret?.length || 0,
+      },
+      algorithms: {
+        access: this.accessAlgorithm,
+        refresh: this.refreshAlgorithm,
+      },
+      ttl: {
+        access: this.accessTokenTTL,
+        refresh: this.refreshTokenTTL,
+      },
+    };
   }
 }
 

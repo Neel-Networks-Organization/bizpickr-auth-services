@@ -23,7 +23,7 @@ export const TEST_DATA = {
       email: 'vendor@test.com',
       password: 'password123',
       type: 'vendor',
-      role: 'requirement_coordinator',
+      role: 'manager',
       userId: 102,
     },
   },

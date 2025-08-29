@@ -106,7 +106,7 @@ describe('PermissionService', () => {
       const roles = permissionService.getAvailableRoles();
       expect(roles).toContain('customer');
       expect(roles).toContain('vendor');
-      expect(roles).toContain('requirement_coordinator');
+      expect(roles).toContain('manager');
       expect(roles).toContain('admin');
       expect(roles).toContain('hr_admin');
       expect(roles).toContain('super_admin');
@@ -151,7 +151,7 @@ describe('PermissionService', () => {
     it('should have correct structure', () => {
       expect(ROLE_PERMISSIONS).toHaveProperty('customer');
       expect(ROLE_PERMISSIONS).toHaveProperty('vendor');
-      expect(ROLE_PERMISSIONS).toHaveProperty('requirement_coordinator');
+      expect(ROLE_PERMISSIONS).toHaveProperty('manager');
       expect(ROLE_PERMISSIONS).toHaveProperty('admin');
       expect(ROLE_PERMISSIONS).toHaveProperty('hr_admin');
       expect(ROLE_PERMISSIONS).toHaveProperty('super_admin');
@@ -162,7 +162,7 @@ describe('PermissionService', () => {
     it('should have correct hierarchy levels', () => {
       expect(ROLE_HIERARCHY.customer).toBe(1);
       expect(ROLE_HIERARCHY.vendor).toBe(2);
-      expect(ROLE_HIERARCHY.requirement_coordinator).toBe(4);
+      expect(ROLE_HIERARCHY.manager).toBe(4);
       expect(ROLE_HIERARCHY.admin).toBe(5);
       expect(ROLE_HIERARCHY.hr_admin).toBe(6);
       expect(ROLE_HIERARCHY.super_admin).toBe(7);

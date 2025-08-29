@@ -13,19 +13,22 @@ import speakeasy from 'speakeasy';
 import QRCode from 'qrcode';
 import bcrypt from 'bcryptjs';
 import { safeLogger } from '../config/logger.js';
-import { env } from '../config/env.js';
 import { User } from '../models/index.model.js';
 import { logAuditEvent } from './audit.service.js';
 import sessionService from './session.service.js';
+import { env } from '../config/env.js';
 
 class TwoFactorService {
   constructor() {
-    this.backupCodesCount = 10;
-    this.backupCodeLength = 8;
+    const config = env.services.twoFactor;
+    this.backupCodesCount = config.backupCodesCount;
+    this.backupCodeLength = config.backupCodeLength;
     this.issuer = 'BizPickr';
     this.algorithm = 'sha1';
-    this.digits = 6;
-    this.period = 30; // 30 seconds
+    this.digits = config.digits;
+    this.period = config.period;
+
+    safeLogger.info('TwoFactorService initialized with config', { config });
   }
 
   /**
@@ -371,6 +374,7 @@ class TwoFactorService {
 
       // Generate access token
       const jwt = require('jsonwebtoken');
+      const jwtConfig = env.jwt;
       const accessToken = jwt.sign(
         {
           userId: user.id,
@@ -378,11 +382,11 @@ class TwoFactorService {
           role: user.role,
           twoFactorVerified: true,
         },
-        env.JWT_SECRET,
+        jwtConfig.secret,
         {
-          expiresIn: env.JWT_EXPIRES_IN,
-          issuer: 'auth-service',
-          audience: 'api-gateway',
+          expiresIn: jwtConfig.expiresIn,
+          issuer: jwtConfig.issuer,
+          audience: jwtConfig.audience,
         }
       );
 
@@ -422,7 +426,7 @@ class TwoFactorService {
 
       return {
         accessToken,
-        expiresIn: env.JWT_EXPIRES_IN,
+        expiresIn: jwtConfig.expiresIn,
         user: {
           id: user.id,
           email: user.email,

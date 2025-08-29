@@ -13,11 +13,16 @@ import { authCache } from '../cache/auth.cache.js';
 import { Session, AuditLog } from '../models/index.model.js';
 import { Op } from 'sequelize';
 import { getRedisClient } from '../db/redis.js';
+import { env } from '../config/env.js';
 
 class SessionService {
   constructor() {
-    this.sessionTTL = 24 * 60 * 60; // 24 hours
-    this.refreshTokenTTL = 7 * 24 * 60 * 60; // 7 days
+    const config = env.services.session;
+    this.sessionTTL = config.sessionTTL;
+    this.refreshTokenTTL = config.refreshTokenTTL;
+    this.recentSessionsLimit = config.recentSessionsLimit;
+
+    safeLogger.info('SessionService initialized with config', { config });
   }
 
   /**
@@ -47,7 +52,7 @@ class SessionService {
             expiresAt: session.expiresAt,
             isActive: new Date() < session.expiresAt && isActiveInCache,
           };
-        }),
+        })
       );
 
       safeLogger.info('User sessions retrieved', {
@@ -90,12 +95,12 @@ class SessionService {
         sessionExists: !!existingSession,
         sessionDetails: existingSession
           ? {
-            id: existingSession.id,
-            sessionToken: existingSession.sessionToken,
-            userId: existingSession.userId,
-            isActive: existingSession.isActive,
-            expiresAt: existingSession.expiresAt,
-          }
+              id: existingSession.id,
+              sessionToken: existingSession.sessionToken,
+              userId: existingSession.userId,
+              isActive: existingSession.isActive,
+              expiresAt: existingSession.expiresAt,
+            }
           : null,
       });
 
@@ -308,7 +313,7 @@ class SessionService {
       await getRedisClient().setex(
         `refresh:${refreshToken}`,
         this.refreshTokenTTL,
-        JSON.stringify(tokenData),
+        JSON.stringify(tokenData)
       );
 
       safeLogger.debug('Refresh token stored', {
@@ -387,7 +392,7 @@ class SessionService {
       const recentSessions = await Session.findAll({
         where: { userId },
         order: [['createdAt', 'DESC']],
-        limit: 5,
+        limit: this.recentSessionsLimit,
       });
 
       safeLogger.info('Session statistics retrieved', {

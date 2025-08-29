@@ -154,7 +154,7 @@ describe('Auth Controller Unit Tests', () => {
             email: 'newvendor@test.com',
             password: 'securePassword123',
             type: 'vendor',
-            role: 'requirement_coordinator',
+            role: 'manager',
           },
         });
         const res = createMockResponse();

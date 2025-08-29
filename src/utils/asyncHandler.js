@@ -50,9 +50,13 @@ const asyncHandler = requestHandler => {
         },
       });
 
-      // Handle different error types
+      // ✅ Handle different error types
       if (error instanceof ApiError) {
         // API Error - pass to error handler
+        next(error);
+      } else if (error.name && error.name.startsWith('Sequelize')) {
+        // ✅ Sequelize errors - pass directly to enterprise error handler
+        // Don't convert to ApiError, let enterpriseErrorHandler handle them
         next(error);
       } else {
         // Unknown error - convert to API Error

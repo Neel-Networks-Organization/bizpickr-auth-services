@@ -1,16 +1,31 @@
 import { safeLogger } from '../config/logger.js';
-import { env } from '../config/env.js';
 import { generalCache } from '../cache/general.cache.js';
 import { publishEvent } from '../events/index.js';
 import { v4 as uuidv4 } from 'uuid';
 import * as jose from 'jose';
+import { env } from '../config/env.js';
 
 class JWKService {
-  static KEY_ROTATION_INTERVAL = 24 * 60 * 60 * 1000; //24 hr
-  static MAX_KEYS = 5;
-  static CACHE_TTL = 3600; //1 hr
-  static RSA_KEY_SIZE = 2048;
-  static JWT_ALGORITHM = env.jwt.accessAlgorithm;
+  static KEY_ROTATION_INTERVAL;
+  static MAX_KEYS;
+  static CACHE_TTL;
+  static RSA_KEY_SIZE;
+  static JWT_ALGORITHM;
+
+  static {
+    const config = env.services.jwk;
+    const jwtConfig = env.jwt;
+    JWKService.KEY_ROTATION_INTERVAL = config.keyRotationInterval;
+    JWKService.MAX_KEYS = config.maxKeys;
+    JWKService.CACHE_TTL = config.cacheTTL;
+    JWKService.RSA_KEY_SIZE = config.rsaKeySize;
+    JWKService.JWT_ALGORITHM = jwtConfig.accessAlgorithm;
+
+    safeLogger.info('JWKService initialized with config', {
+      config,
+      jwtConfig,
+    });
+  }
 
   constructor() {
     this.keyRotationInterval = JWKService.KEY_ROTATION_INTERVAL;

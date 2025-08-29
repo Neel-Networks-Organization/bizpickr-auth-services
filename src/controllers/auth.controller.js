@@ -331,3 +331,268 @@ export const verifyTwoFactor = async (req, res) => {
     throw new ApiError(400, '2FA verification failed', [error.message]);
   }
 };
+
+// ========================================
+// ADMIN ENDPOINTS - Account Management
+// ========================================
+
+/**
+ * Unlock a locked account (Admin only)
+ */
+export const unlockAccount = async (req, res) => {
+  const adminUserId = req.user?.id;
+  const { email } = req.body;
+
+  if (!adminUserId) {
+    throw new ApiError(401, 'Admin authentication required');
+  }
+
+  if (!email) {
+    throw new ApiError(400, 'Email is required', [
+      'Please provide the email of the account to unlock',
+    ]);
+  }
+
+  try {
+    const result = await authService.unlockAccount(email, adminUserId);
+
+    safeLogger.info('Account unlocked by admin', {
+      adminUserId,
+      email,
+    });
+
+    return res
+      .status(200)
+      .json(ApiResponse.success(result, 'Account unlocked successfully'));
+  } catch (error) {
+    safeLogger.error('Account unlock failed', {
+      error: error.message,
+      adminUserId,
+      email,
+    });
+    throw error;
+  }
+};
+
+/**
+ * Get account status and lockout information (Admin only)
+ */
+export const getAccountStatus = async (req, res) => {
+  const adminUserId = req.user?.id;
+  const { email } = req.params;
+
+  if (!adminUserId) {
+    throw new ApiError(401, 'Admin authentication required');
+  }
+
+  if (!email) {
+    throw new ApiError(400, 'Email is required');
+  }
+
+  try {
+    const accountStatus = await authService.getAccountStatus(email);
+
+    safeLogger.info('Account status retrieved by admin', {
+      adminUserId,
+      email,
+    });
+
+    return res
+      .status(200)
+      .json(
+        ApiResponse.success(
+          accountStatus,
+          'Account status retrieved successfully'
+        )
+      );
+  } catch (error) {
+    safeLogger.error('Failed to get account status', {
+      error: error.message,
+      adminUserId,
+      email,
+    });
+    throw error;
+  }
+};
+
+/**
+ * Suspend an account (Admin only)
+ */
+export const suspendAccount = async (req, res) => {
+  const adminUserId = req.user?.id;
+  const { email, reason } = req.body;
+
+  if (!adminUserId) {
+    throw new ApiError(401, 'Admin authentication required');
+  }
+
+  if (!email) {
+    throw new ApiError(400, 'Email is required');
+  }
+
+  try {
+    const result = await authService.suspendAccount(email, reason, adminUserId);
+
+    safeLogger.info('Account suspended by admin', {
+      adminUserId,
+      email,
+      reason,
+    });
+
+    return res
+      .status(200)
+      .json(ApiResponse.success(result, 'Account suspended successfully'));
+  } catch (error) {
+    safeLogger.error('Account suspension failed', {
+      error: error.message,
+      adminUserId,
+      email,
+    });
+    throw error;
+  }
+};
+
+/**
+ * Activate a suspended account (Admin only)
+ */
+export const activateAccount = async (req, res) => {
+  const adminUserId = req.user?.id;
+  const { email } = req.body;
+
+  if (!adminUserId) {
+    throw new ApiError(401, 'Admin authentication required');
+  }
+
+  if (!email) {
+    throw new ApiError(400, 'Email is required');
+  }
+
+  try {
+    const result = await authService.activateAccount(email, adminUserId);
+
+    safeLogger.info('Account activated by admin', {
+      adminUserId,
+      email,
+    });
+
+    return res
+      .status(200)
+      .json(ApiResponse.success(result, 'Account activated successfully'));
+  } catch (error) {
+    safeLogger.error('Account activation failed', {
+      error: error.message,
+      adminUserId,
+      email,
+    });
+    throw error;
+  }
+};
+
+/**
+ * Get all locked accounts (Admin only)
+ */
+export const getLockedAccounts = async (req, res) => {
+  const adminUserId = req.user?.id;
+  const { page = 1, limit = 20, status } = req.query;
+
+  if (!adminUserId) {
+    throw new ApiError(401, 'Admin authentication required');
+  }
+
+  try {
+    const result = await authService.getLockedAccounts({
+      page: parseInt(page),
+      limit: parseInt(limit),
+      status,
+    });
+
+    safeLogger.info('Locked accounts retrieved by admin', {
+      adminUserId,
+      count: result.accounts.length,
+      total: result.total,
+    });
+
+    return res
+      .status(200)
+      .json(
+        ApiResponse.success(result, 'Locked accounts retrieved successfully')
+      );
+  } catch (error) {
+    safeLogger.error('Failed to get locked accounts', {
+      error: error.message,
+      adminUserId,
+    });
+    throw error;
+  }
+};
+
+/**
+ * Clear user cache (Admin only)
+ */
+export const clearUserCache = async (req, res) => {
+  const adminUserId = req.user?.id;
+  const { userId, email } = req.body;
+
+  if (!adminUserId) {
+    throw new ApiError(401, 'Admin authentication required');
+  }
+
+  if (!userId || !email) {
+    throw new ApiError(400, 'User ID and email are required');
+  }
+
+  try {
+    const result = await authService.clearUserCache(userId, email);
+
+    safeLogger.info('User cache cleared by admin', {
+      adminUserId,
+      userId,
+      email,
+    });
+
+    return res
+      .status(200)
+      .json(ApiResponse.success(result, 'User cache cleared successfully'));
+  } catch (error) {
+    safeLogger.error('Failed to clear user cache', {
+      error: error.message,
+      adminUserId,
+      userId,
+      email,
+    });
+    throw error;
+  }
+};
+
+// ========================================
+// DEVELOPMENT ENDPOINTS - Testing Only
+// ========================================
+
+/**
+ * Activate pending account for development/testing (Remove in production)
+ */
+export const activatePendingAccount = async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    throw new ApiError(400, 'Email is required');
+  }
+
+  try {
+    const result = await authService.activatePendingAccount(email);
+
+    safeLogger.info('Pending account activated for development', {
+      email,
+    });
+
+    return res
+      .status(200)
+      .json(ApiResponse.success(result, 'Account activated for development'));
+  } catch (error) {
+    safeLogger.error('Failed to activate pending account', {
+      error: error.message,
+      email,
+    });
+    throw error;
+  }
+};

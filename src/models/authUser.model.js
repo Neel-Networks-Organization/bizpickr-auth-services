@@ -148,7 +148,7 @@ AuthUser.init(
       type: DataTypes.ENUM(
         'customer',
         'vendor',
-        'requirement_coordinator',
+        'manager',
         'hr_admin',
         'admin',
         'super_admin'
@@ -161,13 +161,13 @@ AuthUser.init(
             [
               'customer',
               'vendor',
-              'requirement_coordinator',
+              'manager',
               'hr_admin',
               'admin',
               'super_admin',
             ],
           ],
-          msg: 'Role must be one of: customer, vendor, requirement_coordinator, hr_admin, admin, super_admin',
+          msg: 'Role must be one of: customer, vendor, manager, hr_admin, admin, super_admin',
         },
       },
       comment: 'User role in the system',
@@ -234,6 +234,31 @@ AuthUser.init(
       allowNull: true,
       comment: 'Two-factor authentication secret',
     },
+    suspendedAt: {
+      type: DataTypes.DATE,
+      allowNull: true,
+      comment: 'Account suspension timestamp',
+    },
+    suspendedBy: {
+      type: DataTypes.UUID,
+      allowNull: true,
+      comment: 'User ID who suspended the account',
+    },
+    suspensionReason: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+      comment: 'Reason for account suspension',
+    },
+    lastLoginAt: {
+      type: DataTypes.DATE,
+      allowNull: true,
+      comment: 'Last login timestamp',
+    },
+    passwordChangedAt: {
+      type: DataTypes.DATE,
+      allowNull: true,
+      comment: 'Password last changed timestamp',
+    },
   },
   {
     sequelize: getDatabase(),
@@ -271,6 +296,14 @@ AuthUser.init(
       {
         fields: ['createdAt'],
         name: 'auth_users_created_at_idx',
+      },
+      {
+        fields: ['suspendedAt'],
+        name: 'auth_users_suspended_at_idx',
+      },
+      {
+        fields: ['lastLoginAt'],
+        name: 'auth_users_last_login_idx',
       },
     ],
     hooks: {

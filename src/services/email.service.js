@@ -2,11 +2,15 @@ import { EmailVerification } from '../models/index.model.js';
 import { ApiError } from '../utils/ApiError.js';
 import { logAuditEvent } from './audit.service.js';
 import { safeLogger } from '../config/logger.js';
+import { env } from '../config/env.js';
 
 class EmailService {
   constructor() {
-    this.otpExpiry = 60 * 60 * 1000; // 1 hour
-    this.saltRounds = 10;
+    const config = env.services.email;
+    this.otpExpiry = config.otpExpiry;
+    this.saltRounds = config.saltRounds;
+
+    safeLogger.info('EmailService initialized with config', { config });
   }
 
   async sendVerificationEmail(email) {

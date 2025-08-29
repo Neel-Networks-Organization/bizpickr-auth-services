@@ -14,6 +14,7 @@ import {
   enterpriseErrorHandler,
   enterpriseCorsMiddleware,
 } from './middlewares/enterprise.middleware.js';
+import { getGlobalRateLimitConfig } from './config/rateLimit.config.js';
 
 const allowedOrigins = ['http://localhost:3000'];
 const app = express();
@@ -42,7 +43,13 @@ app.use(cookieParser());
 // ✅ Enterprise Middlewares (Essential for SaaS)
 app.use(correlationIdMiddleware);
 app.use(enterpriseLoggingMiddleware);
-app.use(enterpriseRateLimit(100, 15 * 60 * 1000));
+// ✅ Use centralized rate limit configuration
+app.use(
+  enterpriseRateLimit(
+    getGlobalRateLimitConfig().maxRequests,
+    getGlobalRateLimitConfig().windowMs
+  )
+);
 app.use(enterpriseSecurityMiddleware);
 app.use(enterpriseValidationMiddleware);
 app.use(enterpriseCorsMiddleware());

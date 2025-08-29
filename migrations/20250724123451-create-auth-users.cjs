@@ -29,7 +29,7 @@ module.exports = {
         type: Sequelize.ENUM(
           'customer',
           'vendor',
-          'requirement_coordinator',
+          'manager',
           'hr_admin',
           'admin',
           'super_admin'

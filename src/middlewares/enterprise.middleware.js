@@ -1,4 +1,5 @@
 import { safeLogger } from '../config/logger.js';
+import { getCorrelationId } from '../config/requestContext.js';
 import { ApiError } from '../utils/index.js';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -56,47 +57,198 @@ export const enterpriseLoggingMiddleware = (req, res, next) => {
   next();
 };
 
-// ✅ Enterprise Rate Limiting
+// ✅ Enterprise Rate Limiting (Redis-Based)
 export const enterpriseRateLimit = (
   maxRequests = 100,
   windowMs = 15 * 60 * 1000
 ) => {
+  // Import Redis client dynamically to avoid circular dependencies
+  let redisClient;
+  try {
+    redisClient = require('../db/redis.js').redisClient;
+  } catch (error) {
+    safeLogger.warn(
+      'Redis not available for enterprise rate limiting, using in-memory fallback'
+    );
+  }
+
+  // In-memory fallback store
   const requests = new Map();
 
-  return (req, res, next) => {
+  return async (req, res, next) => {
     const ip = req.ip;
     const now = Date.now();
     const windowStart = now - windowMs;
+    const rateLimitKey = `enterprise_rate_limit:${ip}`;
 
-    // Clean old requests
-    if (requests.has(ip)) {
-      requests.set(
-        ip,
-        requests.get(ip).filter(time => time > windowStart)
-      );
-    }
+    try {
+      // ✅ Redis-based rate limiting (primary)
+      if (redisClient && redisClient.isReady) {
+        try {
+          // Get current requests from Redis
+          const currentRequests = await redisClient.zRangeByScore(
+            rateLimitKey,
+            windowStart,
+            '+inf'
+          );
 
-    const currentRequests = requests.get(ip) || [];
+          const validRequestCount = currentRequests.length;
 
-    if (currentRequests.length >= maxRequests) {
-      safeLogger.warn('Rate limit exceeded', {
+          if (validRequestCount >= maxRequests) {
+            safeLogger.warn('Enterprise rate limit exceeded (Redis)', {
+              correlationId: req.correlationId,
+              ip,
+              path: req.path,
+              requestCount: validRequestCount,
+              limit: maxRequests,
+              windowMs,
+            });
+
+            // Set rate limit headers
+            res.setHeader('X-RateLimit-Limit', maxRequests);
+            res.setHeader('X-RateLimit-Remaining', 0);
+            res.setHeader(
+              'X-RateLimit-Reset',
+              new Date(now + windowMs).toISOString()
+            );
+            res.setHeader('X-RateLimit-Used', validRequestCount);
+
+            return res.status(429).json({
+              error: 'Rate limit exceeded',
+              message: 'Too many requests from this IP (Global limit)',
+              retryAfter: Math.ceil(windowMs / 1000),
+              correlationId: req.correlationId,
+              limit: maxRequests,
+              remaining: 0,
+              resetTime: new Date(now + windowMs).toISOString(),
+            });
+          }
+
+          // Add current request to Redis
+          await redisClient.zAdd(rateLimitKey, {
+            score: now,
+            value: now.toString(),
+          });
+
+          // Set expiry for the key (windowMs + 1 hour buffer)
+          await redisClient.expire(
+            rateLimitKey,
+            Math.ceil((windowMs + 60 * 60 * 1000) / 1000)
+          );
+
+          // Clean old entries outside the window
+          await redisClient.zRemRangeByScore(
+            rateLimitKey,
+            '-inf',
+            windowStart - 1
+          );
+
+          // Set rate limit headers
+          res.setHeader('X-RateLimit-Limit', maxRequests);
+          res.setHeader(
+            'X-RateLimit-Remaining',
+            Math.max(0, maxRequests - validRequestCount - 1)
+          );
+          res.setHeader(
+            'X-RateLimit-Reset',
+            new Date(now + windowMs).toISOString()
+          );
+          res.setHeader('X-RateLimit-Used', validRequestCount + 1);
+
+          // ✅ DEBUG: Log enterprise rate limit info
+          safeLogger.debug('Enterprise rate limit check (Redis)', {
+            correlationId: req.correlationId,
+            ip,
+            path: req.path,
+            current: validRequestCount + 1,
+            limit: maxRequests,
+            remaining: Math.max(0, maxRequests - validRequestCount - 1),
+            redisKey: rateLimitKey,
+          });
+        } catch (redisError) {
+          safeLogger.error('Redis enterprise rate limiting error', {
+            error: redisError.message,
+            correlationId: req.correlationId,
+            ip,
+            path: req.path,
+          });
+
+          // Fallback to in-memory rate limiting if Redis fails
+          safeLogger.warn(
+            'Falling back to in-memory enterprise rate limiting due to Redis error'
+          );
+        }
+      }
+
+      // ✅ Fallback: In-memory rate limiting if Redis not available
+      if (!redisClient || !redisClient.isReady) {
+        // Clean old requests
+        if (requests.has(ip)) {
+          requests.set(
+            ip,
+            requests.get(ip).filter(time => time > windowStart)
+          );
+        }
+
+        const currentRequests = requests.get(ip) || [];
+
+        if (currentRequests.length >= maxRequests) {
+          safeLogger.warn('Enterprise rate limit exceeded (in-memory)', {
+            correlationId: req.correlationId,
+            ip,
+            path: req.path,
+            requestCount: currentRequests.length,
+            limit: maxRequests,
+            windowMs,
+          });
+
+          // Set rate limit headers
+          res.setHeader('X-RateLimit-Limit', maxRequests);
+          res.setHeader('X-RateLimit-Remaining', 0);
+          res.setHeader(
+            'X-RateLimit-Reset',
+            new Date(now + windowMs).toISOString()
+          );
+          res.setHeader('X-RateLimit-Used', currentRequests.length);
+
+          return res.status(429).json({
+            error: 'Rate limit exceeded',
+            message: 'Too many requests from this IP (Global limit)',
+            retryAfter: Math.ceil(windowMs / 1000),
+            correlationId: req.correlationId,
+            limit: maxRequests,
+            remaining: 0,
+            resetTime: new Date(now + windowMs).toISOString(),
+          });
+        }
+
+        currentRequests.push(now);
+        requests.set(ip, currentRequests);
+
+        // Set rate limit headers
+        res.setHeader('X-RateLimit-Limit', maxRequests);
+        res.setHeader(
+          'X-RateLimit-Remaining',
+          Math.max(0, maxRequests - currentRequests.length)
+        );
+        res.setHeader(
+          'X-RateLimit-Reset',
+          new Date(now + windowMs).toISOString()
+        );
+        res.setHeader('X-RateLimit-Used', currentRequests.length);
+      }
+
+      next();
+    } catch (error) {
+      safeLogger.error('Enterprise rate limiting error', {
+        error: error.message,
         correlationId: req.correlationId,
         ip,
         path: req.path,
       });
-
-      return res.status(429).json({
-        error: 'Rate limit exceeded',
-        message: 'Too many requests from this IP',
-        retryAfter: '15 minutes',
-        correlationId: req.correlationId,
-      });
+      // Continue without rate limiting if there's an error
+      next();
     }
-
-    currentRequests.push(now);
-    requests.set(ip, currentRequests);
-
-    next();
   };
 };
 
@@ -163,14 +315,94 @@ export const enterpriseErrorHandler = (error, req, res, next) => {
   const correlationId = req.correlationId;
 
   safeLogger.error('Error occurred', {
-    correlationId,
-    error: error.message,
-    stack: error.stack,
-    url: req.url,
-    method: req.method,
-    userId: req.user?.id || 'anonymous',
+    metadata: {
+      correlationId,
+      error: error.message,
+      stack: error.stack,
+      url: req.url,
+      method: req.method,
+      userId: req.user?.id || 'anonymous',
+    },
   });
 
+  // ✅ Handle Sequelize Validation Errors (User-friendly messages)
+  if (error.name === 'SequelizeValidationError') {
+    const validationErrors = error.errors.map(err => ({
+      field: err.path,
+      message: err.message,
+      value: err.value,
+    }));
+
+    const errorResponse = {
+      error: 'Validation Error',
+      message: 'Please check your input data',
+      details: validationErrors,
+      correlationId,
+      timestamp: new Date().toISOString(),
+      requestId: req.headers['x-request-id'] || req.correlationId,
+      path: req.originalUrl,
+      method: req.method,
+      statusCode: 400,
+    };
+
+    return res.status(400).json(errorResponse);
+  }
+
+  // ✅ Handle Sequelize Unique Constraint Errors
+  if (error.name === 'SequelizeUniqueConstraintError') {
+    const field = error.errors[0]?.path || 'field';
+    const value = error.errors[0]?.value || 'value';
+
+    const errorResponse = {
+      error: 'Duplicate Entry',
+      message: `${field} already exists with value: ${value}`,
+      correlationId,
+      timestamp: new Date().toISOString(),
+      requestId: req.headers['x-request-id'] || req.correlationId,
+      path: req.originalUrl,
+      method: req.method,
+      statusCode: 409,
+    };
+
+    return res.status(409).json(errorResponse);
+  }
+
+  // ✅ Handle Sequelize Foreign Key Errors
+  if (error.name === 'SequelizeForeignKeyConstraintError') {
+    const errorResponse = {
+      error: 'Reference Error',
+      message: 'Referenced record does not exist',
+      correlationId,
+      timestamp: new Date().toISOString(),
+      requestId: req.headers['x-request-id'] || req.correlationId,
+      path: req.originalUrl,
+      method: req.method,
+      statusCode: 400,
+    };
+
+    return res.status(400).json(errorResponse);
+  }
+
+  // ✅ Handle Database Connection Errors
+  if (
+    error.name === 'SequelizeConnectionError' ||
+    error.name === 'SequelizeConnectionTimedOutError'
+  ) {
+    const errorResponse = {
+      error: 'Database Connection Error',
+      message: 'Unable to connect to database. Please try again later.',
+      correlationId,
+      timestamp: new Date().toISOString(),
+      requestId: req.headers['x-request-id'] || req.correlationId,
+      path: req.originalUrl,
+      method: req.method,
+      statusCode: 503,
+    };
+
+    return res.status(503).json(errorResponse);
+  }
+
+  // ✅ Handle API Errors (Custom errors)
   if (error instanceof ApiError) {
     const apiErrorResponse = {
       error: error.name,
@@ -196,15 +428,19 @@ export const enterpriseErrorHandler = (error, req, res, next) => {
     return res.status(error.statusCode).json(apiErrorResponse);
   }
 
-  // Default error - enhanced industry standard response
+  // ✅ Default error - enhanced industry standard response
   const errorResponse = {
     error: 'Internal Server Error',
-    message: 'Something went wrong',
+    message:
+      process.env.NODE_ENV === 'production'
+        ? 'Something went wrong. Please try again later.'
+        : error.message,
     correlationId,
     timestamp: new Date().toISOString(),
     requestId: req.headers['x-request-id'] || req.correlationId,
     path: req.originalUrl,
     method: req.method,
+    statusCode: 500,
   };
 
   // Add stack trace and details in development mode

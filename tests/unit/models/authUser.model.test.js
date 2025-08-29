@@ -18,7 +18,7 @@ describe('AuthUser Model Unit Tests', () => {
         email: 'test@example.com',
         password: 'password123',
         type: 'customer',
-        role: 'requirement_coordinator',
+        role: 'manager',
       };
 
       bcrypt.genSalt.mockResolvedValue('salt123');

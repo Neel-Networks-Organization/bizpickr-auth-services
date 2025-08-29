@@ -5,13 +5,17 @@ import { ApiError } from '../utils/ApiError.js';
 import { safeLogger } from '../config/logger.js';
 import { logAuditEvent } from './audit.service.js';
 import { User, PasswordReset } from '../models/index.model.js';
+import { env } from '../config/env.js';
 
 class PasswordService {
   constructor() {
-    this.otpExpiry = 60 * 60 * 1000; // 1 hour
-    this.saltRounds = 10;
-    this.maxAttempts = 5;
-    this.resendCooldown = 60 * 1000; // optional: 1 min cooldown for resend
+    const config = env.services.password;
+    this.otpExpiry = config.otpExpiry;
+    this.saltRounds = config.saltRounds;
+    this.maxAttempts = config.maxAttempts;
+    this.resendCooldown = config.resendCooldown;
+
+    safeLogger.info('PasswordService initialized with config', { config });
   }
 
   async changePassword(userId, currentPassword, newPassword) {
@@ -135,7 +139,7 @@ class PasswordService {
     });
     const recent = await PasswordReset.findAll({
       order: [['createdAt', 'DESC']],
-      limit: 5,
+      limit: this.recentLimit,
     });
 
     return { total, used, pending, recent };

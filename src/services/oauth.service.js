@@ -8,10 +8,10 @@
  */
 import axios from 'axios';
 import { safeLogger } from '../config/logger.js';
-import { env } from '../config/env.js';
 import { User } from '../models/index.model.js';
 import { logAuditEvent } from './audit.service.js';
 import sessionService from './session.service.js';
+import { env } from '../config/env.js';
 
 class OAuthService {
   constructor() {
@@ -26,12 +26,13 @@ class OAuthService {
    */
   async exchangeGoogleCode(code) {
     try {
+      const oauthConfig = env.services.oauth;
       const response = await axios.post(this.googleTokenUrl, {
-        client_id: env.GOOGLE_CLIENT_ID,
-        client_secret: env.GOOGLE_CLIENT_SECRET,
+        client_id: oauthConfig.google.clientId,
+        client_secret: oauthConfig.google.clientSecret,
         code,
         grant_type: 'authorization_code',
-        redirect_uri: env.GOOGLE_REDIRECT_URI,
+        redirect_uri: oauthConfig.google.redirectUri,
       });
 
       return {
@@ -210,7 +211,7 @@ class OAuthService {
         tokens: {
           accessToken,
           refreshToken,
-          expiresIn: env.JWT_EXPIRES_IN,
+          expiresIn: env.jwt.expiresIn,
         },
         session: {
           sessionId: session.sessionId,
@@ -236,11 +237,11 @@ class OAuthService {
         email: user.email,
         role: user.role,
       },
-      env.JWT_SECRET,
+      env.jwt.secret,
       {
-        expiresIn: env.JWT_EXPIRES_IN,
-        issuer: 'auth-service',
-        audience: 'api-gateway',
+        expiresIn: env.jwt.expiresIn,
+        issuer: env.jwt.issuer,
+        audience: env.jwt.audience,
       }
     );
   }
@@ -257,11 +258,11 @@ class OAuthService {
         userId: user.id,
         type: 'refresh',
       },
-      env.REFRESH_TOKEN_SECRET,
+      env.jwt.refreshSecret,
       {
-        expiresIn: 7 * 24 * 60 * 60, // 7 days
-        issuer: 'auth-service',
-        audience: 'auth-service',
+        expiresIn: env.jwt.refreshTTL,
+        issuer: env.jwt.issuer,
+        audience: env.jwt.audience,
       }
     );
   }
