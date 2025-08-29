@@ -13,7 +13,7 @@ import {
   enterpriseErrorHandler,
   enterpriseCorsMiddleware,
 } from './middlewares/enterprise.middleware.js';
-import { getGlobalRateLimitConfig } from './config/rateLimit.config.js';
+import { env } from './config/env.js';
 
 const app = express();
 
@@ -36,8 +36,8 @@ app.use(enterpriseLoggingMiddleware);
 // ✅ Use centralized rate limit configuration
 app.use(
   enterpriseRateLimit(
-    getGlobalRateLimitConfig().maxRequests,
-    getGlobalRateLimitConfig().windowMs
+    env.services.rateLimit.defaultLimit,
+    env.services.rateLimit.defaultWindow
   )
 );
 app.use(enterpriseSecurityMiddleware);

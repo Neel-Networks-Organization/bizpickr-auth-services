@@ -24,7 +24,7 @@ import ipRateLimit from '../middlewares/rateLimiter.middleware.js';
 import { validateRequest } from '../middlewares/validation.middleware.js';
 import { authSchemas } from '../validators/index.js';
 import { asyncHandler } from '../utils/index.js';
-import { rateLimitConfig } from '../config/rateLimit.config.js';
+import { env } from '../config/env.js';
 
 const router = Router();
 
@@ -32,7 +32,7 @@ const router = Router();
 router
   .route('/signup')
   .post(
-    ipRateLimit(rateLimitConfig.routes.auth.signup),
+    ipRateLimit(env.services.rateLimit.routes.auth.signup),
     validateRequest(authSchemas.signup),
     asyncHandler(signupUser)
   );
@@ -40,7 +40,7 @@ router
 router
   .route('/login')
   .post(
-    ipRateLimit(rateLimitConfig.routes.auth.login),
+    ipRateLimit(env.services.rateLimit.routes.auth.login),
     validateRequest(authSchemas.login),
     asyncHandler(loginUser)
   );
@@ -48,7 +48,7 @@ router
 router
   .route('/logout')
   .post(
-    ipRateLimit(rateLimitConfig.routes.auth.logout),
+    ipRateLimit(env.services.rateLimit.routes.auth.logout),
     verifyJWT,
     asyncHandler(logoutUser)
   );
@@ -56,7 +56,7 @@ router
 router
   .route('/refresh-token')
   .post(
-    ipRateLimit(rateLimitConfig.routes.auth.refreshToken),
+    ipRateLimit(env.services.rateLimit.routes.auth.refreshToken),
     validateRequest(authSchemas.refreshToken),
     asyncHandler(refreshAccessToken)
   );
@@ -69,7 +69,7 @@ router
   .route('/2fa/enable')
   .post(
     verifyJWT,
-    ipRateLimit(rateLimitConfig.routes.auth.twoFactor.enable),
+    ipRateLimit(env.services.rateLimit.routes.auth.twoFactor.enable),
     validateRequest(authSchemas.enableTwoFactor),
     asyncHandler(enableTwoFactor)
   );
@@ -78,14 +78,14 @@ router
   .route('/2fa/disable')
   .post(
     verifyJWT,
-    ipRateLimit(rateLimitConfig.routes.auth.twoFactor.disable),
+    ipRateLimit(env.services.rateLimit.routes.auth.twoFactor.disable),
     asyncHandler(disableTwoFactor)
   );
 
 router
   .route('/2fa/verify')
   .post(
-    ipRateLimit(rateLimitConfig.routes.auth.twoFactor.verify),
+    ipRateLimit(env.services.rateLimit.routes.auth.twoFactor.verify),
     validateRequest(authSchemas.verifyTwoFactor),
     asyncHandler(verifyTwoFactor)
   );
@@ -94,14 +94,14 @@ router
 router
   .route('/google')
   .get(
-    ipRateLimit(rateLimitConfig.routes.auth.oauth.google),
+    ipRateLimit(env.services.rateLimit.routes.auth.oauth.google),
     asyncHandler(loginWithGoogle)
   );
 
 router
   .route('/google/callback')
   .get(
-    ipRateLimit(rateLimitConfig.routes.auth.oauth.googleCallback),
+    ipRateLimit(env.services.rateLimit.routes.auth.oauth.googleCallback),
     asyncHandler(googleCallback)
   );
 
@@ -115,7 +115,7 @@ router
   .post(
     verifyJWT,
     requireRole('admin', 'super_admin'),
-    ipRateLimit(rateLimitConfig.routes.auth.admin.unlock),
+    ipRateLimit(env.services.rateLimit.routes.auth.admin.unlock),
     validateRequest(authSchemas.unlockAccount),
     asyncHandler(unlockAccount)
   );
@@ -126,7 +126,7 @@ router
   .get(
     verifyJWT,
     requireRole('admin', 'super_admin'),
-    ipRateLimit(rateLimitConfig.routes.auth.admin.status),
+    ipRateLimit(env.services.rateLimit.routes.auth.admin.status),
     asyncHandler(getAccountStatus)
   );
 
@@ -136,7 +136,7 @@ router
   .post(
     verifyJWT,
     requireRole('admin', 'super_admin'),
-    ipRateLimit(rateLimitConfig.routes.auth.admin.suspend),
+    ipRateLimit(env.services.rateLimit.routes.auth.admin.suspend),
     validateRequest(authSchemas.suspendAccount),
     asyncHandler(suspendAccount)
   );
@@ -147,7 +147,7 @@ router
   .post(
     verifyJWT,
     requireRole('admin', 'super_admin'),
-    ipRateLimit(rateLimitConfig.routes.auth.admin.activate),
+    ipRateLimit(env.services.rateLimit.routes.auth.admin.activate),
     validateRequest(authSchemas.activateAccount),
     asyncHandler(activateAccount)
   );
@@ -158,7 +158,7 @@ router
   .get(
     verifyJWT,
     requireRole('admin', 'super_admin'),
-    ipRateLimit(rateLimitConfig.routes.auth.admin.lockedAccounts),
+    ipRateLimit(env.services.rateLimit.routes.auth.admin.lockedAccounts),
     asyncHandler(getLockedAccounts)
   );
 
@@ -168,7 +168,7 @@ router
   .post(
     verifyJWT,
     requireRole('admin', 'super_admin'),
-    ipRateLimit(rateLimitConfig.routes.auth.admin.clearCache),
+    ipRateLimit(env.services.rateLimit.routes.auth.admin.clearCache),
     validateRequest(authSchemas.clearUserCache),
     asyncHandler(clearUserCache)
   );
@@ -181,7 +181,7 @@ router
 router
   .route('/dev/activate-account')
   .post(
-    ipRateLimit(rateLimitConfig.routes.auth.dev.activateAccount),
+    ipRateLimit(env.services.rateLimit.routes.auth.dev.activateAccount),
     asyncHandler(activatePendingAccount)
   );
 

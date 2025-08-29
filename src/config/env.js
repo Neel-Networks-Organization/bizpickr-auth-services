@@ -174,11 +174,14 @@ const coreConfig = {
 
     // Rate Limit Service Configuration
     rateLimit: {
+      // Global defaults
       defaultWindow:
         parseInt(process.env.RATE_LIMIT_DEFAULT_WINDOW_MINUTES || '15') *
         60 *
         1000,
       defaultLimit: parseInt(process.env.RATE_LIMIT_DEFAULT_LIMIT || '100'),
+
+      // Redis configuration
       redisDb: parseInt(process.env.REDIS_RATE_LIMIT_DB || '1'),
       redisPrefix: process.env.REDIS_RATE_LIMIT_PREFIX || 'rate_limit:',
       redisTTLBuffer: parseInt(process.env.REDIS_RATE_LIMIT_TTL_BUFFER || '60'),
@@ -190,6 +193,150 @@ const coreConfig = {
       enterpriseTTLBuffer: parseInt(
         process.env.ENTERPRISE_RATE_LIMIT_TTL_BUFFER || '60'
       ),
+
+      // Route-specific rate limits
+      routes: {
+        auth: {
+          signup: {
+            windowMs:
+              parseInt(process.env.AUTH_SIGNUP_WINDOW) || 15 * 60 * 1000,
+            maxRequests: parseInt(process.env.AUTH_SIGNUP_LIMIT) || 5,
+          },
+          login: {
+            windowMs: parseInt(process.env.AUTH_LOGIN_WINDOW) || 15 * 60 * 1000,
+            maxRequests: parseInt(process.env.AUTH_LOGIN_LIMIT) || 10,
+          },
+          refreshToken: {
+            windowMs: parseInt(process.env.AUTH_REFRESH_WINDOW) || 60 * 1000,
+            maxRequests: parseInt(process.env.AUTH_REFRESH_LIMIT) || 20,
+          },
+          logout: {
+            windowMs: parseInt(process.env.AUTH_LOGOUT_WINDOW) || 60 * 1000,
+            maxRequests: parseInt(process.env.AUTH_LOGOUT_LIMIT) || 50,
+          },
+          twoFactor: {
+            enable: {
+              windowMs:
+                parseInt(process.env.AUTH_2FA_ENABLE_WINDOW) || 15 * 60 * 1000,
+              maxRequests: parseInt(process.env.AUTH_2FA_ENABLE_LIMIT) || 5,
+            },
+            disable: {
+              windowMs:
+                parseInt(process.env.AUTH_2FA_DISABLE_WINDOW) || 15 * 60 * 1000,
+              maxRequests: parseInt(process.env.AUTH_2FA_DISABLE_LIMIT) || 5,
+            },
+            verify: {
+              windowMs:
+                parseInt(process.env.AUTH_2FA_VERIFY_WINDOW) || 5 * 60 * 1000,
+              maxRequests: parseInt(process.env.AUTH_2FA_VERIFY_LIMIT) || 10,
+            },
+          },
+          oauth: {
+            google: {
+              windowMs:
+                parseInt(process.env.AUTH_GOOGLE_WINDOW) || 15 * 60 * 1000,
+              maxRequests: parseInt(process.env.AUTH_GOOGLE_LIMIT) || 10,
+            },
+            googleCallback: {
+              windowMs:
+                parseInt(process.env.AUTH_GOOGLE_CALLBACK_WINDOW) ||
+                15 * 60 * 1000,
+              maxRequests:
+                parseInt(process.env.AUTH_GOOGLE_CALLBACK_LIMIT) || 10,
+            },
+          },
+          admin: {
+            unlock: {
+              windowMs:
+                parseInt(process.env.AUTH_ADMIN_UNLOCK_WINDOW) ||
+                15 * 60 * 1000,
+              maxRequests: parseInt(process.env.AUTH_ADMIN_UNLOCK_LIMIT) || 20,
+            },
+            status: {
+              windowMs:
+                parseInt(process.env.AUTH_ADMIN_STATUS_WINDOW) ||
+                15 * 60 * 1000,
+              maxRequests: parseInt(process.env.AUTH_ADMIN_STATUS_LIMIT) || 30,
+            },
+            suspend: {
+              windowMs:
+                parseInt(process.env.AUTH_ADMIN_SUSPEND_WINDOW) ||
+                15 * 60 * 1000,
+              maxRequests: parseInt(process.env.AUTH_ADMIN_SUSPEND_LIMIT) || 20,
+            },
+            activate: {
+              windowMs:
+                parseInt(process.env.AUTH_ADMIN_ACTIVATE_WINDOW) ||
+                15 * 60 * 1000,
+              maxRequests:
+                parseInt(process.env.AUTH_ADMIN_ACTIVATE_LIMIT) || 20,
+            },
+            lockedAccounts: {
+              windowMs:
+                parseInt(process.env.AUTH_ADMIN_LOCKED_WINDOW) ||
+                15 * 60 * 1000,
+              maxRequests: parseInt(process.env.AUTH_ADMIN_LOCKED_LIMIT) || 30,
+            },
+            clearCache: {
+              windowMs:
+                parseInt(process.env.AUTH_ADMIN_CACHE_WINDOW) || 15 * 60 * 1000,
+              maxRequests: parseInt(process.env.AUTH_ADMIN_CACHE_LIMIT) || 20,
+            },
+          },
+          dev: {
+            activateAccount: {
+              windowMs:
+                parseInt(process.env.AUTH_DEV_ACTIVATE_WINDOW) ||
+                15 * 60 * 1000,
+              maxRequests: parseInt(process.env.AUTH_DEV_ACTIVATE_LIMIT) || 10,
+            },
+          },
+        },
+        password: {
+          change: {
+            windowMs: parseInt(process.env.PASSWORD_CHANGE_WINDOW) || 60 * 1000,
+            maxRequests: parseInt(process.env.PASSWORD_CHANGE_LIMIT) || 10,
+          },
+          forgot: {
+            windowMs:
+              parseInt(process.env.PASSWORD_FORGOT_WINDOW) || 15 * 60 * 1000,
+            maxRequests: parseInt(process.env.PASSWORD_FORGOT_LIMIT) || 3,
+          },
+          reset: {
+            windowMs:
+              parseInt(process.env.PASSWORD_RESET_WINDOW) || 15 * 60 * 1000,
+            maxRequests: parseInt(process.env.PASSWORD_RESET_LIMIT) || 3,
+          },
+        },
+        jwk: {
+          jwks: {
+            windowMs: parseInt(process.env.JWK_JWKS_WINDOW) || 60 * 1000,
+            maxRequests: parseInt(process.env.JWK_JWKS_LIMIT) || 100,
+          },
+          rotate: {
+            windowMs: parseInt(process.env.JWK_ROTATE_WINDOW) || 60 * 60 * 1000,
+            maxRequests: parseInt(process.env.JWK_ROTATE_LIMIT) || 10,
+          },
+        },
+        email: {
+          verify: {
+            windowMs:
+              parseInt(process.env.EMAIL_VERIFY_WINDOW) || 15 * 60 * 1000,
+            maxRequests: parseInt(process.env.EMAIL_VERIFY_LIMIT) || 3,
+          },
+          resend: {
+            windowMs:
+              parseInt(process.env.EMAIL_RESEND_WINDOW) || 15 * 60 * 1000,
+            maxRequests: parseInt(process.env.EMAIL_RESEND_LIMIT) || 3,
+          },
+        },
+        session: {
+          refresh: {
+            windowMs: parseInt(process.env.SESSION_REFRESH_WINDOW) || 60 * 1000,
+            maxRequests: parseInt(process.env.SESSION_REFRESH_LIMIT) || 30,
+          },
+        },
+      },
     },
 
     // Auth Service Configuration
@@ -269,4 +416,26 @@ export const validateServiceConfigs = () => {
   }
 
   return errors;
+};
+
+// ✅ Rate limit specific helper functions
+export const getRateLimitConfig = (category, route) => {
+  if (
+    coreConfig.services.rateLimit.routes[category] &&
+    coreConfig.services.rateLimit.routes[category][route]
+  ) {
+    return coreConfig.services.rateLimit.routes[category][route];
+  }
+  // Return defaults if not found
+  return {
+    windowMs: coreConfig.services.rateLimit.defaultWindow,
+    maxRequests: coreConfig.services.rateLimit.defaultLimit,
+  };
+};
+
+export const getGlobalRateLimitConfig = () => {
+  return {
+    maxRequests: coreConfig.services.rateLimit.defaultLimit,
+    windowMs: coreConfig.services.rateLimit.defaultWindow,
+  };
 };

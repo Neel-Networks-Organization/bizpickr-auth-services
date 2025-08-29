@@ -11,6 +11,7 @@ import ipRateLimit from '../middlewares/rateLimiter.middleware.js';
 import { jwkSchemas } from '../validators/index.js';
 import validateRequest from '../middlewares/validation.middleware.js';
 import { asyncHandler } from '../utils/index.js';
+import { env } from '../config/env.js';
 
 const router = Router();
 
@@ -18,14 +19,14 @@ const router = Router();
 router
   .route('/.well-known/jwks.json')
   .get(
-    ipRateLimit({ windowMs: 60 * 1000, maxRequests: 100 }),
+    ipRateLimit(env.services.rateLimit.routes.jwk.jwks),
     asyncHandler(getJWKs)
   );
 
 router
   .route('/keys/:kid')
   .get(
-    ipRateLimit({ windowMs: 60 * 1000, maxRequests: 50 }),
+    ipRateLimit(env.services.rateLimit.routes.jwk.jwks),
     validateRequest(jwkSchemas.getJWKByKid),
     asyncHandler(getJWKByKid)
   );
@@ -34,14 +35,14 @@ router
 router
   .route('/refresh')
   .post(
-    ipRateLimit({ windowMs: 60 * 60 * 1000, maxRequests: 10 }),
+    ipRateLimit(env.services.rateLimit.routes.jwk.rotate),
     asyncHandler(rotateJWKs)
   );
 
 router
   .route('/validate')
   .post(
-    ipRateLimit({ windowMs: 60 * 1000, maxRequests: 30 }),
+    ipRateLimit(env.services.rateLimit.routes.jwk.jwks),
     asyncHandler(validateAndRotateKeys)
   );
 
@@ -49,7 +50,7 @@ router
 router
   .route('/stats')
   .get(
-    ipRateLimit({ windowMs: 60 * 1000, maxRequests: 20 }),
+    ipRateLimit(env.services.rateLimit.routes.jwk.jwks),
     asyncHandler(getJWKStats)
   );
 
@@ -57,7 +58,7 @@ router
 router
   .route('/health')
   .get(
-    ipRateLimit({ windowMs: 60 * 1000, maxRequests: 20 }),
+    ipRateLimit(env.services.rateLimit.routes.jwk.jwks),
     asyncHandler(getHealthStatus)
   );
 

@@ -3,6 +3,7 @@ import swaggerJsdoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
 import ipRateLimit from '../middlewares/rateLimiter.middleware.js';
 import { asyncHandler } from '../utils/index.js';
+import { env } from '../config/env.js';
 
 const router = express.Router();
 
@@ -53,7 +54,10 @@ const swaggerSpec = swaggerJsdoc(swaggerOptions);
 router.use('/', swaggerUi.serve);
 router.get(
   '/',
-  ipRateLimit({ windowMs: 15 * 60 * 1000, maxRequests: 100 }),
+  ipRateLimit({
+    windowMs: env.services.rateLimit.defaultWindow,
+    maxRequests: env.services.rateLimit.defaultLimit,
+  }),
   swaggerUi.setup(swaggerSpec, {
     customCss: '.swagger-ui .topbar { display: none }',
     customSiteTitle: 'AuthService API Documentation',
@@ -63,7 +67,10 @@ router.get(
 // Serve OpenAPI spec with rate limiting
 router.get(
   '/swagger.json',
-  ipRateLimit({ windowMs: 15 * 60 * 1000, maxRequests: 50 }),
+  ipRateLimit({
+    windowMs: env.services.rateLimit.defaultWindow,
+    maxRequests: Math.floor(env.services.rateLimit.defaultLimit / 2),
+  }),
   asyncHandler((req, res) => {
     res.setHeader('Content-Type', 'application/json');
     res.send(swaggerSpec);

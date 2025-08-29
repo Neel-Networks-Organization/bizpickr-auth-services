@@ -10,6 +10,7 @@ import {
 import { verifyJWT, requireRole } from '../middlewares/auth.middleware.js';
 import ipRateLimit from '../middlewares/rateLimiter.middleware.js';
 import { asyncHandler } from '../utils/index.js';
+import { env } from '../config/env.js';
 
 const router = Router();
 
@@ -28,7 +29,7 @@ router.route('/stats').get(verifyJWT, asyncHandler(getSessionStats));
 router
   .route('/validate')
   .post(
-    ipRateLimit({ windowMs: 60 * 1000, maxRequests: 30 }),
+    ipRateLimit(env.services.rateLimit.routes.session.refresh),
     asyncHandler(validateSession)
   );
 

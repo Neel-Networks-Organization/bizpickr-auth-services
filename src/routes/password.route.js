@@ -12,6 +12,7 @@ import ipRateLimit from '../middlewares/rateLimiter.middleware.js';
 import { validateRequest } from '../middlewares/validation.middleware.js';
 import { asyncHandler } from '../utils/index.js';
 import { passwordSchemas } from '../validators/index.js';
+import { env } from '../config/env.js';
 
 const router = Router();
 
@@ -28,7 +29,7 @@ router
 router
   .route('/forgot')
   .post(
-    ipRateLimit({ windowMs: 15 * 60 * 1000, maxRequests: 3 }),
+    ipRateLimit(env.services.rateLimit.routes.password.forgot),
     validateRequest(passwordSchemas.forgotPassword),
     asyncHandler(forgotPassword)
   );
@@ -36,7 +37,7 @@ router
 router
   .route('/reset')
   .post(
-    ipRateLimit({ windowMs: 15 * 60 * 1000, maxRequests: 3 }),
+    ipRateLimit(env.services.rateLimit.routes.password.reset),
     validateRequest(passwordSchemas.resetPassword),
     asyncHandler(resetPassword)
   );

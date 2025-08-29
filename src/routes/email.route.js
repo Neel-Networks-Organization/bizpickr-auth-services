@@ -10,6 +10,7 @@ import { asyncHandler } from '../utils/index.js';
 import { emailSchemas } from '../validators/index.js';
 import ipRateLimit from '../middlewares/rateLimiter.middleware.js';
 import { requireRole } from '../middlewares/auth.middleware.js';
+import { env } from '../config/env.js';
 
 const router = Router();
 
@@ -17,7 +18,7 @@ const router = Router();
 router
   .route('/send-verification-email')
   .post(
-    ipRateLimit({ windowMs: 15 * 60 * 1000, maxRequests: 3 }),
+    ipRateLimit(env.services.rateLimit.routes.email.verify),
     validateRequest(emailSchemas.sendVerificationEmail),
     asyncHandler(sendVerificationEmail)
   );
@@ -25,7 +26,7 @@ router
 router
   .route('/verify-email')
   .post(
-    ipRateLimit({ windowMs: 15 * 60 * 1000, maxRequests: 3 }),
+    ipRateLimit(env.services.rateLimit.routes.email.verify),
     validateRequest(emailSchemas.verifyEmail),
     asyncHandler(verifyEmail)
   );
