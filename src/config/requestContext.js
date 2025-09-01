@@ -118,36 +118,13 @@ const clearContext = () => {
   asyncLocalStorage.disable();
 };
 
-// ✅ Middleware to set up request context
-export const correlationIdMiddleware = (req, res, next) => {
-  // Skip context for documentation and health checks only
-  if (
-    req.path.startsWith('/api-docs') ||
-    req.path === '/health' ||
-    req.path === '/favicon.ico'
-  ) {
-    return next();
-  }
-
-  const context = createRequestContext(req);
-
-  // ✅ Set industry-standard tracing headers in response
-  res.setHeader('x-correlation-id', context.correlationId);
-  res.setHeader('x-request-id', context.requestId);
-  res.setHeader('x-trace-id', context.traceId);
-  res.setHeader('x-span-id', context.spanId);
-
-  // ✅ Add context to request for easy access
-  req.correlationId = context.correlationId;
-  req.requestId = context.requestId;
-  req.traceId = context.traceId;
-  req.spanId = context.spanId;
-
-  // ✅ Run request in async context
-  asyncLocalStorage.run(context, () => {
-    next();
-  });
-};
+// ✅ Note: correlationIdMiddleware moved to enterprise.middleware.js
+// This keeps middleware functions organized in the middleware directory
 
 // ✅ Export only industry-standard functions
-export { createRequestContext, setRequestContext, clearContext };
+export {
+  createRequestContext,
+  setRequestContext,
+  clearContext,
+  asyncLocalStorage,
+};

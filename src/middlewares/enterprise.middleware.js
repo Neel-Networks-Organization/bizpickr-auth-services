@@ -1,26 +1,49 @@
 import { safeLogger } from '../config/logger.js';
-import { getCorrelationId } from '../config/requestContext.js';
+import {
+  getCorrelationId,
+  createRequestContext,
+  asyncLocalStorage,
+} from '../config/requestContext.js';
 import { ApiError } from '../utils/index.js';
 import { v4 as uuidv4 } from 'uuid';
-import redisClient from '../db/redis.js';
+import { getRedisClient, isRedisConnected } from '../db/redis.js';
 
 /**
  * Enterprise-Grade Middlewares for SaaS Projects
  * Essential features without over-engineering
  */
 
-// ✅ Correlation ID Middleware (Essential for SaaS)
+// ✅ AsyncLocalStorage instance imported from requestContext.js
+
+// ✅ Correlation ID Middleware (Industry Standard with AsyncLocalStorage)
 export const correlationIdMiddleware = (req, res, next) => {
-  // Get correlation ID from header or generate new one
-  const correlationId =
-    req.headers['x-correlation-id'] || req.headers['x-request-id'] || uuidv4();
+  // Skip context for documentation and health checks only
+  if (
+    req.path.startsWith('/api-docs') ||
+    req.path === '/health' ||
+    req.path === '/favicon.ico'
+  ) {
+    return next();
+  }
 
-  // Set correlation ID in request and response
-  req.correlationId = correlationId;
-  res.setHeader('X-Correlation-ID', correlationId);
-  res.setHeader('X-Request-ID', correlationId);
+  const context = createRequestContext(req);
 
-  next();
+  // ✅ Set industry-standard tracing headers in response
+  res.setHeader('x-correlation-id', context.correlationId);
+  res.setHeader('x-request-id', context.requestId);
+  res.setHeader('x-trace-id', context.traceId);
+  res.setHeader('x-span-id', context.spanId);
+
+  // ✅ Add context to request for easy access
+  req.correlationId = context.correlationId;
+  req.requestId = context.requestId;
+  req.traceId = context.traceId;
+  req.spanId = context.spanId;
+
+  // ✅ Run request in async context (AsyncLocalStorage)
+  asyncLocalStorage.run(context, () => {
+    next();
+  });
 };
 
 // ✅ Enterprise Logging Middleware
@@ -75,7 +98,8 @@ export const enterpriseRateLimit = (
 
     try {
       // ✅ Redis-based rate limiting (primary)
-      if (redisClient && redisClient.isReady) {
+      const redisClient = getRedisClient();
+      if (redisClient && isRedisConnected()) {
         try {
           // Get current requests from Redis
           const currentRequests = await redisClient.zRangeByScore(
@@ -173,7 +197,7 @@ export const enterpriseRateLimit = (
       }
 
       // ✅ Fallback: In-memory rate limiting if Redis not available
-      if (!redisClient || !redisClient.isReady) {
+      if (!redisClient || !isRedisConnected()) {
         // Clean old requests
         if (requests.has(ip)) {
           requests.set(
