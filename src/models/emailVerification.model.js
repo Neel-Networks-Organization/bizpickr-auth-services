@@ -28,49 +28,6 @@ class EmailVerification extends Model {
     }
   }
 
-  static async findByOtp(otp) {
-    try {
-      return await this.findOne({
-        where: { otp },
-        include: [
-          {
-            model: sequelize.models.AuthUser,
-            as: 'user',
-            attributes: ['id', 'email', 'type', 'role'],
-          },
-        ],
-      });
-    } catch (error) {
-      safeLogger.error('Failed to find verification by otp', {
-        otp: otp ? `${otp.substring(0, 8)}...` : null,
-        error: error.message,
-        correlationId: getCorrelationId(),
-      });
-      throw error;
-    }
-  }
-
-  static async findByOtpHash(otpHash) {
-    try {
-      return await this.findOne({
-        where: { otpHash },
-        include: [
-          {
-            model: sequelize.models.AuthUser,
-            as: 'user',
-            attributes: ['id', 'email', 'type', 'role'],
-          },
-        ],
-      });
-    } catch (error) {
-      safeLogger.error('Failed to find verification by otp hash', {
-        error: error.message,
-        correlationId: getCorrelationId(),
-      });
-      throw error;
-    }
-  }
-
   static async findActiveVerifications(userId) {
     try {
       return await this.findAll({
@@ -88,60 +45,6 @@ class EmailVerification extends Model {
         userId,
         error: error.message,
         correlationId: getCorrelationId(),
-      });
-      throw error;
-    }
-  }
-
-  isExpired() {
-    return new Date() > this.expiresAt;
-  }
-
-  isMaxAttemptsReached() {
-    return this.attempts >= this.maxAttempts;
-  }
-
-  isVerified() {
-    return this.status === 'verified';
-  }
-
-  async incrementAttempts() {
-    try {
-      this.attempts += 1;
-      await this.save();
-    } catch (error) {
-      safeLogger.error('Failed to increment attempts', {
-        verificationId: this.id,
-        error: error.message,
-        correlationId: getCorrelationId(),
-      });
-      throw error;
-    }
-  }
-
-  async markAsVerified() {
-    try {
-      this.status = 'verified';
-      this.verifiedAt = new Date();
-      await this.save();
-    } catch (error) {
-      safeLogger.error('Failed to mark as verified', {
-        verificationId: this.id,
-        error: error.message,
-      });
-      throw error;
-    }
-  }
-
-  async markAsExpired() {
-    try {
-      this.status = 'expired';
-      this.expiredAt = new Date();
-      await this.save();
-    } catch (error) {
-      safeLogger.error('Failed to mark as expired', {
-        verificationId: this.id,
-        error: error.message,
       });
       throw error;
     }
@@ -165,7 +68,7 @@ EmailVerification.init(
     },
     userId: {
       type: DataTypes.UUID,
-      allowNull: false,
+      allowNull: true,
       field: 'user_id',
       references: {
         model: 'auth_users',
@@ -176,6 +79,8 @@ EmailVerification.init(
     email: {
       type: DataTypes.STRING(255),
       allowNull: false,
+      field: 'email',
+      unique: true,
       validate: {
         isEmail: {
           msg: 'Please provide a valid email address',
@@ -220,6 +125,12 @@ EmailVerification.init(
       field: 'verified_at',
       comment: 'When the email was verified',
     },
+    revokedUntil: {
+      type: DataTypes.DATE,
+      allowNull: true,
+      field: 'revoked_until',
+      comment: 'When the email was revoked',
+    },
     status: {
       type: DataTypes.ENUM('pending', 'verified', 'expired', 'revoked'),
       defaultValue: 'pending',
@@ -258,10 +169,6 @@ EmailVerification.init(
     timestamps: true,
     paranoid: true,
     indexes: [
-      {
-        name: 'idx_email_verification_user_id',
-        fields: ['user_id'],
-      },
       {
         name: 'idx_email_verification_email',
         fields: ['email'],

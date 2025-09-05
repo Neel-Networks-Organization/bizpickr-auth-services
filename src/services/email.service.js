@@ -9,6 +9,8 @@ class EmailService {
     const config = env.services.email;
     this.otpExpiry = config.otpExpiry;
     this.saltRounds = config.saltRounds;
+    this.revokedUntil = config.revokedUntil;
+    this.resendCooldown = config.resendCooldown;
 
     safeLogger.info('EmailService initialized with config', { config });
   }
@@ -18,21 +20,12 @@ class EmailService {
       throw new ApiError(400, 'Email is required');
     }
 
-    const existing = await EmailVerification.findByEmail(email);
-    if (existing) {
-      if (existing.isVerified()) {
-        throw new ApiError(400, 'Email already verified');
-      }
-      if (existing.isMaxAttemptsReached()) {
-        await existing.markAsExpired();
-        throw new ApiError(400, 'Too many attempts');
-      }
-      if (existing.isExpired()) {
-        await existing.markAsExpired();
-      }
-    }
-
     try {
+      const existing = await EmailVerification.findByEmail(email);
+      if (existing) {
+        await existing.destroy();
+      }
+
       const otp = crypto.randomInt(100000, 999999).toString();
       const otpHash = await bcrypt.hash(otp, this.saltRounds);
       const expiresAt = new Date(Date.now() + this.otpExpiry);
@@ -46,6 +39,7 @@ class EmailService {
       });
 
       // Send `otp` via email (not stored anywhere else)
+      console.log(`OTP for ${email}: ${otp}`);
 
       await logAuditEvent('EMAIL_VERIFICATION_SENT', {
         email,
@@ -66,48 +60,87 @@ class EmailService {
     }
   }
 
+  async resendVerificationEmail(email) {
+    if (!email) {
+      throw new ApiError(400, 'Email is required');
+    }
+
+    const existing = await EmailVerification.findByEmail(email);
+
+    if (!existing) {
+      throw new ApiError(404, 'No verification request found');
+    }
+
+    // ✅ Simple cooldown check
+    const timeSinceLastSent = Date.now() - existing.updatedAt.getTime();
+    if (timeSinceLastSent < this.resendCooldown) {
+      throw new ApiError(429, 'Please wait before resending');
+    }
+
+    if (this.isMaxAttemptsReached(existing)) {
+      await this.markAsRevoked(existing);
+      throw new ApiError(429, 'Maximum attempts reached');
+    }
+
+    const otp = crypto.randomInt(100000, 999999).toString();
+    const otpHash = await bcrypt.hash(otp, this.saltRounds);
+    const expiresAt = new Date(Date.now() + this.otpExpiry);
+
+    await existing.update({
+      otpHash,
+      expiresAt,
+      attempts: existing.attempts + 1,
+    });
+
+    console.log(`Resent OTP for ${email}: ${otp}`);
+
+    return {
+      expiresAt,
+      attemptsRemaining: existing.maxAttempts - existing.attempts,
+    };
+  }
+
   async verifyEmail(email, otp) {
     try {
       const verification = await EmailVerification.findByEmail(email);
+
       if (!verification) {
         throw new ApiError(400, 'No verification request found');
       }
 
-      if (verification.isExpired()) {
-        await verification.markAsExpired();
+      if (this.isExpired(verification)) {
+        await this.markAsExpired(verification);
         throw new ApiError(400, 'Verification code has expired');
       }
-
-      if (verification.isMaxAttemptsReached()) {
-        await verification.markAsExpired();
-        throw new ApiError(400, 'Too many attempts');
-      }
-
-      if (verification.isVerified()) {
-        throw new ApiError(400, 'Email already verified');
-      }
-
-      await verification.incrementAttempts();
 
       const isValid = await bcrypt.compare(otp, verification.otpHash);
       if (!isValid) {
         throw new ApiError(400, 'Invalid verification code');
       }
 
-      await verification.user.update({ emailVerified: true });
-      await verification.markAsVerified();
+      // ✅ Your simple solution
+      if (verification.user) {
+        const user = verification.user;
+        const isExistingCustomer =
+          user.role === 'customer' && user.emailVerified;
+
+        if (!isExistingCustomer) {
+          await user.update({
+            emailVerified: true,
+            emailVerifiedAt: new Date(),
+          });
+        }
+      }
+
+      await this.markAsVerified(verification);
+      await this.resetAttempts(verification);
 
       await logAuditEvent('EMAIL_VERIFICATION_VERIFIED', {
         userId: verification.userId,
-        email: verification.user.email,
+        email,
       });
 
-      safeLogger.info('Email verified', {
-        userId: verification.userId,
-        email: verification.user.email,
-      });
-
-      return true;
+      return verification;
     } catch (error) {
       safeLogger.error('Failed to verify email', {
         error: error.message,
@@ -117,6 +150,75 @@ class EmailService {
     }
   }
 
+  // -------------------------------------Helper functions-----------------------------------------------------------
+  isExpired(verification) {
+    return new Date() > verification.expiresAt;
+  }
+
+  isMaxAttemptsReached(verification) {
+    return verification.attempts >= verification.maxAttempts;
+  }
+
+  isVerified(verification) {
+    return verification.status === 'verified';
+  }
+
+  async markAsVerified(verification) {
+    try {
+      verification.status = 'verified';
+      verification.verifiedAt = new Date();
+      await verification.save();
+    } catch (error) {
+      safeLogger.error('Failed to mark as verified', {
+        verificationId: verification.id,
+        error: error.message,
+      });
+      throw error;
+    }
+  }
+
+  async markAsExpired(verification) {
+    try {
+      verification.status = 'expired';
+      verification.expiredAt = new Date();
+      await verification.save();
+    } catch (error) {
+      safeLogger.error('Failed to mark as expired', {
+        verificationId: verification.id,
+        error: error.message,
+      });
+      throw error;
+    }
+  }
+
+  async markAsRevoked(verification) {
+    try {
+      verification.status = 'revoked';
+      verification.revokedUntil = new Date(Date.now() + this.otpExpiry);
+      await verification.save();
+    } catch (error) {
+      safeLogger.error('Failed to mark as revoked', {
+        verificationId: verification.id,
+        error: error.message,
+      });
+      throw error;
+    }
+  }
+
+  async resetAttempts(verification) {
+    try {
+      verification.attempts = 0;
+      await verification.save();
+    } catch (error) {
+      safeLogger.error('Failed to reset attempts', {
+        verificationId: verification.id,
+        error: error.message,
+      });
+      throw error;
+    }
+  }
+
+  // -------------------------------------Admin level functions-----------------------------------------------------------
   async getVerificationStats() {
     const totalVerifications = await EmailVerification.count();
     const usedVerifications = await EmailVerification.count({

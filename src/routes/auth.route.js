@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import {
   signupUser,
+  customerRegistry,
   loginUser,
   logoutUser,
   refreshAccessToken,
@@ -35,6 +36,14 @@ router
     ipRateLimit(env.services.rateLimit.routes.auth.signup),
     validateRequest(authSchemas.signup),
     asyncHandler(signupUser)
+  );
+
+router
+  .route('/customer-registry')
+  .post(
+    ipRateLimit(env.services.rateLimit.routes.auth.customerRegistry),
+    validateRequest(authSchemas.customerRegistry),
+    asyncHandler(customerRegistry)
   );
 
 router

@@ -14,15 +14,7 @@ export const getJWKs = async (req, res) => {
   });
   res.setHeader('Content-Type', 'application/json');
   res.setHeader('Cache-Control', 'public, max-age=3600'); // Cache for 1 hour
-  return res.status(200).json(
-    ApiResponse.success(jwkSet, 'JWKs retrieved successfully', {
-      keyCount: jwkSet.keys.length,
-      algorithm: 'RS256',
-      keyUse: 'sig',
-      cacheable: true,
-      cacheDuration: '1 hour',
-    })
-  );
+  return res.status(200).json({ ...jwkSet });
 };
 /**
  * Get specific JWK by key ID

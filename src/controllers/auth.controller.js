@@ -49,6 +49,22 @@ export const signupUser = async (req, res) => {
   );
 };
 
+export const customerRegistry = async (req, res) => {
+  const { email, fullName, phone, country, otp } = req.body;
+
+  const result = await authService.customerRegistry({
+    email,
+    fullName,
+    phone,
+    country,
+    otp,
+  });
+
+  return res
+    .status(200)
+    .json(ApiResponse.success(result, 'Customer registered successfully'));
+};
+
 export const loginUser = async (req, res) => {
   const { email, password, type } = req.body;
 

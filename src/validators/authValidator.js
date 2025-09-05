@@ -120,6 +120,35 @@ export const authSchemas = {
     query: Joi.object({}).optional(),
     params: Joi.object({}).optional(),
   }),
+
+  // Customer Registry
+  customerRegistry: Joi.object({
+    body: Joi.object({
+      email: Joi.string().email().required().messages({
+        'string.email': 'Please provide a valid email address',
+        'any.required': 'Email is required',
+      }),
+      fullName: Joi.string().min(2).max(100).required().messages({
+        'string.min': 'Full name must be at least 2 characters long',
+        'string.max': 'Full name must not exceed 100 characters',
+        'any.required': 'Full name is required',
+      }),
+      phone: Joi.string()
+        .pattern(/^\+?[\d\s\-\(\)]+$/)
+        .required()
+        .messages({
+          'string.pattern.base': 'Please provide a valid phone number',
+        }),
+      country: Joi.string().optional().messages({
+        'any.required': 'Country is required',
+      }),
+      otp: Joi.number().required().messages({
+        'any.required': 'OTP is required',
+      }),
+    }).required(),
+    query: Joi.object({}).optional(),
+    params: Joi.object({}).optional(),
+  }),
 };
 
 // Export individual schemas for easy use
@@ -130,6 +159,7 @@ export const {
   verifyTwoFactor,
   forgotPassword,
   refreshToken,
+  customerRegistry,
 } = authSchemas;
 
 export default authSchemas;

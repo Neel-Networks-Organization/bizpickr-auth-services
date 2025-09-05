@@ -160,6 +160,10 @@ const coreConfig = {
       otpExpiry:
         parseInt(process.env.EMAIL_OTP_EXPIRY_HOURS || '1') * 60 * 60 * 1000,
       saltRounds: parseInt(process.env.EMAIL_SALT_ROUNDS || '10'),
+      revokedUntil:
+        parseInt(process.env.EMAIL_REVOKED_UNTIL_HOURS || '1') * 60 * 60 * 1000,
+      resendCooldown:
+        parseInt(process.env.EMAIL_RESEND_COOLDOWN_MINUTES || '1') * 60 * 1000,
     },
 
     // Session Service Configuration
@@ -201,6 +205,13 @@ const coreConfig = {
             windowMs:
               parseInt(process.env.AUTH_SIGNUP_WINDOW) || 15 * 60 * 1000,
             maxRequests: parseInt(process.env.AUTH_SIGNUP_LIMIT) || 5,
+          },
+          customerRegistry: {
+            windowMs:
+              parseInt(process.env.AUTH_CUSTOMER_REGISTRY_WINDOW) ||
+              15 * 60 * 1000,
+            maxRequests:
+              parseInt(process.env.AUTH_CUSTOMER_REGISTRY_LIMIT) || 5,
           },
           login: {
             windowMs: parseInt(process.env.AUTH_LOGIN_WINDOW) || 15 * 60 * 1000,

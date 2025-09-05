@@ -2,10 +2,12 @@ import { User } from '../models/index.model.js';
 import { safeLogger } from '../config/logger.js';
 import { ApiError } from '../utils/index.js';
 import { logAuditEvent } from './audit.service.js';
-import { cryptoService, oauthService } from './index.js';
+import { cryptoService, emailService, oauthService } from './index.js';
 import authCache from '../cache/auth.cache.js';
 import { Op } from 'sequelize';
 import { env } from '../config/env.js';
+import sequelize from '../db/index.js';
+import crypto from 'crypto';
 
 class AuthService {
   constructor() {
@@ -153,18 +155,15 @@ class AuthService {
     try {
       const { email, password } = loginData;
 
-      // Input validation
       if (!email || !password) {
         throw new ApiError(400, 'Email and password are required');
       }
 
-      // Add email format validation
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(email)) {
         throw new ApiError(400, 'Please provide a valid email address');
       }
 
-      // Add password strength validation
       if (password.length < this.securityConfig.passwordMinLength) {
         throw new ApiError(
           400,
@@ -179,7 +178,6 @@ class AuthService {
         );
       }
 
-      // Check if account is temporarily locked
       const lockoutKey = `lockout:${email}`;
       const lockoutStatus = await authCache.get(lockoutKey);
 
@@ -194,107 +192,57 @@ class AuthService {
           );
           throw new ApiError(
             429,
-            `Account temporarily locked due to ${lockoutStatus.attempts} failed attempts. Try again in ${remainingTime} minutes. Max attempts: ${this.securityConfig.maxLoginAttempts}`
+            `Account temporarily locked due to ${lockoutStatus.attempts} failed attempts. Try again in ${remainingTime} minutes.`
           );
         } else {
-          // Reset lockout after time expires
           await authCache.delete(lockoutKey);
         }
       }
 
       const user = await User.findOne({ where: { email } });
       if (!user) {
-        // Don't call handleFailedLogin for non-existent users
-        // This prevents user enumeration attacks
-        safeLogger.warn('Login attempt with non-existent email', {
-          email,
-          ipAddress: loginData.ipAddress,
-          userAgent: loginData.userAgent,
-        });
-        throw new ApiError(
-          401,
-          `Invalid email or password. After ${this.securityConfig.maxFailedAttempts} failed attempts, account will be locked for ${Math.ceil(this.securityConfig.accountLockDuration / 1000 / 60)} minutes.`
-        );
+        throw new ApiError(401, 'Invalid email or password');
       }
 
-      // Check if account is permanently locked by admin
       if (user.isLocked()) {
-        safeLogger.warn('Login attempt on locked account', {
-          userId: user.id,
-          email: user.email,
-          ipAddress: loginData.ipAddress,
-        });
         throw new ApiError(401, 'Account is locked. Please contact support.');
       }
 
-      // Check if account is suspended
       if (user.status === 'suspended') {
-        safeLogger.warn('Login attempt on suspended account', {
-          userId: user.id,
-          email: user.email,
-          ipAddress: loginData.ipAddress,
-        });
         throw new ApiError(
           401,
           'Account is suspended. Please contact support.'
         );
       }
 
-      // Check if account is pending verification
-      if (user.status === 'pending') {
-        safeLogger.info('Login attempt on pending account', {
-          userId: user.id,
-          email: user.email,
-          ipAddress: loginData.ipAddress,
-        });
-        throw new ApiError(
-          401,
-          'Account pending verification. Please check your email and verify your account before logging in.'
-        );
-      }
+      // if (user.status === 'pending') {
+      //   safeLogger.info('Login attempt on pending account', {
+      //     userId: user.id,
+      //     email: user.email,
+      //     ipAddress: loginData.ipAddress,
+      //   });
+      //   throw new ApiError(
+      //     401,
+      //     'Account pending verification. Please check your email and verify your account before logging in.'
+      //   );
+      // }
 
       const isPasswordCorrect = await user.isPasswordCorrect(password);
 
-      // Debug logging for password validation
-      safeLogger.debug('Password validation attempt', {
-        email: user.email,
-        userId: user.id,
-        passwordLength: password ? password.length : 0,
-        hashedPasswordExists: !!user.password,
-        isPasswordCorrect: isPasswordCorrect,
-        userStatus: user.status,
-        securityConfig: this.securityConfig, // Add security config for debugging
-        timestamp: new Date().toISOString(),
-      });
-
       if (!isPasswordCorrect) {
-        // Only track failed attempts for existing users
         await this.handleFailedLogin(email);
-        throw new ApiError(
-          401,
-          `Invalid email or password. After ${this.securityConfig.maxFailedAttempts} failed attempts, account will be locked for ${Math.ceil(this.securityConfig.accountLockDuration / 1000 / 60)} minutes.`
-        );
+        throw new ApiError(401, 'Invalid email or password');
       }
 
-      // Reset failed attempts on successful login
       await authCache.delete(lockoutKey);
-
-      // Reset database failed attempts counter
-      if (user.failedLoginAttempts > 0) {
-        await user.update({
-          failedLoginAttempts: 0,
-          lockedUntil: null,
-        });
-      }
 
       const { accessToken, refreshToken } =
         await cryptoService.generateTokens(user);
 
-      // Update last login timestamp in database
       await user.update({
         lastLoginAt: new Date(),
-        failedLoginAttempts: 0, // Reset failed attempts on successful login
-        lockedUntil: null, // Clear any locks on successful login
+        failedLoginAttempts: 0,
+        lockedUntil: null,
       });
 
       await authCache.storeUserSession(user.id, {
@@ -364,20 +312,17 @@ class AuthService {
       currentStatus.attempts += 1;
       currentStatus.timestamp = Date.now();
 
-      // Store for configured lockout duration
       await authCache.set(
         lockoutKey,
         currentStatus,
         this.securityConfig.lockoutDuration / 1000
       );
 
-      // Update database failed attempts counter
       const user = await User.findOne({ where: { email } });
       if (user) {
         const newFailedAttempts = user.failedLoginAttempts + 1;
         let lockedUntil = null;
 
-        // Lock account after max failed attempts for configured duration
         if (newFailedAttempts >= this.securityConfig.maxFailedAttempts) {
           lockedUntil = new Date(
             Date.now() + this.securityConfig.accountLockDuration
@@ -390,7 +335,6 @@ class AuthService {
         });
       }
 
-      // Log failed attempt
       await logAuditEvent('LOGIN_FAILED', {
         email,
         attempts: currentStatus.attempts,
@@ -834,6 +778,132 @@ class AuthService {
       return await oauthService.completeGoogleLogin(code, deviceInfo);
     } catch (error) {
       safeLogger.error('Google OAuth login failed', { error: error.message });
+      throw error;
+    }
+  }
+
+  async customerRegistry(customerData) {
+    try {
+      const { email, fullName, phone, country, otp } = customerData;
+
+      const verification = await emailService.verifyEmail(email, otp);
+
+      let user = await User.findOne({ where: { email } });
+      if (!user) {
+        const transaction = await sequelize.transaction();
+        try {
+          user = await User.create(
+            {
+              email,
+              type: 'customer',
+              role: 'customer',
+              status: 'active',
+              emailVerified: true,
+              emailVerifiedAt: new Date(),
+              lastLoginAt: new Date(),
+            },
+            { transaction }
+          );
+
+          await verification.update(
+            {
+              userId: user.id,
+            },
+            { transaction }
+          );
+
+          await transaction.commit();
+        } catch (error) {
+          safeLogger.error('Failed to create user', {
+            error: error.message,
+            email,
+          });
+          await transaction.rollback();
+          throw error;
+        }
+      }
+
+      // event to create customer profile in user service
+
+      const nickname = await this.generateUniqueNickname(fullName, email);
+
+      const { accessToken, refreshToken } =
+        await cryptoService.generateTokens(user);
+
+      await authCache.storeUserSession(user.id, {
+        userId: user.id,
+        email: user.email,
+        nickname,
+        role: user.role,
+        type: user.type,
+        status: user.status,
+        emailVerified: user.emailVerified,
+        createdAt: new Date().toISOString(),
+        lastLoginAt: new Date().toISOString(),
+      });
+
+      await logAuditEvent('CUSTOMER_REGISTERED', {
+        userId: user.id,
+        email: user.email,
+        fullName,
+        phone,
+        country,
+        verificationId: verification.id,
+        autoLoginEnabled: true,
+        nickname,
+      });
+
+      safeLogger.info('Customer registered and auto-logged in', {
+        userId: user.id,
+        email: user.email,
+        nickname,
+      });
+
+      return {
+        user: {
+          id: user.id,
+          email: user.email,
+          nickname,
+          type: user.type,
+          role: user.role,
+          status: user.status,
+          emailVerified: user.emailVerified,
+        },
+        tokens: {
+          accessToken,
+          refreshToken,
+        },
+      };
+    } catch (error) {
+      safeLogger.error('Customer registration failed', {
+        error: error.message,
+      });
+      throw error;
+    }
+  }
+
+  async managerRegistry(managerData) {
+    try {
+    } catch (error) {
+      safeLogger.error('Manager registration failed', {
+        error: error.message,
+      });
+      throw error;
+    }
+  }
+
+  async generateUniqueNickname(fullName, email) {
+    try {
+      const nameString = fullName.toLowerCase().replace(/\s+/g, '');
+      const emailString = email.toLowerCase().replace(/@/g, '');
+      const nickname = `${nameString}${emailString}`;
+      const hash = crypto.createHash('sha256').update(nickname).digest('hex');
+      const uniqueNickname = `${hash.slice(0, 8)}`;
+      return uniqueNickname;
+    } catch (error) {
+      safeLogger.error('Failed to generate unique nickname', {
+        error: error.message,
+      });
       throw error;
     }
   }

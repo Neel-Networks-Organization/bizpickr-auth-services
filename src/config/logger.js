@@ -60,8 +60,8 @@ const createLogFormat = (includeColors = false) => {
         }
 
         return JSON.stringify(logEntry);
-      },
-    ),
+      }
+    )
   );
 
   return winston.format.combine(...formats);
@@ -73,27 +73,27 @@ const consoleTransport = new winston.transports.Console({
   format:
     process.env.NODE_ENV === 'production'
       ? winston.format.combine(
-        // Production: Structured JSON logs
-        winston.format.timestamp(),
-        winston.format.errors({ stack: true }),
-        winston.format.json(),
-      )
+          // Production: Structured JSON logs
+          winston.format.timestamp(),
+          winston.format.errors({ stack: true }),
+          winston.format.json()
+        )
       : winston.format.combine(
-        // Development: Colored console logs with custom colors
-        winston.format.colorize({
-          all: true,
-          colors: logColors,
-        }),
-        winston.format.timestamp({
-          format: 'YYYY-MM-DD HH:mm:ss.SSS',
-        }),
-        winston.format.printf(({ timestamp, level, message, ...meta }) => {
-          const metaStr = Object.keys(meta).length
-            ? JSON.stringify(meta, null, 2)
-            : '';
-          return `${timestamp} [${level}]: ${message} ${metaStr}`;
-        }),
-      ),
+          // Development: Colored console logs with custom colors
+          winston.format.colorize({
+            all: true,
+            colors: logColors,
+          }),
+          winston.format.timestamp({
+            format: 'YYYY-MM-DD HH:mm:ss.SSS',
+          }),
+          winston.format.printf(({ timestamp, level, message, ...meta }) => {
+            const metaStr = Object.keys(meta).length
+              ? JSON.stringify(meta, null, 2)
+              : '';
+            return `${timestamp} [${level}]: ${message} ${metaStr}`;
+          })
+        ),
   handleExceptions: true,
   handleRejections: true,
 });
@@ -102,26 +102,26 @@ const consoleTransport = new winston.transports.Console({
 const fileTransport =
   process.env.NODE_ENV === 'production'
     ? new winston.transports.File({
-      // Production: Structured JSON logs to file
-      filename: 'logs/app.log',
-      level: 'info',
-      format: winston.format.combine(
-        winston.format.timestamp(),
-        winston.format.errors({ stack: true }),
-        winston.format.json(),
-      ),
-      maxsize: 10485760, // 10MB
-      maxFiles: 10,
-      tailable: true,
-    })
+        // Production: Structured JSON logs to file
+        filename: 'logs/app.log',
+        level: 'info',
+        format: winston.format.combine(
+          winston.format.timestamp(),
+          winston.format.errors({ stack: true }),
+          winston.format.json()
+        ),
+        maxsize: 10485760, // 10MB
+        maxFiles: 10,
+        tailable: true,
+      })
     : new winston.transports.File({
-      // Development: Simple error logs
-      filename: 'logs/error.log',
-      level: 'error',
-      format: createLogFormat(false),
-      maxsize: 5242880, // 5MB
-      maxFiles: 5,
-    });
+        // Development: Simple error logs
+        filename: 'logs/error.log',
+        level: 'error',
+        format: createLogFormat(false),
+        maxsize: 5242880, // 5MB
+        maxFiles: 5,
+      });
 
 // ✅ Create logger instance
 const logger = winston.createLogger({
@@ -140,7 +140,7 @@ export const safeLogger = {
   http: (message, meta = {}) => logger.http(message, meta),
   debug: (message, meta = {}) => {
     // Only log debug in development
-    if (process.env.NODE_ENV !== 'production') {
+    if (process.env.NODE_ENV !== 'development') {
       logger.debug(message, meta);
     }
   },
